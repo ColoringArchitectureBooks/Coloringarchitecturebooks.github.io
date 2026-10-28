@@ -1,0 +1,128 @@
+{
+ "name": "",
+ "swatches": {
+  "@roof_top": {
+   "file": "roof_top.png",
+   "coverage": 0.5
+  },
+  "@roof_under": {
+   "file": "roof_under.png",
+   "coverage": 0.45
+  },
+  "@wall": {
+   "file": "wall.png",
+   "coverage": 0.41
+  },
+  "@link": {
+   "file": "link.png",
+   "coverage": 0.01
+  },
+  "@lowtop": {
+   "file": "lowtop.png",
+   "coverage": 0.98
+  },
+  "@canopy": {
+   "file": "canopy.png",
+   "coverage": 0.57
+  },
+  "@column": {
+   "file": "column.png",
+   "coverage": 0.13
+  },
+  "@bollard": {
+   "file": "bollard.png",
+   "coverage": 0.98
+  },
+  "@car": {
+   "file": "car.png",
+   "coverage": 0.82
+  },
+  "@bush": {
+   "file": "bush.png",
+   "coverage": 1.0
+  },
+  "@walk": {
+   "file": "walk.png",
+   "coverage": 0.09
+  },
+  "@curb": {
+   "file": "curb.png",
+   "coverage": 0.1
+  }
+ },
+ "standees": {
+  "car": {
+   "color": "car-color.png",
+   "bw": "car-bw.png",
+   "width": 6.6,
+   "height": 2.813,
+   "at": [
+    [
+     20.0,
+     -10.0
+    ]
+   ]
+  },
+  "bush_a": {
+   "color": "bush_a-color.png",
+   "bw": "bush_a-bw.png",
+   "width": 1.9,
+   "height": 1.31,
+   "at": [
+    [
+     25.9,
+     -5.7
+    ],
+    [
+     6.5,
+     -1.3
+    ],
+    [
+     14.2,
+     -1.2
+    ]
+   ]
+  },
+  "bush_b": {
+   "color": "bush_b-color.png",
+   "bw": "bush_b-bw.png",
+   "width": 2.6,
+   "height": 1.36,
+   "at": [
+    [
+     28.6,
+     -7.6
+    ],
+    [
+     10.3,
+     -1.4
+    ]
+   ]
+  },
+  "bush_c": {
+   "color": "bush_c-color.png",
+   "bw": "bush_c-bw.png",
+   "width": 1.8,
+   "height": 0.979,
+   "at": [
+    [
+     33.4,
+     -3.3
+    ]
+   ]
+  },
+  "bush_d": {
+   "color": "bush_d-color.png",
+   "bw": "bush_d-bw.png",
+   "width": 3.3,
+   "height": 1.009,
+   "at": [
+    [
+     35.4,
+     -1.1
+    ]
+   ]
+  }
+ },
+ "matches": 401
+}
