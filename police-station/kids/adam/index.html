@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<title>Colored Police Station</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  /* Deliberately single-theme: a bright storybook sky behind the child's colored building. */
+  :root { --ink:#1d2433; --muted:#4f5b70; --sky-top:#cfe9ff; --sky-bottom:#fff8ec; --chip:#ffffffd9; }
+  html, body { margin:0; height:100%; overflow:hidden; color:var(--ink);
+    background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bottom) 70%);
+    font-family: "Fredoka", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  header { position:fixed; top:0; left:0; right:0; padding:max(14px, env(safe-area-inset-top)) 16px 0;
+    pointer-events:none; text-align:center; }
+  h1 { margin:0; font-size:clamp(22px, 5.5vw, 34px); font-weight:600; letter-spacing:.01em; }
+  h1 .by { display:inline-block; transform:rotate(-2deg); background:#fff; padding:2px 12px; border-radius:12px;
+    box-shadow:0 2px 0 #0002; }
+  .sub { margin-top:6px; font-size:15px; color:var(--muted); font-weight:500; }
+  .bar { position:fixed; left:50%; transform:translateX(-50%); bottom:max(16px, env(safe-area-inset-bottom));
+    display:flex; gap:8px; }
+  button { font:inherit; font-size:15px; border:2px solid var(--ink); background:var(--chip); color:var(--ink);
+    border-radius:999px; padding:8px 16px; cursor:pointer; white-space:nowrap; }
+  button[aria-pressed="true"] { background:var(--ink); color:#fff; }
+  #status { position:fixed; inset:0; display:grid; place-items:center; font-size:17px; color:var(--muted); }
+</style>
+
+<canvas id="c"></canvas>
+<header>
+  <h1><span class="by" id="by">Colored by a little artist</span></h1>
+  <div class="sub">Police Station 3D Model</div>
+</header>
+<div id="status">Getting the crayons out…</div>
+<div class="bar">
+  <button id="paint">Paint again</button>
+  <button id="spin" aria-pressed="false">Spin</button>
+  <button id="front">Front</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const canvas = document.getElementById("c");
+const status = document.getElementById("status");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xffffff, 0xfff4e0, 2.2));
+const sun = new THREE.DirectionalLight(0xffffff, 1.3);
+sun.position.set(-25, 40, 35);
+scene.add(sun);
+
+// three soft steps of light: a cartoon look that keeps the child's colours bright
+const steps = new Uint8Array([170, 215, 255]);
+const toon = new THREE.DataTexture(steps, steps.length, 1, THREE.RedFormat);
+toon.minFilter = toon.magFilter = THREE.NearestFilter;
+toon.needsUpdate = true;
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.5, 600);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.minDistance = 8;
+controls.maxDistance = 160;
+controls.maxPolarAngle = Math.PI / 2 - 0.03;
+controls.autoRotateSpeed = 1.2;
+
+const VIEWS = {
+  start: { dir: [-0.28, 0.14, 1], target: [1.5, 4, 4] },
+  front: { dir: [0, 0.05, 1], target: [0, 4, 4] },
+};
+function setView(v) {
+  const halfW = camera.aspect < 0.8 ? 21 : 25, halfH = 10;   // on phones let the far ends touch the edges
+  const vfov = THREE.MathUtils.degToRad(camera.fov);
+  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
+  const d = Math.max(halfW / Math.tan(hfov / 2), halfH / Math.tan(vfov / 2));
+  controls.target.set(...v.target);
+  camera.position.copy(controls.target).addScaledVector(new THREE.Vector3(...v.dir).normalize(), d);
+  controls.update();
+}
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.fov = w / h < 0.8 ? 55 : 40;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", resize);
+resize();
+setView(VIEWS.start);
+
+// The paint-in: every material blends from the black-and-white page to the child's colours as uProg sweeps across.
+const uProg = { value: -0.2 };
+function paintable(mat, bwMap, swatch) {
+  if (swatch) mat.defines = { USE_SWATCH: "" };
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uProg = uProg;
+    sh.uniforms.uBW = { value: bwMap };
+    sh.uniforms.uSwatch = { value: swatch };
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vWPos;\nvarying vec3 vWNrm;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvWNrm = normalize(mat3(modelMatrix) * normal);");
+    sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vWPos;\nvarying vec3 vWNrm;\nuniform float uProg;\nuniform sampler2D uBW;\nuniform sampler2D uSwatch;")
+      .replace("#include <map_fragment>", `
+        float rv = (vWPos.x + 22.0) / 44.0 + 0.05 * sin(vWPos.y * 1.3 + vWPos.z * 0.7) + 0.03 * sin(vWPos.y * 5.1);
+        float still = smoothstep(uProg - 0.05, uProg + 0.05, rv);
+        #ifdef USE_MAP
+          diffuseColor *= mix(texture2D(map, vMapUv), texture2D(uBW, vMapUv), still);
+        #elif defined(USE_SWATCH)
+          // plain faces (roofs, canopy, column, bollards) carry the child's own strokes, laid on in world space
+          vec3 an = abs(vWNrm);
+          vec2 suv = an.y > 0.6 ? vWPos.xz : (an.x > an.z ? vWPos.zy : vWPos.xy);
+          diffuseColor.rgb = mix(texture2D(uSwatch, suv / 3.2).rgb, vec3(1.0), still);
+        #else
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0), still);
+        #endif
+      `);
+  };
+  return mat;
+}
+
+const manager = new THREE.LoadingManager();
+const loader = new THREE.TextureLoader(manager);
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+function loadTex(path, tile) {
+  const t = loader.load(path);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = maxAniso;
+  if (tile) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+let paintStart = null;
+const standees = [];
+function paint() { uProg.value = -0.2; paintStart = performance.now() + 350; }
+
+try {
+  const [model, colors] = await Promise.all([
+    fetch("model.json").then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+    fetch("colors.json").then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+  ]);
+  if (colors.name) document.title = document.getElementById("by").textContent = `Colored by ${colors.name}`;
+
+  const building = new THREE.Group();
+  for (const g of model.groups) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(g.pos, 3));
+    if (g.tex) geo.setAttribute("uv", new THREE.Float32BufferAttribute(g.uv, 2));
+    geo.computeVertexNormals();
+    const sw = !g.tex && colors.swatches[g.key] ? loadTex(`swatches/${colors.swatches[g.key].file}`, true) : null;
+    const mat = new THREE.MeshToonMaterial({
+      gradientMap: toon,
+      color: 0xffffff,
+      map: g.tex ? loadTex(`textures-color/${g.key}.png`, g.tile) : null,
+      polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+    });
+    paintable(mat, g.tex ? loadTex(`textures/${g.key}.png`, g.tile) : null, sw);
+    building.add(new THREE.Mesh(geo, mat));
+  }
+  const eg = new THREE.BufferGeometry();
+  eg.setAttribute("position", new THREE.Float32BufferAttribute(model.edges, 3));
+  building.add(new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: 0x15171c })));
+  scene.add(building);
+
+  // pop-up pieces: the car and bushes cut straight out of the child's page, always turned toward the viewer
+  const [cx0, cz0] = [model.size[0] / 2, model.size[1] / 2];
+  for (const st of Object.values(colors.standees || {})) {
+    const mat = new THREE.MeshBasicMaterial({
+      map: loadTex(`standees/${st.color}`), alphaTest: 0.5, side: THREE.DoubleSide,
+    });
+    paintable(mat, loadTex(`standees/${st.bw}`));
+    for (const [x, y] of st.at) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(st.width, st.height), mat);
+      m.position.set(x - cx0, st.height / 2 + 0.02, -y + cz0);
+      standees.push(m);
+      scene.add(m);
+    }
+  }
+
+  // ground: white paper with the child's ground scribbles, fading out softly into the sky
+  const gc = document.createElement("canvas"); gc.width = gc.height = 256;
+  const gx = gc.getContext("2d");
+  const grad = gx.createRadialGradient(128, 128, 30, 128, 128, 128);
+  grad.addColorStop(0, "#fff"); grad.addColorStop(0.55, "#fff"); grad.addColorStop(1, "#000");
+  gx.fillStyle = grad; gx.fillRect(0, 0, 256, 256);
+  const fade = new THREE.CanvasTexture(gc);
+  const gmat = new THREE.MeshBasicMaterial({ color: 0xffffff, alphaMap: fade, transparent: true, depthWrite: false });
+  if (colors.swatches.ground) {
+    const gt = loadTex(`swatches/${colors.swatches.ground.file}`, true);
+    gt.repeat.set(14, 14);
+    gmat.map = gt;
+    gmat.onBeforeCompile = (sh) => {   // alphaMap must not repeat with the scribbles
+      sh.fragmentShader = sh.fragmentShader.replace("#include <alphamap_fragment>",
+        "diffuseColor.a *= texture2D(alphaMap, vAlphaMapUv).g;");
+    };
+  }
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(55, 64), gmat);
+  ground.rotation.x = -Math.PI / 2; ground.position.y = -0.02;
+  scene.add(ground);
+
+  manager.onLoad = () => { status.remove(); paint(); };
+} catch (e) {
+  status.textContent = "Couldn't load the building. Please refresh the page.";
+}
+
+document.getElementById("paint").onclick = paint;
+const spinBtn = document.getElementById("spin");
+spinBtn.onclick = () => {
+  controls.autoRotate = !controls.autoRotate;
+  spinBtn.setAttribute("aria-pressed", controls.autoRotate);
+};
+document.getElementById("front").onclick = () => setView(VIEWS.front);
+
+renderer.setAnimationLoop((t) => {
+  if (paintStart !== null) {
+    const k = Math.min(1, Math.max(0, (performance.now() - paintStart) / 3200));
+    uProg.value = -0.2 + 1.45 * (k * k * (3 - 2 * k));      // smooth sweep, left to right
+    if (k >= 1) paintStart = null;
+  }
+  controls.update();
+  for (const m of standees) m.rotation.y = Math.atan2(camera.position.x - m.position.x, camera.position.z - m.position.z);
+  renderer.render(scene, camera);
+});
+</script>
