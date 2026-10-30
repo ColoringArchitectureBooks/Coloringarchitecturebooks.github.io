@@ -63,6 +63,13 @@ function makeTexturesBW() {
     for (const z of [0.6, 1.5, 2.4, 3.3]) { const y = h - z * 128; g.fillStyle = "#fff"; g.fillRect(0, y - 9, w, 18); g.fillStyle = "#000"; g.fillRect(0, y - 10, w, 3); g.fillRect(0, y + 8, w, 3); }
   });
   TEX.beige = canvasTex(512, 512, (g, w, h) => lineBrick(g, w, h, 0.4, 0.8, 128, 1.3));   // split-face block on the side/back walls (photos)
+  TEX.plant = canvasTex(512, 512, (g, w, h) => {                   // 4 x 4 m: grass tufts in line, for the planted beds
+    g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.strokeStyle = "#000"; g.lineWidth = 2; g.lineCap = "round";
+    let k = 1; const rnd = () => (k = (k * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 90; i++) { const x = rnd() * w, y = rnd() * h;
+      for (const a of [-0.5, 0, 0.5]) { g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.sin(a) * 12, y - Math.cos(a) * 14); g.stroke(); } }
+  });
+  TEX.plant.repeat.set(0.25, 0.25);
   TEX.white = TEX.asphalt = null;
   TEX.page = new THREE.TextureLoader().load(new URL("./page.png", import.meta.url).href); TEX.page.colorSpace = THREE.SRGBColorSpace; TEX.page.anisotropy = 8;
   TEX.logo = canvasTex(256, 256, (g, w, h) => {
@@ -149,6 +156,7 @@ function matsBW() {
   M.page = L({ map: TEX.page });
   for (const k of ["white", "roof", "cap", "red", "glass", "frame", "dark", "metal", "asphalt", "walk", "grass", "mulch", "tree", "trunk", "trailer", "concrete", "ballRed"]) M[k] = W;
   M.block = M.panel = M.page;
+  M.plant = L({ map: TEX.plant });
   M.line = new THREE.MeshBasicMaterial({ color: 0x000000 });
   M.logo = L({ map: TEX.logo, transparent: true, alphaTest: 0.5 });
 }
@@ -159,7 +167,7 @@ function mats() {
   M.block = L({ map: TEX.block }); M.red = L({ color: 0xd42e2a }); M.panel = L({ map: TEX.panel });
   M.glass = new THREE.MeshPhongMaterial({ color: 0x8fb3c9, specular: 0xffffff, shininess: 80 });
   M.frame = L({ color: 0xc9cdd1 }); M.dark = L({ color: 0x2b2f33 }); M.metal = L({ color: 0xb8bcbf });
-  M.asphalt = L({ map: TEX.asphalt }); M.walk = L({ color: 0xd8d2c4 }); M.grass = L({ color: 0x7fae5a });
+  M.asphalt = L({ map: TEX.asphalt }); M.walk = L({ color: 0xd8d2c4 }); M.grass = M.plant = L({ color: 0x7fae5a });
   M.mulch = L({ color: 0x8a6a4a }); M.line = L({ color: 0xffffff }); M.tree = L({ color: 0x6d9e4f }); M.trunk = L({ color: 0x6b4f37 });
   M.trailer = L({ color: 0xf4f4f2 }); M.concrete = L({ color: 0xc8c6c0 }); M.logo = L({ map: TEX.logo, transparent: true, alphaTest: 0.5 });
   M.ballRed = new THREE.MeshPhongMaterial({ color: 0xd42e2a, shininess: 60 });
@@ -310,20 +318,22 @@ function site(root) {
   for (const bx of [0, 18.3, 36.6, 54.9, 73.2, 104, 122.3, 140.6, 158.9]) {
     for (const [ya, yb] of [[-83, -26], [-148, -90]]) {
       rowsAt(bx + 5.5, ya, yb);
-      slab(root, [[bx + 4.5, ya - 3.2], [bx + 6.5, ya - 3.2], [bx + 6.5, ya], [bx + 4.5, ya]], 0, 0.15, M.mulch);
+      slab(root, [[bx, ya - 3.2], [bx + 11, ya - 3.2], [bx + 11, ya], [bx, ya]], 0, 0.15, M.plant);
       tree(root, bx + 5.5, ya - 1.6, 5.5, 1.6);
+      if (yb === -26) slab(root, [[bx, yb], [bx + 11, yb], [bx + 11, yb + 3.2], [bx, yb + 3.2]], 0, 0.15, M.plant);   // planted head of the row, by the store
     }
   }
   for (const bx of [138, 156.3]) rowsAt(bx + 5.5, -6, 70);
   slab(root, [[93.5, -152], [99.5, -152], [99.5, -20], [93.5, -20]], 0, 0.15, M.walk);
   if (!BW) for (let y = -30; y > -146; y -= 14) { tree(root, 92, y, 6, 1.8); tree(root, 101, y, 6, 1.8); }   // the page keeps this aisle open
-  slab(root, [[-14, -156], [178, -156], [178, -151], [-14, -151]], 0, 0.15, M.grass);
+  slab(root, [[-14, -156], [178, -156], [178, -151], [-14, -151]], 0, 0.15, M.plant);
   for (let x = -8; x < 178; x += 16) tree(root, x, -153.5, 8, 2.6);
-  slab(root, [[136, 72], [178, 72], [178, 76], [136, 76]], 0, 0.15, M.grass);
+  slab(root, [[136, 72], [178, 72], [178, 76], [136, 76]], 0, 0.15, M.plant);
   for (let x = 140; x < 178; x += 10) tree(root, x, 74, 7, 2.2);
   // planters along the front (page foreground) + small trees by the left corner
   if (!BW) for (const [x0, x1] of [[30, 42], [52, 64]]) { slab(root, [[x0, -11], [x1, -11], [x1, -8], [x0, -8]], 0, 0.45, M.mulch); tree(root, (x0 + x1) / 2, -9.5, 6, 1.8); }
-  tree(root, -8, -8, 7, 2.2); tree(root, -9, 10, 7, 2.2);
+  slab(root, [[-12, -12], [-5, -12], [-5, 28], [-12, 28]], 0, 0.15, M.plant);   // bed by the left corner
+  tree(root, -8.5, -8, 7, 2.2); tree(root, -8.5, 10, 7, 2.2);
 }
 
 export function buildScene(scene, opts = {}) {
@@ -372,9 +382,10 @@ function standees(root) {
   for (const k in ST) { const t = L.load(new URL(`./standees/${k}.png`, import.meta.url).href); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
     mats[k] = new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.5, side: THREE.DoubleSide }); }
   const put = (k, x, y, s = 1) => { const [w, h] = ST[k]; const m = new THREE.Mesh(new THREE.PlaneGeometry(w * s, h * s), mats[k]);
-    m.position.copy(V(x, y, h * s / 2 + 0.02)); m.userData.standee = true; root.add(m); STANDEES.push(m); };
+    m.position.copy(V(x, y, h * s / 2 + (k === "car" ? 0.02 : 0.15))); m.userData.standee = true; root.add(m); STANDEES.push(m); };
   // the page's group in front of the entrance: back planter, front planter with the tree, the car in the aisle
-  put("bush_b", 88.5, -23); put("bush_a", 83.5, -29); put("tree", 84.5, -29.5, 0.72); put("car", 101.5, -25);
+  // bushes and the page tree only on the planted heads of the rows (x 73.2-84.2 and 54.9-65.9, y -26 to -22.8)
+  put("bush_a", 78.7, -24.4); put("tree", 79.5, -24.6, 0.72); put("bush_b", 60.4, -24.4); put("car", 101.5, -25);
   for (const [x, y, h] of TREES) put("tree", x, y, h / 7.5);
   // a few more of the page's car in the stalls nearest the door
   for (const [x, y] of [[76, -33], [81.4, -38.4], [76, -46.5], [106.9, -35.7], [112.4, -44], [106.9, -51.1], [127.8, -30.3], [58, -41]]) put("car", x, y);
