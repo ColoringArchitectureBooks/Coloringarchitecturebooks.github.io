@@ -334,7 +334,7 @@ function building(root) {
   const a = D.annex;
   for (const [A, C] of [[[a.x0, a.y0], [a.x1, a.y0]], [[a.x0, a.y1], [a.x0, a.y0]], [[a.x1, a.y0], [a.x1, 0]]]) wall(root, A, C, 0, a.h, M.beige);
   flat(root, [[a.x0, a.y0], [a.x1, a.y0], [a.x1, a.y1], [a.x0, a.y1]], a.h, M.roof);
-  box(root, a.x0 - 0.1, a.x1 + 0.1, a.y0 - 0.1, a.y1, a.h, a.h + 0.2, M.cap);
+  capStrip(root, [[a.x0, a.y1], [a.x0, a.y0], [a.x1, a.y0], [a.x1, 0]], a.h, 0.1, 0.2);   // parapet on the three free sides only, stopping at the main walls
   box(root, 9.5, 17.5, a.y0 - 0.05, a.y0, 0.5, 2.9, M.glass);
   for (const x of [9.5, 11.5, 13.5, 15.5, 17.5]) box(root, x - 0.08, x + 0.08, a.y0 - 0.1, a.y0, 0.5, 2.9, M.frame);
   box(root, 9.2, 17.8, a.y0 - 0.9, a.y0, 2.95, 3.15, M.frame);  // small overhang
@@ -365,7 +365,7 @@ function site(root) {
   const n = foot.length, nrm = (i) => { const [ax, ay] = foot[i], [bx, by] = foot[i + 1], l = Math.hypot(bx - ax, by - ay); return [(by - ay) / l, -(bx - ax) / l]; };
   const off = foot.map((P, i) => { const a = nrm(Math.max(i - 1, 0)), b = nrm(Math.min(i, n - 2)); return i > 0 && i < n - 1 ? [a[0] + b[0], a[1] + b[1]] : a; });
   const fo = foot.map((P, i) => [P[0] + off[i][0] * 0.2, P[1] + off[i][1] * 0.2]);
-  for (let i = 0; i < n - 1; i++) flat(root, [foot[i], foot[i + 1], fo[i + 1], fo[i]], 0.152, M.line);   // one mitred quad per wall
+  for (let i = 0; i < n - 1; i++) flat(root, [foot[i], foot[i + 1], fo[i + 1], fo[i]], 0.17, M.line);   // one mitred quad per wall (clear of the walk top, no depth fight)
   slab(root, [[0, -4.9], [114, -4.9], [114, 3], [0, 3]], 0, 0.15, M.walk);
   // parking: double rows perpendicular to the front, stalls 2.7 x 5.5, aisles 7.3
   const lineAt = (x0, y0, x1, y1) => { const w = 0.12; flat(root, x0 === x1 ? [[x0 - w, y0], [x0 + w, y0], [x0 + w, y1], [x0 - w, y1]] : [[x0, y0 - w], [x1, y0 - w], [x1, y0 + w], [x0, y0 + w]], 0.02, M.line); };
