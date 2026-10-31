@@ -77,12 +77,14 @@ function makeTexturesBW() {
     g.strokeStyle = "#111"; g.lineWidth = 3;
     for (const m of [2.01, 4.51, 9.86, 12.47, 14.56]) { g.beginPath(); g.moveTo(xm(m), zt(10.5)); g.lineTo(xm(m), h); g.stroke(); }
     for (const z of [10.5, 9.5, 5.96]) { g.beginPath(); g.moveTo(0, zt(z)); g.lineTo(w, zt(z)); g.stroke(); }
-    g.font = `900 ${Math.round(zt(7.0) - zt(8.5))}px "DejaVu Sans", sans-serif`;
+    g.font = `900 ${Math.round(zt(7.0) - zt(8.5))}px "Arial Black", "Helvetica Neue", Arial, "DejaVu Sans", sans-serif`;
     g.textBaseline = "bottom"; g.lineJoin = "round";
     const tw = g.measureText("SUPERMARKET").width, sx = (xm(12.1) - xm(0.8)) / tw;
     g.save(); g.translate(xm(0.8), zt(7.0)); g.scale(sx, 1);
-    g.fillStyle = "#ffffff"; g.lineWidth = 16; g.strokeStyle = "#ffffff"; g.strokeText("SUPERMARKET", 0, 0);   // clear the grid round the letters
-    g.lineWidth = 5; g.strokeStyle = "#111"; g.strokeText("SUPERMARKET", 0, 0); g.fillText("SUPERMARKET", 0, 0); g.restore();
+    g.lineWidth = 34; g.strokeStyle = "#ffffff"; g.strokeText("SUPERMARKET", 0, 0);   // clear the grid round the letters
+    // raised letters: a dark offset copy reads as the letter depth, then the bold outlined face on top (Ahmed: thicker / 3D)
+    for (let k = 1; k <= 10; k++) { g.lineWidth = 12; g.strokeStyle = "#111"; g.strokeText("SUPERMARKET", k, k); g.fillStyle = "#111"; g.fillText("SUPERMARKET", k, k); }
+    g.lineWidth = 12; g.strokeStyle = "#111"; g.strokeText("SUPERMARKET", 0, 0); g.fillStyle = "#ffffff"; g.fillText("SUPERMARKET", 0, 0); g.restore();
   }, false);
   TEX.page = new THREE.TextureLoader().load(new URL("./page.png", import.meta.url).href); TEX.page.colorSpace = THREE.SRGBColorSpace; TEX.page.anisotropy = 8;
   TEX.logo = canvasTex(256, 256, (g, w, h) => {
@@ -319,6 +321,12 @@ function building(root) {
   }
   box(root, c.x0, c.x1, c.y0, c.y1, c.z0, c.z1, M.white);
   box(root, c.x0 - 0.05, c.x1 + 0.05, c.y0 - 0.05, c.y0, c.z0, c.z1, M.frame);
+  if (BW) {   // where the canopy runs into the SUPERMARKET block: draw the meeting line (no shared edge there otherwise) (Ahmed)
+    const yb = b.y0 - 0.02, pts = [];
+    for (const z of [c.z0 - 0.02, c.z1 + 0.02]) pts.push(V(c.x0, yb, z), V(b.x1, yb, z), V(b.x1 + 0.01, b.y0, z), V(b.x1 + 0.01, c.y1, z));
+    pts.push(V(c.x0, yb, c.z0), V(c.x0, yb, c.z1));
+    root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x000000 })));
+  }
   if (!BW) for (let x = c.x0 + 1; x < c.x1; x += 1.7) box(root, x - 0.15, x + 0.15, c.y0 + 0.2, c.y0 + 0.5, c.z0 - 0.02, c.z0, M.dark);   // canopy lights
   // (6) panel with the circle
   const p = D.panel;
@@ -399,7 +407,6 @@ function site(root) {
   for (let x = 140; x < 178; x += 10) tree(root, x, 74, 7, 2.2);
   // planters along the front (page foreground) + small trees by the left corner
   if (!BW) for (const [x0, x1] of [[30, 42], [52, 64]]) { slab(root, [[x0, -11], [x1, -11], [x1, -8], [x0, -8]], 0, 0.45, M.mulch); tree(root, (x0 + x1) / 2, -9.5, 6, 1.8); }
-  slab(root, [[-12, -12], [-5, -12], [-5, 28], [-12, 28]], 0, 0.15, M.plant);   // bed by the left corner
   tree(root, -8.5, -8, 7, 2.2); tree(root, -8.5, 10, 7, 2.2);
 }
 
