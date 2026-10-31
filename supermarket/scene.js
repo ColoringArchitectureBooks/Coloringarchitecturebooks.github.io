@@ -142,6 +142,13 @@ function wall(root, A, B, z0, z1, mat, tw = 4, th = 4, vfix = false) {
   const uv = vfix ? [0, 0, len / tw, 1] : [0, z0 / th, len / tw, z1 / th];
   root.add(quad(V(A[0], A[1], z0), V(B[0], B[1], z0), V(B[0], B[1], z1), V(A[0], A[1], z1), mat, uv));
 }
+// front face (facing -y) at depth y as one polygon in (x, z), so a stepped top leaves no seam line
+function frontFace(root, y, pts, mat) {
+  const g = new THREE.ShapeGeometry(new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(x, z))));
+  const p = g.attributes.position, uv = g.attributes.uv;
+  for (let i = 0; i < p.count; i++) { uv.setXY(i, p.getX(i) / 4, p.getY(i) / 4); p.setZ(i, -y); }
+  g.computeVertexNormals(); const m = new THREE.Mesh(g, mat); root.add(m); return m;
+}
 const M = {};
 // front faces: in BW the UVs point at the page (page pixels), otherwise 0..1 over the face
 function setUV(mesh, x0, x1, z0, z1) {
@@ -176,6 +183,14 @@ function box(root, x0, x1, y0, y1, z0, z1, mat) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, z1 - z0, y1 - y0), mat);
   m.position.copy(V((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)); m.castShadow = m.receiveShadow = true; root.add(m); return m;
 }
+// parapet cap along an open path of the footprint (CCW order), d outside and inside the wall line, mitred corners, one piece
+function capStrip(root, path, z, d, h) {
+  const n = path.length, nrm = (i) => { const [ax, ay] = path[i], [bx, by] = path[i + 1], l = Math.hypot(bx - ax, by - ay); return [(by - ay) / l, -(bx - ax) / l]; };
+  const off = path.map((P, i) => { const a = i > 0 ? nrm(i - 1) : nrm(0), b = i < n - 1 ? nrm(i) : nrm(n - 2);
+    return [a[0] + b[0] - (a[0] * b[0] + a[1] * b[1]) * (i > 0 && i < n - 1 ? 0 : a[0]), a[1] + b[1] - (a[0] * b[0] + a[1] * b[1]) * (i > 0 && i < n - 1 ? 0 : a[1])]; });
+  const pts = [...path.map((P, i) => [P[0] + off[i][0] * d, P[1] + off[i][1] * d]), ...path.map((P, i) => [P[0] - off[i][0] * d, P[1] - off[i][1] * d]).reverse()];
+  slab(root, pts, z, z + h, M.cap);
+}
 function flat(root, pts, z, mat, tile = 4) {
   const s = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
   const g = new THREE.ShapeGeometry(s); g.rotateX(-Math.PI / 2);
@@ -209,21 +224,23 @@ function building(root) {
   for (let i = 0; i < pts.length; i++) {
     const A = pts[i], C = pts[(i + 1) % pts.length];
     const front = (A[1] <= 0 && C[1] <= 0 && A[1] === C[1]);   // front faces (y <= 0, parallel to x)
-    if (front && BW && Math.min(A[0], C[0]) >= 73) wall(root, A, C, 0, R, M.brick);   // the page draws plain brick here
+    if (A[0] === 73 && C[0] === 73) continue;                   // hidden behind the block's left side
+    if (front && Math.min(A[0], C[0]) >= 73) {                  // right section front: one brick face up to its parapet, none behind the block
+      frontFace(root, A[1], [[D.blk.x1, 0], [114, 0], [114, R], [D.low.x0, R], [D.low.x0, D.rsTop], [D.blk.x1, D.rsTop]], M.brick); continue;
+    }
     else if (front && A[0] >= 18.6) { wall(root, A, C, 0, B, M.band, 4, B, true); wall(root, A, C, B, R, M.brick); }
     else { wall(root, A, C, 0, B, M.band, 4, B, true); wall(root, A, C, B, R, M.beige); }
   }
   flat(root, FOOT, R, M.roof, 6);
   // parapet cap
-  for (let i = 0; i < FOOT.length; i++) { const A = FOOT[i], C = FOOT[(i + 1) % FOOT.length]; box(root, Math.min(A[0], C[0]) - 0.15, Math.max(A[0], C[0]) + 0.15, Math.min(A[1], C[1]) - 0.15, Math.max(A[1], C[1]) + 0.15, R, R + 0.2, M.cap); }
+  capStrip(root, [[D.low.x0, -5], [114, -5], [114, 90.5], [93, 90.5], [93, 95.5], [82.7, 95.5], [82.7, 105], [0, 105], [0, 3], [18.6, 3], [18.6, 0], [73, 0]], R, 0.15, 0.2);
   // light lower sections on the two sides (photos: plain white/cream panel along the side walls)
-  wall(root, [0, 62], [0, 30], 0.02, 3.8, M.white); root.children.at(-1).position.x -= 0.03;
-  wall(root, [114, 8], [114, 40], 0.02, 3.8, M.white); root.children.at(-1).position.x += 0.03;
+  if (!BW) { wall(root, [0, 62], [0, 30], 0.02, 3.8, M.white); root.children.at(-1).position.x -= 0.03;
+    wall(root, [114, 8], [114, 40], 0.02, 3.8, M.white); root.children.at(-1).position.x += 0.03; }
 
   // right section: raised brick front (x 73..112 at 9.5, 112..114 at 7.8 as on the page)
   const y0 = D.rsY, yb = D.rsBack;
   // raised parapet over the entrance part (x blk.x1..112); the last 2 m stay at the main roof height, lower, as on the page
-  wall(root, [D.blk.x1, y0], [D.low.x0, y0], R, D.rsTop, M.brick);
   wall(root, [D.low.x0, y0], [D.low.x0, yb], R, D.rsTop, M.brick);
   wall(root, [D.low.x0, yb], [D.blk.x1, yb], R, D.rsTop, M.beige);
   flat(root, [[D.blk.x1, y0], [D.low.x0, y0], [D.low.x0, yb], [D.blk.x1, yb]], D.rsTop, M.roof);
@@ -239,7 +256,7 @@ function building(root) {
   wall(root, [b.x1, b.y0], [b.x1, b.y1], D.rsTop, b.h, M.red);
   wall(root, [b.x1, b.y1], [b.x0, b.y1], R, b.h, M.red);
   flat(root, [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1]], b.h, M.roof);
-  box(root, b.x0, b.x1, b.y0 - 0.2, b.y0 + 0.1, b.h, b.h + 0.15, M.cap);
+  if (!BW) box(root, b.x0, b.x1, b.y0 - 0.2, b.y0 + 0.1, b.h, b.h + 0.15, M.cap);
   // windows under the small canopy (white base, page: 4 bays)
   const sc = D.smallCanopy;
   for (let i = 0; i < 4; i++) { const x0 = sc.x0 + 0.5 + i * (sc.x1 - sc.x0 - 1) / 4, x1 = x0 + (sc.x1 - sc.x0 - 1) / 4 - 0.25; box(root, x0, x1, b.y0 - 0.05, b.y0, 0.6, 3.1, M.glass); }
@@ -248,28 +265,29 @@ function building(root) {
 
   // (3) entrance (Ahmed): the glass is at the front, under the canopy edge. The 4 "columns" are wide white metal
   // mullions in the glass plane, and a wide white band across the middle splits the ground floor (doors) from the upper glass.
-  const c = D.canopy, cols = c.cols, yf = c.y0 + 0.6, ex0 = cols[0] - 0.35, ex1 = cols[3] + 0.35;
-  const BAND = [2.8, 3.4], TOP = 6.9, PW = 0.22;                                              // band 0.6 m, piers 0.45 m (page)
-  wall(root, [ex0, yf + 0.03], [ex1, yf + 0.03], 0.15, TOP, BW ? M.page : M.glass, 1, 1, true);  // front glass (page pixels in BW)
-  setUV(root.children.at(-1), ex0, ex1, 0.15, TOP);
-  for (const xs of [ex0, ex1]) box(root, xs - 0.03, xs + 0.03, yf, xs < 90 ? D.blk.y0 : y0, 0.15, TOP, M.glass);   // side returns
-  for (const xs of [ex0, ex1]) box(root, xs - 0.1, xs + 0.1, yf, xs < 90 ? D.blk.y0 : y0, BAND[0], BAND[1], M.white);   // band carries on round the sides
+  const c = D.canopy, cols = c.cols, yf = c.y0 + 0.6;
+  const BAND = [2.8, 3.4], TOP = 6.9, PW = 0.22, ex0 = cols[0] - PW, ex1 = cols[3] + PW;          // band 0.6 m, piers 0.45 m (page)
+  const glass = (A, B) => { wall(root, A, B, 0.3, TOP, M.glass); if (BW) root.children.at(-1).userData.noEdge = true; };   // the parts around it draw its outline
+  glass([ex0, yf], [ex1, yf]);
+  for (const [xs, back, dx] of [[ex0, D.blk.y0, 1], [ex1, y0, -1]]) {                       // side returns: glass, band and head flush with the corner pier
+    glass([xs, back], [xs, yf + 0.2]);
+    const xa = Math.min(xs, xs + dx * 0.3), xb = Math.max(xs, xs + dx * 0.3);
+    box(root, xa, xb, yf + 0.2, back, BAND[0], BAND[1], M.white);
+    box(root, xa, xb, yf + 0.2, back, TOP, c.z0, M.white);
+    box(root, xa, xb, yf + 0.2, back, 0.15, 0.3, M.white);
+  }
   for (const x of cols) box(root, x - PW, x + PW, yf - 0.2, yf + 0.2, 0.15, c.z0, M.white);   // white metal piers
-  box(root, ex0, ex1, yf - 0.15, yf + 0.15, BAND[0], BAND[1], M.white);                       // middle band (floor line)
-  box(root, ex0, ex1, yf - 0.1, yf + 0.1, TOP, c.z0, M.white);                                 // head under the canopy
-  box(root, ex0, ex1, yf - 0.12, yf + 0.12, 0.15, 0.3, M.white);                               // sill
+  for (const [z0, z1] of [BAND, [TOP, c.z0], [0.15, 0.3]]) for (let i = 0; i < 3; i++) box(root, cols[i] + PW, cols[i + 1] - PW, yf - 0.15, yf + 0.15, z0, z1, M.white);   // band, head, sill between the piers
   for (let i = 0; i < 3; i++) {
-    const a = cols[i] + PW, b = cols[i + 1] - PW;
-    const up = i === 0 ? 2 : 3;                                                                // upper panes per bay, as on the page
-    if (!BW) {   // in BW the page's own mullions and doors are on the glass texture
-      for (let k = 1; k < up; k++) { const x = a + (b - a) * k / up; box(root, x - 0.06, x + 0.06, yf - 0.1, yf, BAND[1], TOP, M.white); }
-      for (let k = 1; k < 4; k++) { const x = a + (b - a) * k / 4; box(root, x - 0.08, x + 0.08, yf - 0.1, yf, 0.15, BAND[0], M.white); }   // door leaves
-      box(root, a, b, yf - 0.1, yf, 2.2, 2.3, M.white);                                       // door head
-    }
+    const a = cols[i] + PW, b = cols[i + 1] - PW, up = i === 0 ? 2 : 3;                         // upper panes per bay, as on the page
+    for (let k = 1; k < up; k++) { const x = a + (b - a) * k / up; box(root, x - 0.06, x + 0.06, yf - 0.08, yf, BAND[1], TOP, M.white); }
+    box(root, a, b, yf - 0.08, yf, 2.2, 2.35, M.white);                                         // door head
+    for (let k = 1; k < 4; k++) { const x = a + (b - a) * k / 4; box(root, x - 0.07, x + 0.07, yf - 0.08, yf, 0.3, 2.2, M.white); }   // door leaves
+    for (let k = 0; k < 4; k++) { const x = a + (b - a) * (k + 0.5) / 4; box(root, x - 0.03, x + 0.03, yf - 0.12, yf - 0.08, 0.9, 1.3, M.white); }   // pull handles
   }
   box(root, c.x0, c.x1, c.y0, c.y1, c.z0, c.z1, M.white);
   box(root, c.x0 - 0.05, c.x1 + 0.05, c.y0 - 0.05, c.y0, c.z0, c.z1, M.frame);
-  for (let x = c.x0 + 1; x < c.x1; x += 1.7) box(root, x - 0.15, x + 0.15, c.y0 + 0.2, c.y0 + 0.5, c.z0 - 0.02, c.z0, M.dark);   // canopy lights
+  if (!BW) for (let x = c.x0 + 1; x < c.x1; x += 1.7) box(root, x - 0.15, x + 0.15, c.y0 + 0.2, c.y0 + 0.5, c.z0 - 0.02, c.z0, M.dark);   // canopy lights
   // (6) panel with the circle
   const p = D.panel;
   box(root, p.x0, p.x1, y0 - 0.3, y0, 0.15, p.h, M.red);
