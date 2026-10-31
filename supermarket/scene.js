@@ -13,7 +13,7 @@ export const D = {
   glass: { x0: 89.8, x1: 103.5 },
   panel: { x0: 104.3, x1: 109.6, h: 6.75 },
   low: { x0: 112, h: 7.8 },
-  smallCanopy: { x0: 74.4, x1: 82.4, y0: -7.5, z0: 3.3, z1: 4.1 },
+  smallCanopy: { x0: 74.4, x1: 82.4, y0: -7.5, z0: 3.55, z1: 3.8 },
   annex: { x0: 6.1, x1: 18.6, y0: -3, y1: 3, h: 4.5 },
   band: 3.6,            // brick band with light stripes at the bottom of the side/back walls
 };
@@ -281,7 +281,7 @@ function building(root) {
 
   // (4) low box at the left corner, windows on its front
   const a = D.annex;
-  for (const [A, C] of [[[a.x0, a.y0], [a.x1, a.y0]], [[a.x0, a.y1], [a.x0, a.y0]]]) wall(root, A, C, 0, a.h, M.beige);
+  for (const [A, C] of [[[a.x0, a.y0], [a.x1, a.y0]], [[a.x0, a.y1], [a.x0, a.y0]], [[a.x1, a.y0], [a.x1, 0]]]) wall(root, A, C, 0, a.h, M.beige);
   flat(root, [[a.x0, a.y0], [a.x1, a.y0], [a.x1, a.y1], [a.x0, a.y1]], a.h, M.roof);
   box(root, a.x0 - 0.1, a.x1 + 0.1, a.y0 - 0.1, a.y1, a.h, a.h + 0.2, M.cap);
   box(root, 9.5, 17.5, a.y0 - 0.05, a.y0, 0.5, 2.9, M.glass);
