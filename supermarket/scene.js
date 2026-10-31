@@ -15,7 +15,7 @@ export const D = {
   low: { x0: 112, h: 7.8 },
   smallCanopy: { x0: 74.4, x1: 82.4, y0: -7.5, z0: 3.55, z1: 3.8 },
   annex: { x0: 6.1, x1: 18.6, y0: -3, y1: 3, h: 4.5 },
-  band: 3.6,            // brick band with light stripes at the bottom of the side/back walls
+  band: 11 / 3,         // 11 brick rows, so the band top falls on a mortar line            // brick band with light stripes at the bottom of the side/back walls
 };
 const FOOT = [[0, 3], [18.6, 3], [18.6, 0], [73, 0], [73, -5], [114, -5], [114, 90.5], [93, 90.5], [93, 95.5], [82.7, 95.5], [82.7, 105], [0, 105]];
 
@@ -212,8 +212,8 @@ function decal(root, x, y, z, size, normal, mat) {   // square image on a wall, 
 // ---------- the building ----------
 // brick band at the foot of the walls with recessed light grooves (photos 03, 09, 17): real 3D reveals, mitred at the corners.
 // A->C walks with the outside on the left; nA / nC are the inward normals of the neighbouring walls (null = open end).
-const GROOVES = [0.7, 1.6, 2.5, 3.45], GH = 0.12, GD = 0.06;
-function bandWall(root, A, C, nA, nC) {
+const GROOVES = [2 / 3, 5 / 3, 8 / 3, 10 / 3], GH = 0.12, GD = 0.06;   // centred on brick mortar lines, so no mortar line runs next to a groove edge
+function bandWall(root, A, C, nA, nC, top = D.band) {
   const l = Math.hypot(C[0] - A[0], C[1] - A[1]), ni = [(C[1] - A[1]) / l, -(C[0] - A[0]) / l];
   const inset = (P, nb) => [P[0] + (ni[0] + (nb ? nb[0] : 0)) * GD, P[1] + (ni[1] + (nb ? nb[1] : 0)) * GD];
   const A2 = inset(A, nA), C2 = inset(C, nC);
@@ -221,12 +221,11 @@ function bandWall(root, A, C, nA, nC) {
   for (const g of GROOVES) {
     const g0 = g - GH / 2, g1 = g + GH / 2;
     wall(root, A, C, z, g0, M.brick);
-    wall(root, A2, C2, g0, g1, M.white);
-    root.add(quad(V(A[0], A[1], g0), V(C[0], C[1], g0), V(C2[0], C2[1], g0), V(A2[0], A2[1], g0), M.white));
-    root.add(quad(V(A[0], A[1], g1), V(C[0], C[1], g1), V(C2[0], C2[1], g1), V(A2[0], A2[1], g1), M.white));
+    wall(root, A2, C2, g0, g1, M.white); root.children.at(-1).userData.noEdge = true;      // only the groove's two edges on the face are drawn
+    for (const z of [g0, g1]) { root.add(quad(V(A[0], A[1], z), V(C[0], C[1], z), V(C2[0], C2[1], z), V(A2[0], A2[1], z), M.white)); root.children.at(-1).userData.noEdge = true; }
     z = g1;
   }
-  wall(root, A, C, z, D.band, M.brick);
+  wall(root, A, C, z, top, M.brick);
 }
 function building(root) {
   const B = D.band, R = D.roof;
@@ -239,11 +238,11 @@ function building(root) {
     if (A[0] === 73 && C[0] === 73) continue;                   // hidden behind the block's left side
     if (front && Math.min(A[0], C[0]) >= 73) {                  // right section front: one brick face up to its parapet, none behind the block
       const sx0 = D.canopy.cols[3] + 0.22, sx1 = D.panel.x0, sz = D.canopy.z0;   // recessed strip between the glass and the panel
-      bandWall(root, [114, A[1]], [sx1, A[1]], nin(i - 1), null); wall(root, [114, A[1]], [sx1, A[1]], B, R, M.brick); wall(root, [sx1, A[1]], [sx0, A[1]], sz, R, M.brick); wall(root, [sx0, A[1]], [D.blk.x1, A[1]], 0, R, M.brick);
+      bandWall(root, [114, A[1]], [sx1, A[1]], nin(i - 1), null, R); wall(root, [sx1, A[1]], [sx0, A[1]], sz, R, M.brick); wall(root, [sx0, A[1]], [D.blk.x1, A[1]], 0, R, M.brick);
       continue;   // level with the roof (Ahmed: nothing raised above it)
     }
-    bandWall(root, A, C, nin(i - 1), nin(i + 1));
-    wall(root, A, C, B, R, front && A[0] >= 18.6 ? M.brick : M.beige);
+    if (front && A[0] >= 18.6) bandWall(root, A, C, nin(i - 1), nin(i + 1), R);          // brick all the way up: no seam at the band top
+    else { bandWall(root, A, C, nin(i - 1), nin(i + 1)); wall(root, A, C, B, R, M.beige); }
   }
   flat(root, FOOT, R, M.roof, 6);
   // parapet cap
@@ -285,6 +284,10 @@ function building(root) {
     box(root, xa, xb, yf + 0.2, back, BAND[0], BAND[1], M.white);
     box(root, xa, xb, yf + 0.2, back, TOP, c.z0, M.white);
     box(root, xa, xb, yf + 0.2, back, 0.15, 0.3, M.white);
+    const xo = dx > 0 ? [xs - 0.08, xs] : [xs, xs + 0.08], ym = (yf + 0.2 + back) / 2;           // mullion, door head and door split as on the front
+    box(root, xo[0], xo[1], ym - 0.06, ym + 0.06, BAND[1], TOP, M.white);
+    box(root, xo[0], xo[1], yf + 0.2, back, 2.2, 2.35, M.white);
+    box(root, xo[0], xo[1], ym - 0.07, ym + 0.07, 0.3, 2.2, M.white);
   }
   for (const x of cols) box(root, x - PW, x + PW, yf - 0.2, yf + 0.2, 0.15, c.z0, M.white);   // white metal piers
   for (const [z0, z1] of [BAND, [TOP, c.z0], [0.15, 0.3]]) for (let i = 0; i < 3; i++) box(root, cols[i] + PW, cols[i + 1] - PW, yf - 0.15, yf + 0.15, z0, z1, M.white);   // band, head, sill between the piers
@@ -312,11 +315,10 @@ function building(root) {
     setUV(root.children.at(-1), p.x0, p.x1, 0.15, p.h);
   }
   // recessed strip between the glass and the panel (photo): a slot in the wall, grooves running from the face to the back and across
-  const sd = 0.5, sx0 = ex1, sx1 = p.x0, yk = y0 + sd;
-  wall(root, [sx0, yk], [sx1, yk], 0, c.z0, M.dark);
-  wall(root, [sx0, y0], [sx0, yk], 0, c.z0, M.dark); wall(root, [sx1, yk], [sx1, y0], 0, c.z0, M.dark);
-  flat(root, [[sx0, y0], [sx1, y0], [sx1, yk], [sx0, yk]], c.z0, M.dark);
-  for (let z = 0.75; z < c.z0 - 0.3; z += 0.6) { seg([sx0, y0, z], [sx0, yk, z]); seg([sx0, yk, z], [sx1, yk, z]); seg([sx1, yk, z], [sx1, y0, z]); }
+  const sd = 0.5, sx0 = ex1, sx1 = p.x0, yk = y0 + sd;                                       // brick, with the band grooves carried through (Ahmed)
+  const nB = [0, 1], nL = [-1, 0], nR = [1, 0];                                               // inward normals of back, left and right faces
+  bandWall(root, [sx1, yk], [sx0, yk], nR, nL, c.z0); bandWall(root, [sx0, yk], [sx0, y0], nB, null, c.z0); bandWall(root, [sx1, y0], [sx1, yk], null, nB, c.z0);
+  flat(root, [[sx0, y0], [sx1, y0], [sx1, yk], [sx0, yk]], c.z0, M.white);
   root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(lines), new THREE.LineBasicMaterial({ color: 0x000000 })));
   // bollards + red balls on the sidewalk
   for (let x = 89; x <= 104; x += 2.5) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 1, 12), M.metal); m.position.copy(V(x, -9.6, 0.65)); m.castShadow = true; root.add(m); }
@@ -351,7 +353,7 @@ function site(root) {
   flat(root, [[-24, -156], [-20, -156], [-20, 150], [-24, 150]], 0.01, BW ? M.grass : new THREE.MeshLambertMaterial({ color: 0x6f9fcf }), 4);
   slab(root, [[82.7, 95.5], [93, 95.5], [93, 90.5], [114, 90.5], [114, 85], [134, 85], [134, 110], [82.7, 110]], 0, 0.03, M.concrete);
   // sidewalk following the stepped front, with the entrance bulge
-  slab(root, [[-4, 30], [-4, -12], [86, -12], [86, -15], [110, -15], [110, -12], [118, -12], [118, 6], [114, 6], [114, -4.9], [0, -4.9], [0, 30]], 0, 0.15, M.walk);
+  slab(root, [[-4, 30], [-4, -12], [86, -12], [86, -15], [110, -15], [110, -12], [118, -12], [118, 90.5], [114, 90.5], [114, -4.9], [0, -4.9], [0, 30]], 0, 0.15, M.walk);
   slab(root, [[0, -4.9], [114, -4.9], [114, 3], [0, 3]], 0, 0.15, M.walk);
   // parking: double rows perpendicular to the front, stalls 2.7 x 5.5, aisles 7.3
   const lineAt = (x0, y0, x1, y1) => { const w = 0.12; flat(root, x0 === x1 ? [[x0 - w, y0], [x0 + w, y0], [x0 + w, y1], [x0 - w, y1]] : [[x0, y0 - w], [x1, y0 - w], [x1, y0 + w], [x0, y0 + w]], 0.02, M.line); };
