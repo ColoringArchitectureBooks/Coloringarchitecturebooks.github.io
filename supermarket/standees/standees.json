@@ -1,0 +1,22 @@
+{
+ "tree": {
+  "file": "tree.png",
+  "width": 6.0,
+  "height": 11.12
+ },
+ "bush_a": {
+  "file": "bush_a.png",
+  "width": 8.0,
+  "height": 2.305
+ },
+ "bush_b": {
+  "file": "bush_b.png",
+  "width": 5.0,
+  "height": 1.723
+ },
+ "car": {
+  "file": "car.png",
+  "width": 2.01271186440678,
+  "height": 1.334
+ }
+}

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<title>Supermarket 3D Model</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Deliberately single-theme: the model is a white coloring page, so the page stays paper-white. */
+  :root { --paper:#ffffff; --ink:#1a1a1a; --muted:#6b6b6b; --chip:#f3f3f1; --line:#d9d9d6; }
+  html, body { margin:0; height:100%; background:var(--paper); color:var(--ink); overflow:hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  header { position:fixed; top:0; left:0; right:0; padding:max(14px, env(safe-area-inset-top)) 16px 0;
+    pointer-events:none; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  h1 { margin:0; font-size:17px; font-weight:700; letter-spacing:.01em; }
+  .sub { margin-top:2px; font-size:13px; color:var(--muted); }
+  .bar { position:fixed; left:50%; transform:translateX(-50%); bottom:max(16px, env(safe-area-inset-bottom));
+    display:flex; gap:8px; }
+  button { font:inherit; font-size:14px; border:1.5px solid var(--ink); background:var(--paper); color:var(--ink);
+    border-radius:999px; padding:9px 16px; cursor:pointer; white-space:nowrap; }
+  button[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
+  .hint { position:fixed; left:0; right:0; bottom:calc(max(16px, env(safe-area-inset-bottom)) + 52px);
+    text-align:center; font-size:13px; color:var(--muted); pointer-events:none; transition:opacity .6s; }
+  #status { position:fixed; inset:0; display:grid; place-items:center; font-size:15px; color:var(--muted); }
+</style>
+
+<canvas id="c"></canvas>
+<header>
+  <div>
+    <h1>Supermarket 3D Model</h1>
+    <div class="sub">Coloring book · supermarket</div>
+  </div>
+</header>
+<div id="status">Loading the building…</div>
+<div class="hint" id="hint" dir="rtl">اسحب بصباعك عشان تلف السوبر ماركت، وقرّب بصباعين</div>
+<div class="bar">
+  <button id="spin" aria-pressed="false">Spin</button>
+  <button id="front">Whole site</button>
+  <button id="reset">Reset view</button>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/OrbitControls.js";
+import { buildScene, V, faceCamera } from "./scene.js";
+
+const canvas = document.getElementById("c");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xffffff, 260, 520);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.5, 1500);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.minDistance = 6; controls.maxDistance = 360;
+controls.maxPolarAngle = Math.PI / 2 - 0.03; controls.autoRotateSpeed = 1.0;
+
+// plan metres -> three (x, z, -y). Start: the coloring page's view of the entrance; whole site: from above the car park.
+const VIEWS = {
+  start: { eye: [94, -62, 2.2], tgt: [93, 0, 5.5] },
+  front: { eye: [175, -125, 95], tgt: [57, 30, 0] },
+};
+function setView(v) { camera.position.copy(V(...v.eye)); controls.target.copy(V(...v.tgt)); controls.update(); }
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.8 ? 60 : 32; camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", resize); resize();
+try { buildScene(scene, { bw: true }); document.getElementById("status").remove(); }
+catch (e) { document.getElementById("status").textContent = "Couldn't load the model. Please refresh the page."; }
+setView(VIEWS.start);
+
+const spinBtn = document.getElementById("spin");
+spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute("aria-pressed", controls.autoRotate); };
+document.getElementById("front").onclick = () => setView(VIEWS.front);
+document.getElementById("reset").onclick = () => setView(VIEWS.start);
+const hint = document.getElementById("hint");
+controls.addEventListener("start", () => { hint.style.opacity = 0; }, { once: true });
+renderer.setAnimationLoop(() => { controls.update(); faceCamera(camera); renderer.render(scene, camera); });
+</script>
