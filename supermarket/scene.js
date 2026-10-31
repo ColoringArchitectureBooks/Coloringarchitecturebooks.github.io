@@ -71,6 +71,19 @@ function makeTexturesBW() {
   });
   TEX.plant.repeat.set(0.25, 0.25);
   TEX.white = TEX.asphalt = null;
+  TEX.blockBW = canvasTex(2048, 816, (g, w, h) => {   // BW block front, clean vector lines (z 4.1..10.8), measured off the page grid
+    g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, h);
+    const xm = m => (m / 16.8) * w, zt = v => h - ((v - 4.1) / 6.7) * h;
+    g.strokeStyle = "#111"; g.lineWidth = 3;
+    for (const m of [2.01, 4.51, 9.86, 12.47, 14.56]) { g.beginPath(); g.moveTo(xm(m), zt(10.5)); g.lineTo(xm(m), h); g.stroke(); }
+    for (const z of [10.5, 9.5, 5.96]) { g.beginPath(); g.moveTo(0, zt(z)); g.lineTo(w, zt(z)); g.stroke(); }
+    g.font = `900 ${Math.round(zt(7.0) - zt(8.5))}px "DejaVu Sans", sans-serif`;
+    g.textBaseline = "bottom"; g.lineJoin = "round";
+    const tw = g.measureText("SUPERMARKET").width, sx = (xm(12.1) - xm(0.8)) / tw;
+    g.save(); g.translate(xm(0.8), zt(7.0)); g.scale(sx, 1);
+    g.fillStyle = "#ffffff"; g.lineWidth = 16; g.strokeStyle = "#ffffff"; g.strokeText("SUPERMARKET", 0, 0);   // clear the grid round the letters
+    g.lineWidth = 5; g.strokeStyle = "#111"; g.strokeText("SUPERMARKET", 0, 0); g.fillText("SUPERMARKET", 0, 0); g.restore();
+  }, false);
   TEX.page = new THREE.TextureLoader().load(new URL("./page.png", import.meta.url).href); TEX.page.colorSpace = THREE.SRGBColorSpace; TEX.page.anisotropy = 8;
   TEX.logo = canvasTex(256, 256, (g, w, h) => {
     g.clearRect(0, 0, w, h); const c = w / 2, r = c - 4;
@@ -162,7 +175,7 @@ function matsBW() {
   M.brick = L({ map: TEX.brick }); M.band = L({ map: TEX.brickBand }); M.beige = L({ map: TEX.beige });
   M.page = L({ map: TEX.page });
   for (const k of ["white", "roof", "cap", "red", "glass", "frame", "dark", "metal", "asphalt", "walk", "grass", "mulch", "tree", "trunk", "trailer", "concrete", "ballRed"]) M[k] = W;
-  M.block = M.panel = M.page;
+  M.panel = M.page; M.block = L({ map: TEX.blockBW });
   M.plant = L({ map: TEX.plant });
   M.line = new THREE.MeshBasicMaterial({ color: 0x000000 });
   M.logo = L({ map: TEX.logo, transparent: true, alphaTest: 0.5 });
@@ -266,6 +279,7 @@ function building(root) {
   const b = D.blk;
   wall(root, [b.x0, b.y0], [b.x1, b.y0], 4.1, b.h, M.block, 1, 1, true);
   setUV(root.children.at(-1), b.x0, b.x1, 4.1, b.h);
+  if (BW) root.children.at(-1).geometry.attributes.uv.array.set([0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1]);   // own clean texture, not the page scan
   wall(root, [b.x0, b.y0], [b.x1, b.y0], 0, 4.1, M.white);
   sideFace(root, b.x0 - 0.02, [[b.y0, 0], [0, 0], [0, R], [b.y1, R], [b.y1, b.h], [b.y0, b.h]], M.red);   // one face each side: no seam line
   sideFace(root, b.x1, [[b.y0, 0], [y0, 0], [y0, R], [b.y1, R], [b.y1, b.h], [b.y0, b.h]], M.red);
@@ -362,10 +376,9 @@ function site(root) {
   slab(root, [[-4, 105], [-4, -12], [86, -12], [86, -15], [110, -15], [110, -12], [118, -12], [118, 90.5], [114, 90.5], [114, 3], [0, 3], [0, 105]], 0, 0.15, M.walk);   // one piece, no seam lines on the walk
   // where the sidewalk meets the building: a thin line (same weight as the other edges), so walk and wall read apart in black and white (Ahmed)
   const foot = [[0, 105], [0, 3], [6.1, 3], [6.1, -3], [18.6, -3], [18.6, 0], [72.98, 0], [72.98, -5.5], [87.88, -5.5], [87.88, -8.1], [102.82, -8.1], [102.82, -5], [104.3, -5], [104.3, -5.3], [109.6, -5.3], [109.6, -5], [114, -5], [114, 90.5]];   // entrance piers and the circle panel included
-  const n = foot.length, nrm = (i) => { const [ax, ay] = foot[i], [bx, by] = foot[i + 1], l = Math.hypot(bx - ax, by - ay); return [(by - ay) / l, -(bx - ax) / l]; };
-  const off = foot.map((P, i) => { const a = nrm(Math.max(i - 1, 0)), b = nrm(Math.min(i, n - 2)); return i > 0 && i < n - 1 ? [a[0] + b[0], a[1] + b[1]] : a; });
-  const fo = foot.map((P, i) => [P[0] + off[i][0] * 0.06, P[1] + off[i][1] * 0.06]);
-  for (let i = 0; i < n - 1; i++) flat(root, [foot[i], foot[i + 1], fo[i + 1], fo[i]], 0.17, M.line);   // one mitred quad per wall (clear of the walk top, no depth fight)
+  const n = foot.length;
+  { const pts = []; for (let i = 0; i < n - 1; i++) pts.push(V(foot[i][0], foot[i][1], 0.16), V(foot[i + 1][0], foot[i + 1][1], 0.16));   // a plain 1 px line, same weight as the other edges (Ahmed)
+    root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x000000 }))); }
   // parking: double rows perpendicular to the front, stalls 2.7 x 5.5, aisles 7.3
   const lineAt = (x0, y0, x1, y1) => { const w = 0.12; flat(root, x0 === x1 ? [[x0 - w, y0], [x0 + w, y0], [x0 + w, y1], [x0 - w, y1]] : [[x0, y0 - w], [x1, y0 - w], [x1, y0 + w], [x0, y0 + w]], 0.02, M.line); };
   const rowsAt = (cx, ya, yb) => { lineAt(cx, ya, cx, yb); for (let y = ya; y <= yb + 0.01; y += 2.7) lineAt(cx - 5.5, y, cx + 5.5, y); };
