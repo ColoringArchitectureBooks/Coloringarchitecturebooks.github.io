@@ -279,7 +279,10 @@ function building(root) {
   if (!BW) for (let x = c.x0 + 1; x < c.x1; x += 1.7) box(root, x - 0.15, x + 0.15, c.y0 + 0.2, c.y0 + 0.5, c.z0 - 0.02, c.z0, M.dark);   // canopy lights
   // (6) panel with the circle
   const p = D.panel;
-  box(root, p.x0, p.x1, y0 - 0.3, y0, 0.15, R, M.red);                                       // up to the top of the wall (Ahmed)
+  box(root, p.x0, p.x1, y0 - 0.3, y0, 0.15, c.z0, M.red);                                    // top level with the canopy underside (photo)
+  // dark louvred strip between the glass and the panel (photo): framed, horizontal slats
+  box(root, ex1, p.x0, y0 - 0.1, y0, 0.15, c.z0, M.dark);
+  for (let z = 0.15 + 0.6; z < c.z0 - 0.3; z += 0.6) box(root, ex1 + 0.05, p.x0 - 0.05, y0 - 0.16, y0 - 0.1, z - 0.04, z + 0.04, M.dark);
   wall(root, [p.x0, y0 - 0.31], [p.x1, y0 - 0.31], 0.15, p.h, M.panel, 1, 1, true); root.children.at(-1).userData.noEdge = true;
   setUV(root.children.at(-1), p.x0, p.x1, 0.15, p.h);
   // bollards + red balls on the sidewalk
