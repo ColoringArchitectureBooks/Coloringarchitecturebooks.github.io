@@ -210,21 +210,40 @@ function decal(root, x, y, z, size, normal, mat) {   // square image on a wall, 
 }
 
 // ---------- the building ----------
+// brick band at the foot of the walls with recessed light grooves (photos 03, 09, 17): real 3D reveals, mitred at the corners.
+// A->C walks with the outside on the left; nA / nC are the inward normals of the neighbouring walls (null = open end).
+const GROOVES = [0.7, 1.6, 2.5, 3.45], GH = 0.12, GD = 0.06;
+function bandWall(root, A, C, nA, nC) {
+  const l = Math.hypot(C[0] - A[0], C[1] - A[1]), ni = [(C[1] - A[1]) / l, -(C[0] - A[0]) / l];
+  const inset = (P, nb) => [P[0] + (ni[0] + (nb ? nb[0] : 0)) * GD, P[1] + (ni[1] + (nb ? nb[1] : 0)) * GD];
+  const A2 = inset(A, nA), C2 = inset(C, nC);
+  let z = 0;
+  for (const g of GROOVES) {
+    const g0 = g - GH / 2, g1 = g + GH / 2;
+    wall(root, A, C, z, g0, M.brick);
+    wall(root, A2, C2, g0, g1, M.white);
+    root.add(quad(V(A[0], A[1], g0), V(C[0], C[1], g0), V(C2[0], C2[1], g0), V(A2[0], A2[1], g0), M.white));
+    root.add(quad(V(A[0], A[1], g1), V(C[0], C[1], g1), V(C2[0], C2[1], g1), V(A2[0], A2[1], g1), M.white));
+    z = g1;
+  }
+  wall(root, A, C, z, D.band, M.brick);
+}
 function building(root) {
   const B = D.band, R = D.roof;
   // walls of the main footprint, walking clockwise in plan (outside on the right)
   const pts = FOOT.slice().reverse();          // FOOT is CCW in plan -> reverse for outside-right
+  const n = pts.length, nin = (k) => { const P = pts[(k + n) % n], Q = pts[(k + 1) % n], l = Math.hypot(Q[0] - P[0], Q[1] - P[1]); return [(Q[1] - P[1]) / l, -(Q[0] - P[0]) / l]; };   // inward normal of segment k
   for (let i = 0; i < pts.length; i++) {
     const A = pts[i], C = pts[(i + 1) % pts.length];
     const front = (A[1] <= 0 && C[1] <= 0 && A[1] === C[1]);   // front faces (y <= 0, parallel to x)
     if (A[0] === 73 && C[0] === 73) continue;                   // hidden behind the block's left side
     if (front && Math.min(A[0], C[0]) >= 73) {                  // right section front: one brick face up to its parapet, none behind the block
       const sx0 = D.canopy.cols[3] + 0.22, sx1 = D.panel.x0, sz = D.canopy.z0;   // recessed strip between the glass and the panel
-      wall(root, [114, A[1]], [sx1, A[1]], 0, R, M.brick); wall(root, [sx1, A[1]], [sx0, A[1]], sz, R, M.brick); wall(root, [sx0, A[1]], [D.blk.x1, A[1]], 0, R, M.brick);
+      bandWall(root, [114, A[1]], [sx1, A[1]], nin(i - 1), null); wall(root, [114, A[1]], [sx1, A[1]], B, R, M.brick); wall(root, [sx1, A[1]], [sx0, A[1]], sz, R, M.brick); wall(root, [sx0, A[1]], [D.blk.x1, A[1]], 0, R, M.brick);
       continue;   // level with the roof (Ahmed: nothing raised above it)
     }
-    else if (front && A[0] >= 18.6) { wall(root, A, C, 0, B, M.band, 4, B, true); wall(root, A, C, B, R, M.brick); }
-    else { wall(root, A, C, 0, B, M.band, 4, B, true); wall(root, A, C, B, R, M.beige); }
+    bandWall(root, A, C, nin(i - 1), nin(i + 1));
+    wall(root, A, C, B, R, front && A[0] >= 18.6 ? M.brick : M.beige);
   }
   flat(root, FOOT, R, M.roof, 6);
   // parapet cap
