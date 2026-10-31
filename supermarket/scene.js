@@ -219,7 +219,9 @@ function building(root) {
     const front = (A[1] <= 0 && C[1] <= 0 && A[1] === C[1]);   // front faces (y <= 0, parallel to x)
     if (A[0] === 73 && C[0] === 73) continue;                   // hidden behind the block's left side
     if (front && Math.min(A[0], C[0]) >= 73) {                  // right section front: one brick face up to its parapet, none behind the block
-      wall(root, [114, A[1]], [D.blk.x1, A[1]], 0, R, M.brick); continue;   // level with the roof (Ahmed: nothing raised above it)
+      const sx0 = D.canopy.cols[3] + 0.22, sx1 = D.panel.x0, sz = D.canopy.z0;   // recessed strip between the glass and the panel
+      wall(root, [114, A[1]], [sx1, A[1]], 0, R, M.brick); wall(root, [sx1, A[1]], [sx0, A[1]], sz, R, M.brick); wall(root, [sx0, A[1]], [D.blk.x1, A[1]], 0, R, M.brick);
+      continue;   // level with the roof (Ahmed: nothing raised above it)
     }
     else if (front && A[0] >= 18.6) { wall(root, A, C, 0, B, M.band, 4, B, true); wall(root, A, C, B, R, M.brick); }
     else { wall(root, A, C, 0, B, M.band, 4, B, true); wall(root, A, C, B, R, M.beige); }
@@ -272,7 +274,6 @@ function building(root) {
     for (let k = 1; k < up; k++) { const x = a + (b - a) * k / up; box(root, x - 0.06, x + 0.06, yf - 0.08, yf, BAND[1], TOP, M.white); }
     box(root, a, b, yf - 0.08, yf, 2.2, 2.35, M.white);                                         // door head
     for (let k = 1; k < 4; k++) { const x = a + (b - a) * k / 4; box(root, x - 0.07, x + 0.07, yf - 0.08, yf, 0.3, 2.2, M.white); }   // door leaves
-    for (let k = 0; k < 4; k++) { const x = a + (b - a) * (k + 0.5) / 4; box(root, x - 0.03, x + 0.03, yf - 0.12, yf - 0.08, 0.9, 1.3, M.white); }   // pull handles
   }
   box(root, c.x0, c.x1, c.y0, c.y1, c.z0, c.z1, M.white);
   box(root, c.x0 - 0.05, c.x1 + 0.05, c.y0 - 0.05, c.y0, c.z0, c.z1, M.frame);
@@ -280,11 +281,24 @@ function building(root) {
   // (6) panel with the circle
   const p = D.panel;
   box(root, p.x0, p.x1, y0 - 0.3, y0, 0.15, c.z0, M.red);                                    // top level with the canopy underside (photo)
-  // dark louvred strip between the glass and the panel (photo): framed, horizontal slats
-  box(root, ex1, p.x0, y0 - 0.1, y0, 0.15, c.z0, M.dark);
-  for (let z = 0.15 + 0.6; z < c.z0 - 0.3; z += 0.6) box(root, ex1 + 0.05, p.x0 - 0.05, y0 - 0.16, y0 - 0.1, z - 0.04, z + 0.04, M.dark);
-  wall(root, [p.x0, y0 - 0.31], [p.x1, y0 - 0.31], 0.15, p.h, M.panel, 1, 1, true); root.children.at(-1).userData.noEdge = true;
-  setUV(root.children.at(-1), p.x0, p.x1, 0.15, p.h);
+  const lines = [], seg = (P, Q) => lines.push(V(...P), V(...Q));
+  if (BW) {   // panel joints as in the photo (Ahmed's sketch) + the striped circle; the page's own panel lines are left out
+    const pf = y0 - 0.31, xv = p.x0 + 0.39 * (p.x1 - p.x0), zf = (f) => c.z0 - f * (c.z0 - 0.15);
+    seg([xv, pf, 0.15], [xv, pf, c.z0]);
+    for (const f of [0.146, 0.4, 0.86]) seg([p.x0, pf, zf(f)], [p.x1, pf, zf(f)]);
+    seg([p.x0, pf, zf(0.65)], [xv, pf, zf(0.65)]);
+    decal(root, p.x0 + 0.7 * (p.x1 - p.x0), pf - 0.01, zf(0.66), 2.5, "-y", M.logo);
+  } else {
+    wall(root, [p.x0, y0 - 0.31], [p.x1, y0 - 0.31], 0.15, p.h, M.panel, 1, 1, true);
+    setUV(root.children.at(-1), p.x0, p.x1, 0.15, p.h);
+  }
+  // recessed strip between the glass and the panel (photo): a slot in the wall, grooves running from the face to the back and across
+  const sd = 0.5, sx0 = ex1, sx1 = p.x0, yk = y0 + sd;
+  wall(root, [sx0, yk], [sx1, yk], 0, c.z0, M.dark);
+  wall(root, [sx0, y0], [sx0, yk], 0, c.z0, M.dark); wall(root, [sx1, yk], [sx1, y0], 0, c.z0, M.dark);
+  flat(root, [[sx0, y0], [sx1, y0], [sx1, yk], [sx0, yk]], c.z0, M.dark);
+  for (let z = 0.75; z < c.z0 - 0.3; z += 0.6) { seg([sx0, y0, z], [sx0, yk, z]); seg([sx0, yk, z], [sx1, yk, z]); seg([sx1, yk, z], [sx1, y0, z]); }
+  root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(lines), new THREE.LineBasicMaterial({ color: 0x000000 })));
   // bollards + red balls on the sidewalk
   for (let x = 89; x <= 104; x += 2.5) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 1, 12), M.metal); m.position.copy(V(x, -9.6, 0.65)); m.castShadow = true; root.add(m); }
   for (const x of (BW ? [] : [84, 110, 6, 25])) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.65, 20, 14), M.ballRed); m.position.copy(V(x, x < 50 ? -6.5 : -12.8, 0.8)); m.castShadow = true; root.add(m); }
