@@ -297,8 +297,6 @@ function building(root) {
   wall(root, [116, 105.4], [82.7, 105.4], 0, 4.0, M.brick); wall(root, [82.7, 105.0], [116, 105.0], 0, 4.0, M.brick);
   box(root, 82.7, 116, 105.0, 105.4, 4.0, 4.15, M.cap); box(root, 115.6, 116, 105, 105.4, 0, 4.0, M.brick);
 
-  // a few rooftop units
-  for (const [x, y] of [[20, 20], [45, 25], [70, 30], [30, 60], [60, 70], [90, 55], [15, 85], [50, 90]]) box(root, x, x + 3, y, y + 2, R, R + 1.2, M.metal);
 }
 
 // ---------- site ----------
@@ -365,8 +363,7 @@ function finishBW(scene, root) {
   });
   for (const [p, e] of add) p.add(e);
   const trees = []; root.traverse(o => { if (o.userData.tree) trees.push(o); o.castShadow = o.receiveShadow = false; });
-  for (const t of trees) t.parent.remove(t);   // trees/bushes come back as paper cut-outs from the page
-  standees(root);
+  for (const t of trees) t.parent.remove(t);   // no trees, bushes or cars in the BW model (Ahmed); standees() is kept for later
   scene.background = new THREE.Color(0xffffff);
   scene.add(new THREE.HemisphereLight(0xffffff, 0xeeeeee, 2.4));
   const sun = new THREE.DirectionalLight(0xffffff, 0.6); sun.position.set(-40, 80, 70); scene.add(sun);
