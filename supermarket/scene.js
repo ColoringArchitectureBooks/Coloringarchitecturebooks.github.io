@@ -142,6 +142,13 @@ function wall(root, A, B, z0, z1, mat, tw = 4, th = 4, vfix = false) {
   const uv = vfix ? [0, 0, len / tw, 1] : [0, z0 / th, len / tw, z1 / th];
   root.add(quad(V(A[0], A[1], z0), V(B[0], B[1], z0), V(B[0], B[1], z1), V(A[0], A[1], z1), mat, uv));
 }
+// side face (in the plane x) as one polygon in (y, z)
+function sideFace(root, x, pts, mat) {
+  const g = new THREE.ShapeGeometry(new THREE.Shape(pts.map(([y, z]) => new THREE.Vector2(y, z))));
+  const p = g.attributes.position, uv = g.attributes.uv;
+  for (let i = 0; i < p.count; i++) { const y = p.getX(i), z = p.getY(i); p.setXYZ(i, x, z, -y); uv.setXY(i, y / 4, z / 4); }
+  g.computeVertexNormals(); const m = new THREE.Mesh(g, mat); root.add(m); return m;
+}
 const M = {};
 // front faces: in BW the UVs point at the page (page pixels), otherwise 0..1 over the face
 function setUV(mesh, x0, x1, z0, z1) {
@@ -260,9 +267,8 @@ function building(root) {
   wall(root, [b.x0, b.y0], [b.x1, b.y0], 4.1, b.h, M.block, 1, 1, true);
   setUV(root.children.at(-1), b.x0, b.x1, 4.1, b.h);
   wall(root, [b.x0, b.y0], [b.x1, b.y0], 0, 4.1, M.white);
-  wall(root, [b.x0 - 0.02, 0], [b.x0 - 0.02, b.y0], 0, b.h, M.red);   // left side: full height in front of the main wall
-  wall(root, [b.x0 - 0.02, b.y1], [b.x0 - 0.02, 0], R, b.h, M.red);
-  wall(root, [b.x1, b.y0], [b.x1, y0], 0, b.h, M.red); wall(root, [b.x1, y0], [b.x1, b.y1], R, b.h, M.red);
+  sideFace(root, b.x0 - 0.02, [[b.y0, 0], [0, 0], [0, R], [b.y1, R], [b.y1, b.h], [b.y0, b.h]], M.red);   // one face each side: no seam line
+  sideFace(root, b.x1, [[b.y0, 0], [y0, 0], [y0, R], [b.y1, R], [b.y1, b.h], [b.y0, b.h]], M.red);
   wall(root, [b.x1, b.y1], [b.x0, b.y1], R, b.h, M.red);
   flat(root, [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1]], b.h, M.roof);
   if (!BW) box(root, b.x0, b.x1, b.y0 - 0.2, b.y0 + 0.1, b.h, b.h + 0.15, M.cap);
@@ -353,7 +359,13 @@ function site(root) {
   flat(root, [[-24, -156], [-20, -156], [-20, 150], [-24, 150]], 0.01, BW ? M.grass : new THREE.MeshLambertMaterial({ color: 0x6f9fcf }), 4);
   slab(root, [[82.7, 95.5], [93, 95.5], [93, 90.5], [114, 90.5], [114, 85], [134, 85], [134, 110], [82.7, 110]], 0, 0.03, M.concrete);
   // sidewalk following the stepped front, with the entrance bulge
-  slab(root, [[-4, 30], [-4, -12], [86, -12], [86, -15], [110, -15], [110, -12], [118, -12], [118, 90.5], [114, 90.5], [114, -4.9], [0, -4.9], [0, 30]], 0, 0.15, M.walk);
+  slab(root, [[-4, 105], [-4, -12], [86, -12], [86, -15], [110, -15], [110, -12], [118, -12], [118, 90.5], [114, 90.5], [114, -4.9], [0, -4.9], [0, 105]], 0, 0.15, M.walk);
+  // where the sidewalk meets the building: a bold line, so walk and wall read apart in black and white (Ahmed)
+  const foot = [[0, 105], [0, 3], [6.1, 3], [6.1, -3], [18.6, -3], [18.6, 0], [72.98, 0], [72.98, -5.5], [87.88, -5.5], [87.88, -8.1], [102.82, -8.1], [102.82, -5], [104.3, -5], [104.3, -5.3], [109.6, -5.3], [109.6, -5], [114, -5], [114, 90.5]];   // entrance piers and the circle panel included
+  const n = foot.length, nrm = (i) => { const [ax, ay] = foot[i], [bx, by] = foot[i + 1], l = Math.hypot(bx - ax, by - ay); return [(by - ay) / l, -(bx - ax) / l]; };
+  const off = foot.map((P, i) => { const a = nrm(Math.max(i - 1, 0)), b = nrm(Math.min(i, n - 2)); return i > 0 && i < n - 1 ? [a[0] + b[0], a[1] + b[1]] : a; });
+  const fo = foot.map((P, i) => [P[0] + off[i][0] * 0.2, P[1] + off[i][1] * 0.2]);
+  for (let i = 0; i < n - 1; i++) flat(root, [foot[i], foot[i + 1], fo[i + 1], fo[i]], 0.152, M.line);   // one mitred quad per wall
   slab(root, [[0, -4.9], [114, -4.9], [114, 3], [0, 3]], 0, 0.15, M.walk);
   // parking: double rows perpendicular to the front, stalls 2.7 x 5.5, aisles 7.3
   const lineAt = (x0, y0, x1, y1) => { const w = 0.12; flat(root, x0 === x1 ? [[x0 - w, y0], [x0 + w, y0], [x0 + w, y1], [x0 - w, y1]] : [[x0, y0 - w], [x1, y0 - w], [x1, y0 + w], [x0, y0 + w]], 0.02, M.line); };
