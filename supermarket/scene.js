@@ -6,7 +6,7 @@ import * as THREE from "three";
 // ---------- dimensions ----------
 export const D = {
   roof: 8.8,            // main body parapet (page: brick left of the block)
-  rsTop: 9.5,           // right section (block + entrance + panel), page parapet
+  rsTop: 8.8,           // right section: level with the main roof (Ahmed), not raised as on the page
   rsY: -5, rsX0: 73, rsX1: 114, rsBack: 10,
   blk: { x0: 73, x1: 89.8, y0: -5.5, y1: 7, h: 10.8 },
   canopy: { x0: 85.6, x1: 105.6, y0: -8.5, y1: -5, z0: 7.2, z1: 8.0, cols: [88.1, 92.3, 97.5, 102.6] },
@@ -142,13 +142,6 @@ function wall(root, A, B, z0, z1, mat, tw = 4, th = 4, vfix = false) {
   const uv = vfix ? [0, 0, len / tw, 1] : [0, z0 / th, len / tw, z1 / th];
   root.add(quad(V(A[0], A[1], z0), V(B[0], B[1], z0), V(B[0], B[1], z1), V(A[0], A[1], z1), mat, uv));
 }
-// front face (facing -y) at depth y as one polygon in (x, z), so a stepped top leaves no seam line
-function frontFace(root, y, pts, mat) {
-  const g = new THREE.ShapeGeometry(new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(x, z))));
-  const p = g.attributes.position, uv = g.attributes.uv;
-  for (let i = 0; i < p.count; i++) { uv.setXY(i, p.getX(i) / 4, p.getY(i) / 4); p.setZ(i, -y); }
-  g.computeVertexNormals(); const m = new THREE.Mesh(g, mat); root.add(m); return m;
-}
 const M = {};
 // front faces: in BW the UVs point at the page (page pixels), otherwise 0..1 over the face
 function setUV(mesh, x0, x1, z0, z1) {
@@ -226,25 +219,21 @@ function building(root) {
     const front = (A[1] <= 0 && C[1] <= 0 && A[1] === C[1]);   // front faces (y <= 0, parallel to x)
     if (A[0] === 73 && C[0] === 73) continue;                   // hidden behind the block's left side
     if (front && Math.min(A[0], C[0]) >= 73) {                  // right section front: one brick face up to its parapet, none behind the block
-      frontFace(root, A[1], [[D.blk.x1, 0], [114, 0], [114, R], [D.low.x0, R], [D.low.x0, D.rsTop], [D.blk.x1, D.rsTop]], M.brick); continue;
+      wall(root, [114, A[1]], [D.blk.x1, A[1]], 0, R, M.brick); continue;   // level with the roof (Ahmed: nothing raised above it)
     }
     else if (front && A[0] >= 18.6) { wall(root, A, C, 0, B, M.band, 4, B, true); wall(root, A, C, B, R, M.brick); }
     else { wall(root, A, C, 0, B, M.band, 4, B, true); wall(root, A, C, B, R, M.beige); }
   }
   flat(root, FOOT, R, M.roof, 6);
   // parapet cap
-  capStrip(root, [[D.low.x0, -5], [114, -5], [114, 90.5], [93, 90.5], [93, 95.5], [82.7, 95.5], [82.7, 105], [0, 105], [0, 3], [18.6, 3], [18.6, 0], [73, 0]], R, 0.15, 0.2);
+  capStrip(root, [[D.blk.x1, -5], [114, -5], [114, 90.5], [93, 90.5], [93, 95.5], [82.7, 95.5], [82.7, 105], [0, 105], [0, 3], [18.6, 3], [18.6, 0], [73, 0]], R, 0.15, 0.2);
   // light lower sections on the two sides (photos: plain white/cream panel along the side walls)
   if (!BW) { wall(root, [0, 62], [0, 30], 0.02, 3.8, M.white); root.children.at(-1).position.x -= 0.03;
     wall(root, [114, 8], [114, 40], 0.02, 3.8, M.white); root.children.at(-1).position.x += 0.03; }
 
   // right section: raised brick front (x 73..112 at 9.5, 112..114 at 7.8 as on the page)
-  const y0 = D.rsY, yb = D.rsBack;
+  const y0 = D.rsY;
   // raised parapet over the entrance part (x blk.x1..112); the last 2 m stay at the main roof height, lower, as on the page
-  wall(root, [D.low.x0, y0], [D.low.x0, yb], R, D.rsTop, M.brick);
-  wall(root, [D.low.x0, yb], [D.blk.x1, yb], R, D.rsTop, M.beige);
-  flat(root, [[D.blk.x1, y0], [D.low.x0, y0], [D.low.x0, yb], [D.blk.x1, yb]], D.rsTop, M.roof);
-  box(root, D.blk.x1, D.low.x0, y0 - 0.15, y0 + 0.15, D.rsTop, D.rsTop + 0.2, M.cap);
 
   // (2) SUPERMARKET block
   const b = D.blk;
@@ -253,7 +242,7 @@ function building(root) {
   wall(root, [b.x0, b.y0], [b.x1, b.y0], 0, 4.1, M.white);
   wall(root, [b.x0 - 0.02, 0], [b.x0 - 0.02, b.y0], 0, b.h, M.red);   // left side: full height in front of the main wall
   wall(root, [b.x0 - 0.02, b.y1], [b.x0 - 0.02, 0], R, b.h, M.red);
-  wall(root, [b.x1, b.y0], [b.x1, b.y1], D.rsTop, b.h, M.red);
+  wall(root, [b.x1, b.y0], [b.x1, y0], 0, b.h, M.red); wall(root, [b.x1, y0], [b.x1, b.y1], R, b.h, M.red);
   wall(root, [b.x1, b.y1], [b.x0, b.y1], R, b.h, M.red);
   flat(root, [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1]], b.h, M.roof);
   if (!BW) box(root, b.x0, b.x1, b.y0 - 0.2, b.y0 + 0.1, b.h, b.h + 0.15, M.cap);
@@ -290,8 +279,8 @@ function building(root) {
   if (!BW) for (let x = c.x0 + 1; x < c.x1; x += 1.7) box(root, x - 0.15, x + 0.15, c.y0 + 0.2, c.y0 + 0.5, c.z0 - 0.02, c.z0, M.dark);   // canopy lights
   // (6) panel with the circle
   const p = D.panel;
-  box(root, p.x0, p.x1, y0 - 0.3, y0, 0.15, p.h, M.red);
-  wall(root, [p.x0, y0 - 0.31], [p.x1, y0 - 0.31], 0.15, p.h, M.panel, 1, 1, true);
+  box(root, p.x0, p.x1, y0 - 0.3, y0, 0.15, R, M.red);                                       // up to the top of the wall (Ahmed)
+  wall(root, [p.x0, y0 - 0.31], [p.x1, y0 - 0.31], 0.15, p.h, M.panel, 1, 1, true); root.children.at(-1).userData.noEdge = true;
   setUV(root.children.at(-1), p.x0, p.x1, 0.15, p.h);
   // bollards + red balls on the sidewalk
   for (let x = 89; x <= 104; x += 2.5) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 1, 12), M.metal); m.position.copy(V(x, -9.6, 0.65)); m.castShadow = true; root.add(m); }
