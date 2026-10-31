@@ -359,14 +359,13 @@ function site(root) {
   flat(root, [[-24, -156], [-20, -156], [-20, 150], [-24, 150]], 0.01, BW ? M.grass : new THREE.MeshLambertMaterial({ color: 0x6f9fcf }), 4);
   slab(root, [[82.7, 95.5], [93, 95.5], [93, 90.5], [114, 90.5], [114, 85], [134, 85], [134, 110], [82.7, 110]], 0, 0.03, M.concrete);
   // sidewalk following the stepped front, with the entrance bulge
-  slab(root, [[-4, 105], [-4, -12], [86, -12], [86, -15], [110, -15], [110, -12], [118, -12], [118, 90.5], [114, 90.5], [114, -4.9], [0, -4.9], [0, 105]], 0, 0.15, M.walk);
-  // where the sidewalk meets the building: a bold line, so walk and wall read apart in black and white (Ahmed)
+  slab(root, [[-4, 105], [-4, -12], [86, -12], [86, -15], [110, -15], [110, -12], [118, -12], [118, 90.5], [114, 90.5], [114, 3], [0, 3], [0, 105]], 0, 0.15, M.walk);   // one piece, no seam lines on the walk
+  // where the sidewalk meets the building: a thin line (same weight as the other edges), so walk and wall read apart in black and white (Ahmed)
   const foot = [[0, 105], [0, 3], [6.1, 3], [6.1, -3], [18.6, -3], [18.6, 0], [72.98, 0], [72.98, -5.5], [87.88, -5.5], [87.88, -8.1], [102.82, -8.1], [102.82, -5], [104.3, -5], [104.3, -5.3], [109.6, -5.3], [109.6, -5], [114, -5], [114, 90.5]];   // entrance piers and the circle panel included
   const n = foot.length, nrm = (i) => { const [ax, ay] = foot[i], [bx, by] = foot[i + 1], l = Math.hypot(bx - ax, by - ay); return [(by - ay) / l, -(bx - ax) / l]; };
   const off = foot.map((P, i) => { const a = nrm(Math.max(i - 1, 0)), b = nrm(Math.min(i, n - 2)); return i > 0 && i < n - 1 ? [a[0] + b[0], a[1] + b[1]] : a; });
-  const fo = foot.map((P, i) => [P[0] + off[i][0] * 0.2, P[1] + off[i][1] * 0.2]);
+  const fo = foot.map((P, i) => [P[0] + off[i][0] * 0.06, P[1] + off[i][1] * 0.06]);
   for (let i = 0; i < n - 1; i++) flat(root, [foot[i], foot[i + 1], fo[i + 1], fo[i]], 0.17, M.line);   // one mitred quad per wall (clear of the walk top, no depth fight)
-  slab(root, [[0, -4.9], [114, -4.9], [114, 3], [0, 3]], 0, 0.15, M.walk);
   // parking: double rows perpendicular to the front, stalls 2.7 x 5.5, aisles 7.3
   const lineAt = (x0, y0, x1, y1) => { const w = 0.12; flat(root, x0 === x1 ? [[x0 - w, y0], [x0 + w, y0], [x0 + w, y1], [x0 - w, y1]] : [[x0, y0 - w], [x1, y0 - w], [x1, y0 + w], [x0, y0 + w]], 0.02, M.line); };
   const rowsAt = (cx, ya, yb) => { lineAt(cx, ya, cx, yb); for (let y = ya; y <= yb + 0.01; y += 2.7) lineAt(cx - 5.5, y, cx + 5.5, y); };
