@@ -13,7 +13,7 @@ export const D = {
   hall: { x0: 0, x1: 25, h: 10.0, open: 12 },                     // 4 bays between the side towers; the bays are open 12 m deep
   tower: { h: 8.6, w: 5, y0: -0.6, y1: 29 },                     // brick side towers with the tall windows
   bays: [0.3, 6.4, 12.5, 18.6].map(x => [x, x + 4.5]),           // door openings, 4.5 m, piers 1.6 m
-  door: { h: 4.9, spring: 6.6, top: 7.7 },                       // door head, arch spring, arch crown
+  door: { h: 5.7, glass: 6.35, spring: 6.9, top: 7.7 },                       // door head, arch spring, arch crown
   gable: { x0: 4.6, x1: 20.4, z0: 10.9, peak: 14.6, depth: 29 },   // centre raised above the shoulders (page)
   sign: { x0: 7.25, x1: 17.75, z0: 9.05, z1: 10.3 },              // FIRE STATION board, centred on the gable (page)
   low: { x0: 30, x1: 49, y0: 0.5, y1: 12, h: 5.5 },              // low flat wing in front
@@ -197,11 +197,11 @@ function hall(root) {
     for (let k = 0; k <= 16; k++) { const t = t0 + (Math.PI - 2 * t0) * k / 16; outer.push([cx + R2 * Math.cos(t), zc + R2 * Math.sin(t)]); }
     elev(root, [...A, [b + 0.45, dr.spring], ...outer.slice(1, -1), [a - 0.45, dr.spring]], -0.18, 0.05, M.white);
     elev(root, [[cx - 0.32, dr.top - 0.1], [cx + 0.32, dr.top - 0.1], [cx + 0.4, dr.top + 0.4], [cx - 0.4, dr.top + 0.4]], -0.3, 0.05, M.white);   // keystone
-    elev(root, [[a, dr.h], [b, dr.h], ...A.slice().reverse()], 0.2, 0.28, M.white);   // transom glass
-    const s = [];
-    for (let k = 1; k < 4; k++) { const x = a + (b - a) * k / 4, zt = zc + Math.sqrt(Math.max(R * R - (x - cx) ** 2, 0)); s.push([[x, 0.18, dr.h], [x, 0.18, zt]]); }
-    s.push([[a, 0.18, dr.spring], [b, 0.18, dr.spring]]);
-    lines(root, s);
+    // like the page: a short arched glass band (4 x 2 panes) on top, a plain header panel under it, the open bay below
+    elev(root, [[a, dr.glass], [b, dr.glass], ...A.slice().reverse()], 0.2, 0.28, M.white);                  // glass
+    elev(root, [[a, dr.h], [b, dr.h], [b, dr.glass], [a, dr.glass]], 0.08, 0.3, M.white);                   // header panel
+    for (let k = 1; k < 4; k++) { const x = a + (b - a) * k / 4, zt = zc + Math.sqrt(Math.max(R * R - (x - cx) ** 2, 0)); box(root, x - 0.05, x + 0.05, 0.12, 0.2, dr.glass, zt); }
+    { const z = (dr.glass + dr.top) / 2, hw = Math.sqrt(R * R - (z - zc) ** 2); box(root, cx - hw, cx + hw, 0.12, 0.2, z - 0.05, z + 0.05); }
     box(root, a, b, 0.25, 0.75, dr.h - 0.35, dr.h);                     // rolled-up door at the head
     box(root, cx - 0.35, cx + 0.35, 2, 2.8, dr.h - 0.12, dr.h);          // ceiling light (page)
   }
@@ -220,7 +220,7 @@ function hall(root) {
     box(root, x0, x1, T.y0, T.y1 - 0.4, 0, T.h, M.brick);
     box(root, x0 - 0.25, x1 + 0.25, T.y0 - 0.3, T.y0 + 0.8, T.h - 0.4, T.h + 0.15);
     box(root, x0 - 0.12, x1 + 0.12, T.y0 - 0.15, T.y0 + 0.5, T.h - 0.75, T.h - 0.4);
-    opening(root, "-y", T.y0, x0 + 0.85, x1 - 0.85, 1.4, 7.2, 3, 4);
+    opening(root, "-y", T.y0, x0 + 0.95, x1 - 0.95, 1.5, 7.0, 3, 5); box(root, x0 + 0.75, x1 - 0.75, T.y0 - 0.2, T.y0, 7.15, 7.45);   // page: 3 x 5 panes with a head above
     if (outer) windowRow(root, "-x", x0, 2, T.y1 - 2, 6, 1.6, 1.4, 4.2);
   }
   // back of the hall: 4 doors to the back yard (drive-through), small windows high up
