@@ -10,12 +10,12 @@ export const V = (x, y, z) => new THREE.Vector3(x, z, -y);
 
 // ---------- dimensions ----------
 export const D = {
-  hall: { x0: 0, x1: 25, h: 9.5, open: 12 },                     // 4 bays between the side towers; the bays are open 12 m deep
+  hall: { x0: 0, x1: 25, h: 10.5, open: 12 },                     // 4 bays between the side towers; the bays are open 12 m deep
   tower: { h: 8.6, w: 5, y0: -0.6, y1: 29 },                     // brick side towers with the tall windows
   bays: [0.3, 6.4, 12.5, 18.6].map(x => [x, x + 4.5]),           // door openings, 4.5 m, piers 1.6 m
   door: { h: 4.9, spring: 6.6, top: 7.7 },                       // door head, arch spring, arch crown
-  gable: { x0: 4.6, x1: 20.4, z0: 9.7, peak: 13.5, depth: 8 },
-  sign: { x0: 7.25, x1: 17.75, z0: 8.05, z1: 9.4 },              // FIRE STATION board, centred on the gable (page)
+  gable: { x0: 4.6, x1: 20.4, z0: 10.7, peak: 14.6, depth: 29 },
+  sign: { x0: 7.25, x1: 17.75, z0: 8.6, z1: 9.85 },              // FIRE STATION board, centred on the gable (page)
   low: { x0: 30, x1: 49, y0: 0.5, y1: 12, h: 5.5 },              // low flat wing in front
   wingA: { x0: 26, x1: 40, y0: 20.5, y1: 48 },                   // gabled L wing, arm running back (ridge along y)
   wingB: { x0: 30, x1: 62, y0: 12, y1: 29 },                     // arm running right (ridge along x)
@@ -111,10 +111,11 @@ function opening(root, face, at, a0, a1, z0, z1, cols = 2, rows = 2, sill = true
   const fr = 0.1, out = 0.08, P = (a, z, o = out) => F(face, at, a, z, o);
   const bx = (a, b, za, zb, o0, o1) => { const p = P(a, za, o0), q = P(b, zb, o1);
     box(root, Math.min(p[0], q[0]), Math.max(p[0], q[0]) + (p[0] === q[0] ? 0.001 : 0), Math.min(p[1], q[1]), Math.max(p[1], q[1]) + (p[1] === q[1] ? 0.001 : 0), za, zb); };
+  bx(a0 + fr, a1 - fr, z0 + fr, z1 - fr, 0, 0.05);   // glass: a plain pane over the wall, so no brick shows through
   bx(a0, a1, z1 - fr, z1, 0, out); bx(a0, a1, z0, z0 + fr, 0, out); bx(a0, a0 + fr, z0, z1, 0, out); bx(a1 - fr, a1, z0, z1, 0, out);
   const s = [];
-  for (let i = 1; i < cols; i++) { const a = a0 + (a1 - a0) * i / cols; s.push([P(a, z0 + fr, 0.03), P(a, z1 - fr, 0.03)]); }
-  for (let j = 1; j < rows; j++) { const z = z0 + (z1 - z0) * j / rows; s.push([P(a0 + fr, z, 0.03), P(a1 - fr, z, 0.03)]); }
+  for (let i = 1; i < cols; i++) { const a = a0 + (a1 - a0) * i / cols; s.push([P(a, z0 + fr, 0.07), P(a, z1 - fr, 0.07)]); }
+  for (let j = 1; j < rows; j++) { const z = z0 + (z1 - z0) * j / rows; s.push([P(a0 + fr, z, 0.07), P(a1 - fr, z, 0.07)]); }
   lines(root, s);
   if (sill) bx(a0 - 0.15, a1 + 0.15, z0 - 0.15, z0, 0, 0.18);
 }
@@ -127,8 +128,8 @@ function windowRow(root, face, at, a0, a1, n, w, z0, z1, cols = 2, rows = 2) {
 // ---------- emblem (the page's Maltese cross with a flame), real 3D, facing -y; or turned to face +x ----------
 function emblem(root, x, y, z, size, faceEast = false) {
   const g = new THREE.Group(), r = size / 2;
-  const arm = (k) => { const pts = [[-0.17, 0.2], [-0.47, 0.98], [-0.2, 0.84], [0, 1.0], [0.2, 0.84], [0.47, 0.98], [0.17, 0.2]];
-    const c = Math.cos(k * Math.PI / 2), s = Math.sin(k * Math.PI / 2); return pts.map(([u, v]) => [(u * c - v * s) * r, (u * s + v * c) * r]); };
+  const arm = (k) => { const pts = [[-0.11, 0.13], [-0.52, 0.97], [0, 0.74], [0.52, 0.97], [0.11, 0.13]]   // Maltese cross arm: narrow at the centre, flared, V-notch at the tip;
+    const c = Math.cos(-k * Math.PI / 2), s = Math.sin(-k * Math.PI / 2); return pts.map(([u, v]) => [(u * c - v * s) * r, (u * s + v * c) * r]); };
   const cross = new THREE.Shape(); const all = [];
   for (let k = 0; k < 4; k++) all.push(...arm(k));
   cross.moveTo(...all[0]); for (const p of all.slice(1)) cross.lineTo(...p);
@@ -180,7 +181,7 @@ function hall(root) {
     const outer = [], R2 = R + 0.45;
     for (let k = 0; k <= 16; k++) { const t = t0 + (Math.PI - 2 * t0) * k / 16; outer.push([cx + R2 * Math.cos(t), zc + R2 * Math.sin(t)]); }
     elev(root, [...A, [b + 0.45, dr.spring], ...outer.slice(1, -1), [a - 0.45, dr.spring]], -0.18, 0.05, M.white);
-    elev(root, [[cx - 0.32, dr.top - 0.1], [cx + 0.32, dr.top - 0.1], [cx + 0.42, dr.top + 0.6], [cx - 0.42, dr.top + 0.6]], -0.3, 0.05, M.white);   // keystone
+    elev(root, [[cx - 0.32, dr.top - 0.1], [cx + 0.32, dr.top - 0.1], [cx + 0.4, dr.top + 0.4], [cx - 0.4, dr.top + 0.4]], -0.3, 0.05, M.white);   // keystone
     elev(root, [[a, dr.h], [b, dr.h], ...A.slice().reverse()], 0.2, 0.28, M.white);   // transom glass
     const s = [];
     for (let k = 1; k < 4; k++) { const x = a + (b - a) * k / 4, zt = zc + Math.sqrt(Math.max(R * R - (x - cx) ** 2, 0)); s.push([[x, 0.18, dr.h], [x, 0.18, zt]]); }
@@ -194,7 +195,7 @@ function hall(root) {
   box(root, G.x0 - 0.4, G.x1 + 0.4, -0.3, 0.4, G.z0 - 0.35, G.z0 - 0.1);
   elev(root, [[G.x0 - 0.6, G.z0 - 0.1], [(G.x0 + G.x1) / 2, G.peak - 0.05], [G.x1 + 0.6, G.z0 - 0.1], [G.x1 + 0.6, G.z0 + 0.35], [(G.x0 + G.x1) / 2, G.peak + 0.55], [G.x0 - 0.6, G.z0 + 0.35]], -0.4, 0.5, M.white);
   gableRoof(root, G.x0, G.x1, 0.5, G.depth, H.h, G.peak - H.h, "y");
-  emblem(root, (G.x0 + G.x1) / 2, -0.02, 11.25, 2.3);
+  emblem(root, (G.x0 + G.x1) / 2, -0.02, 12.3, 2.3);
   // side towers: tall window on the front (page: 3 x 4 panes), cap, windows on the outer sides
   for (const [x0, x1, outer] of [[H.x0 - T.w, H.x0, "-x"], [H.x1, H.x1 + T.w, null]]) {
     box(root, x0, x1, T.y0, T.y1, 0, T.h, M.brick);
@@ -278,18 +279,23 @@ function wings(root) {
   const panel = (face) => {      // recessed arched panel, stone arch round it
     const a0 = (face === "-y" ? cx : cy) - 1.7, a1 = a0 + 3.4, z0 = 5.0, zs = 7.6, R = 1.7, ac = a0 + 1.7;
     const sh = []; sh.push([a0, z0], [a1, z0]); for (let k = 0; k <= 16; k++) { const t = Math.PI * k / 16; sh.push([ac + R * Math.cos(t), zs + R * Math.sin(t)]); }
+    if (face === "-y") elev(root, sh, T.y0 - 0.05, T.y0); else side(root, sh, T.x1, T.x1 + 0.05);   // plain stone panel
     const P3 = sh.map(([a, z]) => F(face, face === "-y" ? T.y0 : T.x1, a, z, 0.04));
     const s = []; for (let i = 0; i < P3.length; i++) s.push([P3[i], P3[(i + 1) % P3.length]]); lines(root, s);
     const ring = []; for (let k = 0; k <= 16; k++) { const t = Math.PI * k / 16; ring.push(F(face, face === "-y" ? T.y0 : T.x1, ac + (R + 0.35) * Math.cos(t), zs + (R + 0.35) * Math.sin(t), 0.04)); }
     for (let i = 0; i < 16; i++) s.push([ring[i], ring[i + 1]]); lines(root, s);
   };
   panel("-y"); panel("+x");
-  emblem(root, cx, T.y0 - 0.02, 7.0, 2.3); emblem(root, T.x1 + 0.02, cy, 7.0, 2.3, true);
+  emblem(root, cx, T.y0 - 0.06, 7.0, 2.3); emblem(root, T.x1 + 0.06, cy, 7.0, 2.3, true);
   opening(root, "-y", T.y0, cx - 1.6, cx + 1.6, 1.3, 4.3, 3, 2);                       // big window on the front (photo)
   opening(root, "+x", T.x1, cy - 1.4, cy + 1.4, 0, 3.0, 2, 1, false);                  // glass doors
   opening(root, "+x", T.x1, cy - 2.6, cy - 1.55, 0, 3.0, 1, 2, false); opening(root, "+x", T.x1, cy + 1.55, cy + 2.6, 0, 3.0, 1, 2, false);
   box(root, T.x1, T.x1 + 3.0, T.y0 - 0.3, T.y1 + 0.3, 3.4, 3.7);                        // canopy
-  for (const y of [T.y0 + 0.2, T.y1 - 0.2]) box(root, T.x1 + 0.3, T.x1 + 0.9, y - 0.06, y + 0.06, 3.7, 4.9);   // canopy hangers
+  for (const y of [T.y0 + 0.4, T.y1 - 0.4]) {      // tie rods from the wall down to the canopy's outer edge, with wall plates
+    box(root, T.x1, T.x1 + 0.06, y - 0.15, y + 0.15, 5.0, 5.4);
+    const a = V(T.x1 + 0.06, y, 5.2), b = V(T.x1 + 2.8, y, 3.7), rod = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, a.distanceTo(b), 8), M.white);
+    rod.position.copy(a).add(b).multiplyScalar(0.5); rod.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()); root.add(rod);
+  }
   opening(root, "+y", T.y1, cx - 0.9, cx + 0.9, 1.3, 3.9);
 }
 
