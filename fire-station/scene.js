@@ -193,21 +193,25 @@ function hall(root) {
   side(root, [[0.4, dr.h], [H.open, dr.h], [H.open, 0], [T.y1 - 0.4, 0], [T.y1 - 0.4, H.h], [0.4, H.h]], H.x0, H.x1, M.brick);
   // arched brick surround with keystone (page), transom glass with its grid, rolled-up door under it
   for (const { a, b, cx, R, zc, t0, A } of arch) {
-    const outer = [], R2 = R + 0.45;
+    const outer = [], R2 = R + 0.6;
     for (let k = 0; k <= 16; k++) { const t = t0 + (Math.PI - 2 * t0) * k / 16; outer.push([cx + R2 * Math.cos(t), zc + R2 * Math.sin(t)]); }
-    elev(root, [...A, [b + 0.45, dr.spring], ...outer.slice(1, -1), [a - 0.45, dr.spring]], -0.18, 0.05, M.white);
+    elev(root, [...A, [b + 0.6, dr.spring], ...outer.slice(1, -1), [a - 0.6, dr.spring]], -0.22, 0.05, M.white);
     elev(root, [[cx - 0.32, dr.top - 0.1], [cx + 0.32, dr.top - 0.1], [cx + 0.4, dr.top + 0.4], [cx - 0.4, dr.top + 0.4]], -0.3, 0.05, M.white);   // keystone
     // like the page: a short arched glass band (4 x 2 panes) on top, a plain header panel under it, the open bay below
     elev(root, [[a, dr.glass], [b, dr.glass], ...A.slice().reverse()], 0.2, 0.28, M.white);                  // glass
     elev(root, [[a, dr.h], [b, dr.h], [b, dr.glass], [a, dr.glass]], 0.08, 0.3, M.white);                   // header panel
-    for (let k = 1; k < 4; k++) { const x = a + (b - a) * k / 4, zt = zc + Math.sqrt(Math.max(R * R - (x - cx) ** 2, 0)); box(root, x - 0.05, x + 0.05, 0.12, 0.2, dr.glass, zt); }
-    { const z = (dr.glass + dr.top) / 2, hw = Math.sqrt(R * R - (z - zc) ** 2); box(root, cx - hw, cx + hw, 0.12, 0.2, z - 0.05, z + 0.05); }
+    for (let k = 1; k < 4; k++) { const x = a + (b - a) * k / 4, zt = zc + Math.sqrt(Math.max(R * R - (x - cx) ** 2, 0)); box(root, x - 0.07, x + 0.07, 0.08, 0.2, dr.glass, zt); }
+    box(root, a, b, 0.06, 0.2, dr.glass, dr.glass + 0.14);   // glass sill bar
+    { const z = (dr.glass + dr.top) / 2, hw = Math.sqrt(R * R - (z - zc) ** 2); box(root, cx - hw, cx + hw, 0.08, 0.2, z - 0.07, z + 0.07); }
     box(root, a, b, 0.25, 0.75, dr.h - 0.35, dr.h);                     // rolled-up door at the head
     box(root, cx - 0.35, cx + 0.35, 2, 2.8, dr.h - 0.12, dr.h);          // ceiling light (page)
   }
   // one cornice right across the top of the wall; the gable wall, its rake trim and the roof all share one slope, so nothing floats
   // like the page: the centre under the pediment is raised; the shoulders either side get their own cornice a step lower
-  box(root, H.x0 - 0.1, G.x0, -0.35, 0.4, H.h - 0.4, H.h); box(root, G.x1, H.x1 + 0.1, -0.35, 0.4, H.h - 0.4, H.h);
+  for (const [a, b] of [[H.x0, G.x0], [G.x1, H.x1]]) {     // shoulder cornice like the page: deep fascia + a thin cap slab that projects further
+    box(root, a - 0.15, b, -0.3, 0.4, H.h - 0.6, H.h - 0.12);
+    box(root, a - 0.35, b, -0.5, 0.4, H.h - 0.12, H.h + 0.1);
+  }
   { const k = (G.peak - G.z0) / ((G.x1 - G.x0) / 2), o = 0.35, t = 0.4, mid = (G.x0 + G.x1) / 2, zl = G.z0 - o * k;
     elev(root, [[G.x0 - o, zl], [mid, G.peak], [G.x1 + o, zl], [G.x1 + o, zl + t], [mid, G.peak + t], [G.x0 - o, zl + t]], -0.4, G.depth + 0.3, M.roof);   // roof + rake in one piece
     elev(root, [[G.x0, H.h], [G.x1, H.h], [G.x1, G.z0], [mid, G.peak], [G.x0, G.z0]], 0.4, G.depth - 0.4, M.brick);
@@ -220,7 +224,7 @@ function hall(root) {
     box(root, x0, x1, T.y0, T.y1 - 0.4, 0, T.h, M.brick);
     box(root, x0 - 0.25, x1 + 0.25, T.y0 - 0.3, T.y0 + 0.8, T.h - 0.4, T.h + 0.15);
     box(root, x0 - 0.12, x1 + 0.12, T.y0 - 0.15, T.y0 + 0.5, T.h - 0.75, T.h - 0.4);
-    opening(root, "-y", T.y0, x0 + 0.95, x1 - 0.95, 1.5, 7.0, 3, 5); box(root, x0 + 0.75, x1 - 0.75, T.y0 - 0.2, T.y0, 7.15, 7.45);   // page: 3 x 5 panes with a head above
+    opening(root, "-y", T.y0, x0 + 0.95, x1 - 0.95, 1.5, 7.0, 3, 5); box(root, x0 + 0.6, x1 - 0.6, T.y0 - 0.3, T.y0, 7.1, 7.65);   // page: 3 x 5 panes with a head above
     if (outer) windowRow(root, "-x", x0, 2, T.y1 - 2, 6, 1.6, 1.4, 4.2);
   }
   // back of the hall: 4 doors to the back yard (drive-through), small windows high up
