@@ -102,14 +102,14 @@ function gableRoof(root, x0, x1, y0, y1, z, r, along, mat = M.roof) {
   else elev(root, [[x0, z], [x1, z], [(x0 + x1) / 2, z + r]], y0, y1, mat);
 }
 // a gabled block: walls and gable triangles are one brick extrusion (no seam at the eave), the roof is one folded strip with overhangs
-function house(root, x0, x1, y0, y1, e, pitch, along, emblems = []) {
-  const o = 0.5, oe = 0.35, t = 0.3;
+function house(root, x0, x1, y0, y1, e, pitch, along, emblems = [], ends = [0.35, 0.35]) {   // ends: roof overhang at each gable end (0 where it dies into a wall)
+  const o = 0.5, t = 0.3, [e0, e1] = ends;
   const [a0, a1, b0, b1] = along === "y" ? [x0, x1, y0, y1] : [y0, y1, x0, x1];
   const mid = (a0 + a1) / 2, r = (a1 - a0) / 2 * pitch, k = pitch;
   const body = [[a0, 0], [a1, 0], [a1, e], [mid, e + r], [a0, e]];
   const roof = [[a0 - o, e - o * k], [mid, e + r], [a1 + o, e - o * k], [a1 + o, e - o * k + t], [mid, e + r + t], [a0 - o, e - o * k + t]];
-  if (along === "y") { elev(root, body, y0, y1, M.brick); elev(root, roof, y0 - oe, y1 + oe, M.roof); }
-  else { side(root, body, x0, x1, M.brick); side(root, roof, x0 - oe, x1 + oe, M.roof); }
+  if (along === "y") { elev(root, body, y0, y1, M.brick); elev(root, roof, y0 - e0, y1 + e1, M.roof); }
+  else { side(root, body, x0, x1, M.brick); side(root, roof, x0 - e0, x1 + e1, M.roof); }
   const size = Math.min(r * 0.8, 2.0), ez = e + r * 0.38;
   for (const f of emblems) {
     if (f === "+x" || f === "-x") emblem(root, f === "+x" ? x1 + 0.05 : x0 - 0.05, mid, ez, size, f);
@@ -281,7 +281,7 @@ function wings(root) {
   windowRow(root, "-y", L.y0, L.x0, L.x1, 6, 1.8, 1.3, 3.9, 2, 2);
   // gabled L wing: brick walls, eaves, ridges running through and meeting
   house(root, A.x0, A.x1, A.y0, A.y1, e, p, "y", ["+y"]);
-  house(root, B.x0, B.x1, B.y0, B.y1, e, p, "x", ["+x"]);
+  house(root, D.hall.x1, B.x1, B.y0, B.y1, e, p, "x", ["+x"], [0, 0.35]);   // runs into the hall wall (taller), so no loose gable above the tower
   windowRow(root, "-y", B.y0, D.entry.x1 + 0.5, B.x1, 3, 1.6, 1.3, 4.3, 1, 2);       // south face (photo: tall windows)
   windowRow(root, "+x", B.x1, B.y0, B.y1, 3, 1.6, 1.3, 4.3, 1, 2);                   // east end
   windowRow(root, "+y", B.y1, A.x1, 49.5, 2, 1.6, 1.3, 3.9, 2, 2); windowRow(root, "+y", B.y1, 52.5, B.x1, 3, 1.6, 1.3, 3.9, 2, 2);   // garden side
@@ -325,7 +325,7 @@ function garage(root) {
   windowRow(root, "-x", G.x0, G.y0, G.y1, 4, 1.4, 1.4, 4.0, 1, 2);
   // front end (faces the hall): centred door with transom and canopy, a tall window either side
   opening(root, "-y", G.y0, mid - 0.8, mid + 0.8, 0, 2.9, 2, 2, false); box(root, mid - 1.3, mid + 1.3, G.y0 - 1.2, G.y0, 3.15, 3.4);
-  for (const a of [G.x0 + 1.6, G.x1 - 3.0]) opening(root, "-y", G.y0, a, a + 1.4, 1.4, 4.0, 1, 2);
+  for (const a of [G.x0 + 1.6, mid + 1.6, G.x1 - 3.0]) opening(root, "-y", G.y0, a, a + 1.4, 1.4, 4.0, 1, 2);
   for (const a of [G.x0 + 1.6, mid - 0.7, G.x1 - 3.0]) opening(root, "+y", G.y1, a, a + 1.4, 1.4, 4.0, 1, 2);
 }
 
@@ -335,8 +335,7 @@ function site(root) {
   const kerb = (pts) => slab(root, pts, 0, 0.15);
   // Airway Blvd (y -45..-30) and the side street (x 115..131) run straight through and cross; a sidewalk on all four corners
   // near-side sidewalks, cut where the apron and the drives cross them so those stay level with the street
-  kerb([[-60, -30], [0, -30], [0, -27], [-60, -27]]); kerb([[25, -30], [115, -30], [115, -27], [25, -27]]);
-  for (const [y0, y1] of [[-27, 6], [13, 62], [69, 90], [98, 140]]) kerb([[112, y0], [115, y0], [115, y1], [112, y1]]);
+  for (const [y0, y1] of [[-30, 6], [13, 62], [69, 90], [98, 140]]) kerb([[112, y0], [115, y0], [115, y1], [112, y1]]);
   kerb([[-60, -48], [115, -48], [115, -70], [112, -70], [112, -45], [-60, -45]]);
   kerb([[131, -30], [170, -30], [170, -27], [134, -27], [134, 140], [131, 140]]);
   kerb([[131, -45], [170, -45], [170, -48], [134, -48], [134, -70], [131, -70]]);
@@ -368,7 +367,7 @@ function site(root) {
   lines(root, stalls);
   // walks, plaza, flagpoles with flags
   { const pc = [66, 8.75], pr = 3.8, h = Math.atan2(1.75, Math.sqrt(pr * pr - 1.75 * 1.75)), arc = (t0, t1) => { const r = []; for (let k = 0; k <= 24; k++) { const t = t0 + (t1 - t0) * k / 24; r.push([pc[0] + pr * Math.cos(t), pc[1] + pr * Math.sin(t)]); } return r; };
-    slab(root, [[D.entry.x1, 7], ...arc(Math.PI + h, 2 * Math.PI - h), [72.5, 7], [72.5, -27], [75.5, -27], [75.5, 90], [72.5, 90], [72.5, 65], [26, 65], [26, 62], [72.5, 62], [72.5, 10.5], ...arc(h, Math.PI - h), [D.entry.x1, 10.5]], 0, 0.12);
+    slab(root, [[D.entry.x1, 7], ...arc(Math.PI + h, 2 * Math.PI - h), [76, 7], [76, 90], [72.5, 90], [72.5, 65], [26, 65], [26, 62], [72.5, 62], [72.5, 10.5], ...arc(h, Math.PI - h), [D.entry.x1, 10.5]], 0, 0.12);
     const bed = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 0.03, 40), M.white); bed.position.copy(V(pc[0], pc[1], 0.135)); root.add(bed); }   // centre circle of the plaza, flush with the paving
   for (const x of [61, 63.5]) {
     cyl(root, x, 3.5, 0, 12, 0.08, 8); const ball = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), M.white); ball.position.copy(V(x, 3.5, 12.1)); root.add(ball);
