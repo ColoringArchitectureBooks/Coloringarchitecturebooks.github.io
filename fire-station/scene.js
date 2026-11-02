@@ -363,7 +363,10 @@ function site(root) {
   slab(root, [[76, 11], [104, 11], [104, 72], [76, 72]], 0, 0.04);   // parking starts where the entrance walk ends
   slab(root, [[104, 13], [115, 13], [115, 20], [104, 20]], 0, 0.04); slab(root, [[104, 62], [115, 62], [115, 69], [104, 69]], 0, 0.04);
   const stalls = [];
-  for (let y = 14; y < 70; y += 3) stalls.push([[76.5, y, 0.05], [82, y, 0.05]], [[98, y, 0.05], [103.5, y, 0.05]]);
+  for (let y = 14; y < 70; y += 3) {
+    stalls.push([[76.5, y, 0.05], [82, y, 0.05]]);
+    if (!(y > 12 && y < 21) && !(y > 61 && y < 70)) stalls.push([[98, y, 0.05], [103.5, y, 0.05]]);   // no parking lines where the two drives come in
+  }
   for (let y = 36; y < 62; y += 3) stalls.push([[-11.5, y, 0.05], [-6.5, y, 0.05]]);
   lines(root, stalls);
   // walks, plaza, flagpoles with flags
