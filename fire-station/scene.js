@@ -190,7 +190,7 @@ function hall(root) {
   pts.push([H.x1, 0], [H.x1, H.h], [G.x1, H.h], [G.x1, G.z0], [(G.x0 + G.x1) / 2, G.peak], [G.x0, G.z0], [G.x0, H.h], [H.x0, H.h]);
   elev(root, pts, 0, 0.4, M.brick);
   // hall body: open bays in front (ceiling at the door head), solid behind; one L-shaped profile so no seams outside
-  side(root, [[0.4, dr.h], [H.open, dr.h], [H.open, 0], [T.y1, 0], [T.y1, H.h], [0.4, H.h]], H.x0, H.x1, M.brick);
+  side(root, [[0.4, dr.h], [H.open, dr.h], [H.open, 0], [T.y1 - 0.4, 0], [T.y1 - 0.4, H.h], [0.4, H.h]], H.x0, H.x1, M.brick);
   // arched brick surround with keystone (page), transom glass with its grid, rolled-up door under it
   for (const { a, b, cx, R, zc, t0, A } of arch) {
     const outer = [], R2 = R + 0.45;
@@ -210,11 +210,14 @@ function hall(root) {
   box(root, H.x0 - 0.1, G.x0, -0.35, 0.4, H.h - 0.4, H.h); box(root, G.x1, H.x1 + 0.1, -0.35, 0.4, H.h - 0.4, H.h);
   { const k = (G.peak - G.z0) / ((G.x1 - G.x0) / 2), o = 0.35, t = 0.4, mid = (G.x0 + G.x1) / 2, zl = G.z0 - o * k;
     elev(root, [[G.x0 - o, zl], [mid, G.peak], [G.x1 + o, zl], [G.x1 + o, zl + t], [mid, G.peak + t], [G.x0 - o, zl + t]], -0.4, G.depth + 0.3, M.roof);   // roof + rake in one piece
-    elev(root, [[G.x0, H.h], [G.x1, H.h], [G.x1, G.z0], [mid, G.peak], [G.x0, G.z0]], 0.4, G.depth, M.brick); }   // brick right up to the roof, back gable too
+    elev(root, [[G.x0, H.h], [G.x1, H.h], [G.x1, G.z0], [mid, G.peak], [G.x0, G.z0]], 0.4, G.depth - 0.4, M.brick);
+    // the whole back (towers + hall + gable) is one wall, so there are no seams across it
+    const tw = D.tower.w, th = D.tower.h;
+    elev(root, [[H.x0 - tw, 0], [H.x1 + tw, 0], [H.x1 + tw, th], [H.x1, th], [H.x1, H.h], [G.x1, H.h], [G.x1, G.z0], [mid, G.peak], [G.x0, G.z0], [G.x0, H.h], [H.x0, H.h], [H.x0, th], [H.x0 - tw, th]], G.depth - 0.4, G.depth, M.brick); }
   emblem(root, (G.x0 + G.x1) / 2, -0.02, 12.3, 2.3);
   // side towers: tall window on the front (page: 3 x 4 panes), cap, windows on the outer sides
   for (const [x0, x1, outer] of [[H.x0 - T.w, H.x0, "-x"], [H.x1, H.x1 + T.w, null]]) {
-    box(root, x0, x1, T.y0, T.y1, 0, T.h, M.brick);
+    box(root, x0, x1, T.y0, T.y1 - 0.4, 0, T.h, M.brick);
     box(root, x0 - 0.25, x1 + 0.25, T.y0 - 0.3, T.y0 + 0.8, T.h - 0.4, T.h + 0.15);
     box(root, x0 - 0.12, x1 + 0.12, T.y0 - 0.15, T.y0 + 0.5, T.h - 0.75, T.h - 0.4);
     opening(root, "-y", T.y0, x0 + 0.85, x1 - 0.85, 1.4, 7.2, 3, 4);
@@ -281,8 +284,8 @@ function wings(root) {
   house(root, B.x0, B.x1, B.y0, B.y1, e, p, "x", ["+x"]);
   windowRow(root, "-y", B.y0, D.entry.x1 + 0.5, B.x1, 3, 1.6, 1.3, 4.3, 1, 2);       // south face (photo: tall windows)
   windowRow(root, "+x", B.x1, B.y0, B.y1, 3, 1.6, 1.3, 4.3, 1, 2);                   // east end
-  windowRow(root, "+y", B.y1, A.x1, B.x1, 5, 1.6, 1.3, 3.9, 2, 2);                   // garden side
-  opening(root, "+y", B.y1, 52.5, 54.5, 0, 2.5, 2, 1, false);                        // garden door
+  windowRow(root, "+y", B.y1, A.x1, 49.5, 2, 1.6, 1.3, 3.9, 2, 2); windowRow(root, "+y", B.y1, 52.5, B.x1, 3, 1.6, 1.3, 3.9, 2, 2);   // garden side
+  opening(root, "+y", B.y1, 50.0, 52.0, 0, 2.9, 2, 2, false); box(root, 49.4, 52.6, B.y1, B.y1 + 1.4, 3.2, 3.45);   // garden door with transom + canopy, between the windows
   windowRow(root, "+x", A.x1, 29, A.y1, 4, 1.6, 1.3, 3.9, 2, 2);                      // A east (garden)
   windowRow(root, "-x", A.x0, 29, A.y1, 4, 1.6, 1.3, 3.9, 2, 2);                      // A west (back yard)
   opening(root, "+y", A.y1, 31.8, 34.2, 0, 2.9, 2, 2, false); box(root, 31.2, 34.8, A.y1, A.y1 + 1.4, 3.2, 3.45);   // door with transom + small canopy
@@ -354,7 +357,7 @@ function site(root) {
   }
   lines(root, st);
   // back yard + back drive to the side street, visitor parking with two drives
-  slab(root, [[-12, 29], [30, 29], [30, 58], [36, 58], [36, 90], [112, 90], [112, 98], [-12, 98]], 0, 0.04);
+  slab(root, [[-12, 29], [26, 29], [26, 90], [112, 90], [112, 98], [-12, 98]], 0, 0.04);
   slab(root, [[76, 4], [104, 4], [104, 72], [76, 72]], 0, 0.04);
   slab(root, [[104, 6], [112, 6], [112, 13], [104, 13]], 0, 0.04); slab(root, [[104, 62], [112, 62], [112, 69], [104, 69]], 0, 0.04);
   const stalls = [];
@@ -363,7 +366,7 @@ function site(root) {
   lines(root, stalls);
   // walks, plaza, flagpoles with flags
   { const pc = [66, 8.75], pr = 3.8, h = Math.atan2(1.75, Math.sqrt(pr * pr - 1.75 * 1.75)), arc = (t0, t1) => { const r = []; for (let k = 0; k <= 24; k++) { const t = t0 + (t1 - t0) * k / 24; r.push([pc[0] + pr * Math.cos(t), pc[1] + pr * Math.sin(t)]); } return r; };
-    slab(root, [[D.entry.x1, 7], ...arc(Math.PI + h, 2 * Math.PI - h), [72.5, 7], [72.5, -27], [75.5, -27], [75.5, 90], [72.5, 90], [72.5, 65], [36, 65], [36, 62], [72.5, 62], [72.5, 10.5], ...arc(h, Math.PI - h), [D.entry.x1, 10.5]], 0, 0.12);
+    slab(root, [[D.entry.x1, 7], ...arc(Math.PI + h, 2 * Math.PI - h), [72.5, 7], [72.5, -27], [75.5, -27], [75.5, 90], [72.5, 90], [72.5, 65], [26, 65], [26, 62], [72.5, 62], [72.5, 10.5], ...arc(h, Math.PI - h), [D.entry.x1, 10.5]], 0, 0.12);
     const bed = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 0.03, 40), M.white); bed.position.copy(V(pc[0], pc[1], 0.135)); root.add(bed); }   // centre circle of the plaza, flush with the paving
   for (const x of [61, 63.5]) {
     cyl(root, x, 3.5, 0, 12, 0.08, 8); const ball = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), M.white); ball.position.copy(V(x, 3.5, 12.1)); root.add(ball);
