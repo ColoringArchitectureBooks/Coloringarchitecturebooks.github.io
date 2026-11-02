@@ -376,13 +376,33 @@ function site(root) {
   lines(root, [[[-20, -27, 0.01], [-20, 104, 0.01]], [[-15, -27, 0.01], [-15, 104, 0.01]]]);      // ditch along the left edge
 }
 
+// grass: little three-blade tufts scattered over every bit of open ground on the plot (so it reads as "colour me green")
+function grass(root) {
+  let seed = 7; const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const hard = [   // [x0, x1, y0, y1]: buildings, paving, parking, walks
+    [-5, 30, -0.6, 29], [30, 49.2, 0.3, 12], [25.5, 40.5, 20, 48.4], [29.6, 62.4, 11.5, 29.5], [48.6, 58.6, 5, 12.4],
+    [-11.5, 4.5, 64.4, 88.4], [0, 25, -27, 0], [-12, 26, 29, 98], [26, 112, 90, 98], [76, 104, 4, 72], [104, 112, 6, 13], [104, 112, 62, 69],
+    [72.5, 75.5, -27, 90], [26, 72.5, 62, 65], [55.5, 72.5, 7, 10.5], [62, 70, 4.9, 12.6], [60.5, 66, 2.8, 4.2]];
+  const P = D.plot, m = 0.7, segs = [];
+  const free = (x, y) => !hard.some(([a, b, c, d]) => x > a - m && x < b + m && y > c - m && y < d + m);
+  for (let n = 0; n < 2600; n++) {
+    const x = P.x0 + 1 + rnd() * (P.x1 - P.x0 - 2), y = P.y0 + 1 + rnd() * (P.y1 - P.y0 - 2);
+    if (!free(x, y) || (x > -20.5 && x < -14.5)) continue;          // keep clear of the ditch lines too
+    const h = 0.45 + rnd() * 0.25, w = 0.22 + rnd() * 0.1, a = rnd() * Math.PI, cx = Math.cos(a), cy = Math.sin(a);
+    const B = [x, y, 0];                                              // five blades fanning out, like the tufts on the page
+    for (const [f, k] of [[0, 1], [-0.5, 0.85], [0.5, 0.85], [-1, 0.6], [1, 0.6]]) segs.push([B, [x + f * w * cx, y + f * w * cy, h * k]]);
+    for (const f of [-0.7, 0.7]) segs.push([B, [x - f * w * cy, y + f * w * cx, h * 0.75]]);   // two blades across, so a tuft never looks like a single stick
+  }
+  lines(root, segs);
+}
+
 // builds everything; resolves when the 3D letters are in
 export function buildScene(scene) {
   mats();
   const root = new THREE.Group();
   hall(root);
   truck(root, 2.55, 1.2, "engine"); truck(root, 8.65, 1.2, "ladder"); truck(root, 14.75, 1.2, "engine"); truck(root, 20.85, 1.6, "ambulance");
-  wings(root); garage(root); site(root);
+  wings(root); garage(root); site(root); grass(root);
   scene.add(root);
   scene.background = new THREE.Color(0xffffff);
   scene.add(new THREE.HemisphereLight(0xffffff, 0xdddddd, 2.3));
