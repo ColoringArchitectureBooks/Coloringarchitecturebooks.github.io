@@ -303,10 +303,9 @@ function wings(root) {
     const a0 = (face === "-y" ? cx : cy) - 1.5, a1 = a0 + 3.0, z0 = 4.7, zs = 6.9, R = 1.5, ac = a0 + 1.5;
     const sh = []; sh.push([a0, z0], [a1, z0]); for (let k = 0; k <= 16; k++) { const t = Math.PI * k / 16; sh.push([ac + R * Math.cos(t), zs + R * Math.sin(t)]); }
     if (face === "-y") elev(root, sh, T.y0 - 0.05, T.y0); else side(root, sh, T.x1, T.x1 + 0.05);   // plain stone panel
-    const P3 = sh.map(([a, z]) => F(face, face === "-y" ? T.y0 : T.x1, a, z, 0.04));
-    const s = []; for (let i = 0; i < P3.length; i++) s.push([P3[i], P3[(i + 1) % P3.length]]); lines(root, s);
-    const ring = []; for (let k = 0; k <= 16; k++) { const t = Math.PI * k / 16; ring.push(F(face, face === "-y" ? T.y0 : T.x1, ac + (R + 0.35) * Math.cos(t), zs + (R + 0.35) * Math.sin(t), 0.04)); }
-    for (let i = 0; i < 16; i++) s.push([ring[i], ring[i + 1]]); lines(root, s);
+    const band = [[a0 - 0.4, z0]]; for (let k = 0; k <= 16; k++) { const t = Math.PI * k / 16; band.push([ac - (R + 0.4) * Math.cos(t), zs + (R + 0.4) * Math.sin(t)]); }
+    band.push([a1 + 0.4, z0], [a1, z0]); for (let k = 0; k <= 16; k++) { const t = Math.PI * k / 16; band.push([ac + R * Math.cos(t), zs + R * Math.sin(t)]); }
+    if (face === "-y") elev(root, band, T.y0 - 0.18, T.y0); else side(root, band, T.x1, T.x1 + 0.18);   // raised stone archivolt framing the panel, standing proud of the wall
   };
   panel("-y"); panel("+x");
   emblem(root, cx, T.y0 - 0.06, 6.55, 2.1); emblem(root, T.x1 + 0.06, cy, 6.55, 2.1, true);
@@ -376,7 +375,7 @@ function site(root) {
   { const pc = [66, 8.75], pr = 3.8, h = Math.atan2(1.75, Math.sqrt(pr * pr - 1.75 * 1.75)), arc = (t0, t1) => { const r = []; for (let k = 0; k <= 24; k++) { const t = t0 + (t1 - t0) * k / 24; r.push([pc[0] + pr * Math.cos(t), pc[1] + pr * Math.sin(t)]); } return r; };
     slab(root, [[D.entry.x1, 7], ...arc(Math.PI + h, 2 * Math.PI - h), [112, 7], [112, 10.5], [76, 10.5], [76, 90], [72.5, 90], [72.5, 65], [26, 65], [26, 62], [72.5, 62], [72.5, 10.5], ...arc(h, Math.PI - h), [D.entry.x1, 10.5]], 0, 0.12);
     const bed = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 0.03, 40), M.white); bed.position.copy(V(pc[0], pc[1], 0.135)); root.add(bed); }   // centre circle of the plaza, flush with the paving
-  for (const x of [61, 63.5]) {
+  for (const x of [62.2]) {      // one flagpole with the flag
     cyl(root, x, 3.5, 0, 12, 0.08, 8); const ball = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), M.white); ball.position.copy(V(x, 3.5, 12.1)); root.add(ball);
     box(root, x + 0.08, x + 2.0, 3.48, 3.52, 10.6, 11.8);
     lines(root, [10.85, 11.1, 11.35, 11.6].map(z => [[x + 0.9, 3.45, z], [x + 2.0, 3.45, z]]).concat([[[x + 0.9, 3.45, 11.1], [x + 0.9, 3.45, 11.8]]]));
