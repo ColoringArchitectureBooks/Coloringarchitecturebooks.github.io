@@ -101,13 +101,20 @@ function gableRoof(root, x0, x1, y0, y1, z, r, along, mat = M.roof) {
   if (along === "x") side(root, [[y0, z], [y1, z], [(y0 + y1) / 2, z + r]], x0, x1, mat);
   else elev(root, [[x0, z], [x1, z], [(x0 + x1) / 2, z + r]], y0, y1, mat);
 }
-// dress a gable end like the main front: brick triangle (roof made with M.brick), rake trim along both slopes, the emblem in the middle
-function gableEnd(root, face, at, a0, a1, z, r) {
-  const mid = (a0 + a1) / 2, k = r / ((a1 - a0) / 2), o = 0.2, t = 0.32;
-  const pts = [[a0 - o, z - o * k], [mid, z + r], [a1 + o, z - o * k], [a1 + o, z - o * k + t], [mid, z + r + t], [a0 - o, z - o * k + t]];
-  if (face === "-y") elev(root, pts, at - 0.3, at + 0.1); else if (face === "+y") elev(root, pts, at - 0.1, at + 0.3); else side(root, pts, at - 0.1, at + 0.3);
-  const out = face === "-y" ? -0.05 : 0.05, size = Math.min(r * 0.8, 2.0), ez = z + r * 0.38;
-  if (face === "+x") emblem(root, at + out, mid, ez, size, "+x"); else emblem(root, mid, at + out, ez, size, face);
+// a gabled block: walls and gable triangles are one brick extrusion (no seam at the eave), the roof is one folded strip with overhangs
+function house(root, x0, x1, y0, y1, e, pitch, along, emblems = []) {
+  const o = 0.5, oe = 0.35, t = 0.3;
+  const [a0, a1, b0, b1] = along === "y" ? [x0, x1, y0, y1] : [y0, y1, x0, x1];
+  const mid = (a0 + a1) / 2, r = (a1 - a0) / 2 * pitch, k = pitch;
+  const body = [[a0, 0], [a1, 0], [a1, e], [mid, e + r], [a0, e]];
+  const roof = [[a0 - o, e - o * k], [mid, e + r], [a1 + o, e - o * k], [a1 + o, e - o * k + t], [mid, e + r + t], [a0 - o, e - o * k + t]];
+  if (along === "y") { elev(root, body, y0, y1, M.brick); elev(root, roof, y0 - oe, y1 + oe, M.roof); }
+  else { side(root, body, x0, x1, M.brick); side(root, roof, x0 - oe, x1 + oe, M.roof); }
+  const size = Math.min(r * 0.8, 2.0), ez = e + r * 0.38;
+  for (const f of emblems) {
+    if (f === "+x" || f === "-x") emblem(root, f === "+x" ? x1 + 0.05 : x0 - 0.05, mid, ez, size, f);
+    else emblem(root, mid, f === "+y" ? y1 + 0.05 : y0 - 0.05, ez, size, f);
+  }
 }
 // a point on a wall face: face '-y' (front, wall plane y = at), '+y' (back), '-x' (west, plane x = at), '+x' (east); a = along, z = up
 function F(face, at, a, z, out = 0) {
@@ -202,8 +209,8 @@ function hall(root) {
   // like the page: the centre under the pediment is raised; the shoulders either side get their own cornice a step lower
   box(root, H.x0 - 0.1, G.x0, -0.35, 0.4, H.h - 0.4, H.h); box(root, G.x1, H.x1 + 0.1, -0.35, 0.4, H.h - 0.4, H.h);
   { const k = (G.peak - G.z0) / ((G.x1 - G.x0) / 2), o = 0.35, t = 0.4, mid = (G.x0 + G.x1) / 2, zl = G.z0 - o * k;
-    elev(root, [[G.x0 - o, zl], [mid, G.peak], [G.x1 + o, zl], [G.x1 + o, zl + t], [mid, G.peak + t], [G.x0 - o, zl + t]], -0.4, 0.4, M.white);
-    elev(root, [[G.x0 - o, H.h], [G.x1 + o, H.h], [G.x1 + o, zl + t], [mid, G.peak + t], [G.x0 - o, zl + t]], 0.4, G.depth, M.roof); }
+    elev(root, [[G.x0 - o, zl], [mid, G.peak], [G.x1 + o, zl], [G.x1 + o, zl + t], [mid, G.peak + t], [G.x0 - o, zl + t]], -0.4, G.depth + 0.3, M.roof);   // roof + rake in one piece
+    elev(root, [[G.x0, H.h], [G.x1, H.h], [G.x1, G.z0], [mid, G.peak], [G.x0, G.z0]], 0.4, G.depth, M.brick); }   // brick right up to the roof, back gable too
   emblem(root, (G.x0 + G.x1) / 2, -0.02, 12.3, 2.3);
   // side towers: tall window on the front (page: 3 x 4 panes), cap, windows on the outer sides
   for (const [x0, x1, outer] of [[H.x0 - T.w, H.x0, "-x"], [H.x1, H.x1 + T.w, null]]) {
@@ -270,12 +277,8 @@ function wings(root) {
   box(root, L.x0, L.x1 + 0.2, L.y0 - 0.25, L.y1, L.h - 0.35, L.h + 0.15);
   windowRow(root, "-y", L.y0, L.x0, L.x1, 6, 1.8, 1.3, 3.9, 2, 2);
   // gabled L wing: brick walls, eaves, ridges running through and meeting
-  box(root, A.x0, A.x1, 29, A.y1, 0, e, M.brick); box(root, 30, A.x1, A.y0, 29, 0, e, M.brick);
-  gableRoof(root, A.x0 - 0.5, A.x1 + 0.5, A.y0, A.y1, e, (A.x1 - A.x0 + 1) / 2 * p, "y", M.brick);
-  gableEnd(root, "+y", A.y1, A.x0 - 0.5, A.x1 + 0.5, e, (A.x1 - A.x0 + 1) / 2 * p);
-  box(root, B.x0, B.x1, B.y0, B.y1, 0, e, M.brick);
-  gableRoof(root, B.x0, B.x1, B.y0 - 0.5, B.y1 + 0.5, e, (B.y1 - B.y0 + 1) / 2 * p, "x", M.brick);
-  gableEnd(root, "+x", B.x1, B.y0 - 0.5, B.y1 + 0.5, e, (B.y1 - B.y0 + 1) / 2 * p);
+  house(root, A.x0, A.x1, A.y0, A.y1, e, p, "y", ["+y"]);
+  house(root, B.x0, B.x1, B.y0, B.y1, e, p, "x", ["+x"]);
   windowRow(root, "-y", B.y0, D.entry.x1 + 0.5, B.x1, 3, 1.6, 1.3, 4.3, 1, 2);       // south face (photo: tall windows)
   windowRow(root, "+x", B.x1, B.y0, B.y1, 3, 1.6, 1.3, 4.3, 1, 2);                   // east end
   windowRow(root, "+y", B.y1, A.x1, B.x1, 5, 1.6, 1.3, 3.9, 2, 2);                   // garden side
@@ -314,10 +317,7 @@ function wings(root) {
 
 function garage(root) {
   const G = D.garage, mid = (G.x0 + G.x1) / 2, r = 2.4;
-  box(root, G.x0, G.x1, G.y0, G.y1, 0, G.h, M.brick);
-  box(root, G.x0 - 0.12, G.x1 + 0.12, G.y0 - 0.12, G.y1 + 0.12, G.h - 0.35, G.h);               // eave band
-  gableRoof(root, G.x0 - 0.4, G.x1 + 0.4, G.y0, G.y1, G.h, r, "y", M.brick);
-  gableEnd(root, "-y", G.y0, G.x0 - 0.4, G.x1 + 0.4, G.h, r); gableEnd(root, "+y", G.y1, G.x0 - 0.4, G.x1 + 0.4, G.h, r);
+  house(root, G.x0, G.x1, G.y0, G.y1, G.h, r / ((G.x1 - G.x0) / 2), "y", ["-y", "+y"]);
   for (const y of [68.5, 75, 81.5]) opening(root, "+x", G.x1, y, y + 4.5, 0, 4.0, 1, 5, false);     // 3 garage doors on the yard side
   windowRow(root, "-x", G.x0, G.y0, G.y1, 4, 1.4, 1.4, 4.0, 1, 2);
   // front end (faces the hall): centred door with transom and canopy, a tall window either side
@@ -364,7 +364,7 @@ function site(root) {
   // walks, plaza, flagpoles with flags
   { const pc = [66, 8.75], pr = 3.8, h = Math.atan2(1.75, Math.sqrt(pr * pr - 1.75 * 1.75)), arc = (t0, t1) => { const r = []; for (let k = 0; k <= 24; k++) { const t = t0 + (t1 - t0) * k / 24; r.push([pc[0] + pr * Math.cos(t), pc[1] + pr * Math.sin(t)]); } return r; };
     slab(root, [[D.entry.x1, 7], ...arc(Math.PI + h, 2 * Math.PI - h), [72.5, 7], [72.5, -27], [75.5, -27], [75.5, 90], [72.5, 90], [72.5, 65], [36, 65], [36, 62], [72.5, 62], [72.5, 10.5], ...arc(h, Math.PI - h), [D.entry.x1, 10.5]], 0, 0.12);
-    const bed = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 0.45, 40), M.white); bed.position.copy(V(pc[0], pc[1], 0.12 + 0.22)); root.add(bed); }   // round planter in the middle of the plaza
+    const bed = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 0.03, 40), M.white); bed.position.copy(V(pc[0], pc[1], 0.135)); root.add(bed); }   // centre circle of the plaza, flush with the paving
   for (const x of [61, 63.5]) {
     cyl(root, x, 3.5, 0, 12, 0.08, 8); const ball = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), M.white); ball.position.copy(V(x, 3.5, 12.1)); root.add(ball);
     box(root, x + 0.08, x + 2.0, 3.48, 3.52, 10.6, 11.8);
