@@ -12,7 +12,7 @@ export const V = (x, y, z) => new THREE.Vector3(x, z, -y);
 export const D = {
   hall: { x0: 0, x1: 25, h: 10.0, open: 12 },                     // 4 bays between the side towers; the bays are open 12 m deep
   tower: { h: 8.6, w: 5, y0: -0.6, y1: 29 },                     // brick side towers with the tall windows
-  bays: [0.3, 6.4, 12.5, 18.6].map(x => [x, x + 4.5]),           // door openings, 4.5 m, piers 1.6 m
+  bays: [1.4, 7.3, 13.2, 19.1].map(x => [x, x + 4.5]),   // 5 equal piers of 1.4 m (page), the outer two included           // door openings, 4.5 m, piers 1.6 m
   door: { h: 5.7, glass: 6.35, spring: 6.9, top: 7.7 },                       // door head, arch spring, arch crown
   gable: { x0: 4.6, x1: 20.4, z0: 10.9, peak: 14.6, depth: 29 },   // centre raised above the shoulders (page)
   sign: { x0: 7.25, x1: 17.75, z0: 9.05, z1: 10.3 },              // FIRE STATION board, centred on the gable (page)
@@ -226,8 +226,8 @@ function hall(root) {
   // back of the hall: 4 doors to the back yard (drive-through), small windows high up
   for (const [a, b] of D.bays) { opening(root, "+y", T.y1, a, b, 0, dr.h, 4, 4, false); }
   // lamps: arm + bell shade between and beside the bays (page)
-  for (let i = 1; i < D.bays.length; i++) {          // one lamp in the middle of each pier between two doors
-    const x = (D.bays[i - 1][1] + D.bays[i][0]) / 2;
+  const piers = [D.bays[0][0] / 2, ...D.bays.slice(1).map((b, i) => (D.bays[i][1] + b[0]) / 2), (D.bays[3][1] + D.hall.x1) / 2];
+  for (const x of piers) {                             // a lamp in the middle of every pier, the outer ones too (page)
     box(root, x - 0.06, x + 0.06, -0.65, 0, 5.9, 6.02);
     box(root, x - 0.2, x + 0.2, -0.05, 0, 5.6, 6.3);
     const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.4, 0.4, 20, 1, true), M.white); shade.position.copy(V(x, -0.65, 5.65)); root.add(shade);
@@ -386,7 +386,8 @@ export function buildScene(scene) {
   mats();
   const root = new THREE.Group();
   hall(root);
-  truck(root, 2.55, 1.2, "engine"); truck(root, 8.65, 1.2, "ladder"); truck(root, 14.75, 1.2, "engine"); truck(root, 20.85, 1.6, "ambulance");
+  const bc = D.bays.map(([a, b]) => (a + b) / 2);
+  truck(root, bc[0], 1.2, "engine"); truck(root, bc[1], 1.2, "ladder"); truck(root, bc[2], 1.2, "engine"); truck(root, bc[3], 1.6, "ambulance");
   wings(root); garage(root); site(root);
   scene.add(root);
   scene.background = new THREE.Color(0xffffff);
