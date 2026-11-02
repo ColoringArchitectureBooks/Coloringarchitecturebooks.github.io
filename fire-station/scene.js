@@ -14,7 +14,7 @@ export const D = {
   tower: { h: 8.6, w: 5, y0: -0.6, y1: 29 },                     // brick side towers with the tall windows
   bays: [0.3, 6.4, 12.5, 18.6].map(x => [x, x + 4.5]),           // door openings, 4.5 m, piers 1.6 m
   door: { h: 4.9, spring: 6.6, top: 7.7 },                       // door head, arch spring, arch crown
-  gable: { x0: 4.6, x1: 20.4, z0: 10.7, peak: 14.6, depth: 29 },
+  gable: { x0: 4.6, x1: 20.4, z0: 10.6, peak: 14.5, depth: 29 },
   sign: { x0: 7.25, x1: 17.75, z0: 8.6, z1: 9.85 },              // FIRE STATION board, centred on the gable (page)
   low: { x0: 30, x1: 49, y0: 0.5, y1: 12, h: 5.5 },              // low flat wing in front
   wingA: { x0: 26, x1: 40, y0: 20.5, y1: 48 },                   // gabled L wing, arm running back (ridge along y)
@@ -190,11 +190,11 @@ function hall(root) {
     box(root, a, b, 0.25, 0.75, dr.h - 0.35, dr.h);                     // rolled-up door at the head
     box(root, cx - 0.35, cx + 0.35, 2, 2.8, dr.h - 0.12, dr.h);          // ceiling light (page)
   }
-  // cornice along the top of the bay section, rake trim on the gable, gable roof behind it
-  box(root, H.x0 - 0.1, G.x0, -0.35, 0.4, H.h - 0.4, H.h + 0.1); box(root, G.x1, H.x1 + 0.1, -0.35, 0.4, H.h - 0.4, H.h + 0.1);
-  box(root, G.x0 - 0.4, G.x1 + 0.4, -0.3, 0.4, G.z0 - 0.35, G.z0 - 0.1);
-  elev(root, [[G.x0 - 0.6, G.z0 - 0.1], [(G.x0 + G.x1) / 2, G.peak - 0.05], [G.x1 + 0.6, G.z0 - 0.1], [G.x1 + 0.6, G.z0 + 0.35], [(G.x0 + G.x1) / 2, G.peak + 0.55], [G.x0 - 0.6, G.z0 + 0.35]], -0.4, 0.5, M.white);
-  gableRoof(root, G.x0, G.x1, 0.5, G.depth, H.h, G.peak - H.h, "y");
+  // one cornice right across the top of the wall; the gable wall, its rake trim and the roof all share one slope, so nothing floats
+  box(root, H.x0 - 0.1, H.x1 + 0.1, -0.35, 0.4, H.h - 0.4, G.z0);
+  { const k = (G.peak - G.z0) / ((G.x1 - G.x0) / 2), o = 0.35, t = 0.4, mid = (G.x0 + G.x1) / 2, zl = G.z0 - o * k;
+    elev(root, [[G.x0 - o, zl], [mid, G.peak], [G.x1 + o, zl], [G.x1 + o, zl + t], [mid, G.peak + t], [G.x0 - o, zl + t]], -0.4, 0.4, M.white);
+    elev(root, [[G.x0 - o, H.h], [G.x1 + o, H.h], [G.x1 + o, zl + t], [mid, G.peak + t], [G.x0 - o, zl + t]], 0.4, G.depth, M.roof); }
   emblem(root, (G.x0 + G.x1) / 2, -0.02, 12.3, 2.3);
   // side towers: tall window on the front (page: 3 x 4 panes), cap, windows on the outer sides
   for (const [x0, x1, outer] of [[H.x0 - T.w, H.x0, "-x"], [H.x1, H.x1 + T.w, null]]) {
@@ -207,11 +207,12 @@ function hall(root) {
   // back of the hall: 4 doors to the back yard (drive-through), small windows high up
   for (const [a, b] of D.bays) { opening(root, "+y", T.y1, a, b, 0, dr.h, 4, 4, false); }
   // lamps: arm + bell shade between and beside the bays (page)
-  for (const x of [-0.3, 5.55, 11.65, 17.75, 23.85].map(v => v + 0.7)) {
-    box(root, x - 0.06, x + 0.06, -0.65, 0, 6.3, 6.42);
-    box(root, x - 0.2, x + 0.2, -0.05, 0, 6.0, 6.7);
-    const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.4, 0.4, 20, 1, true), M.white); shade.position.copy(V(x, -0.65, 6.05)); root.add(shade);
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), M.white); bulb.position.copy(V(x, -0.65, 5.85)); root.add(bulb);
+  for (let i = 1; i < D.bays.length; i++) {          // one lamp in the middle of each pier between two doors
+    const x = (D.bays[i - 1][1] + D.bays[i][0]) / 2;
+    box(root, x - 0.06, x + 0.06, -0.65, 0, 5.9, 6.02);
+    box(root, x - 0.2, x + 0.2, -0.05, 0, 5.6, 6.3);
+    const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.4, 0.4, 20, 1, true), M.white); shade.position.copy(V(x, -0.65, 5.65)); root.add(shade);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), M.white); bulb.position.copy(V(x, -0.65, 5.45)); root.add(bulb);
   }
 }
 
@@ -277,7 +278,7 @@ function wings(root) {
   box(root, T.x0 - 0.35, T.x1 + 0.35, T.y0 - 0.35, T.y1 + 0.35, T.h - 0.35, T.h);
   const hip = new THREE.Mesh(new THREE.ConeGeometry((w + 1.2) / Math.SQRT2, T.roof, 4), M.roof); hip.rotation.y = Math.PI / 4; hip.position.copy(V(cx, cy, T.h + T.roof / 2)); root.add(hip);
   const panel = (face) => {      // recessed arched panel, stone arch round it
-    const a0 = (face === "-y" ? cx : cy) - 1.7, a1 = a0 + 3.4, z0 = 5.0, zs = 7.6, R = 1.7, ac = a0 + 1.7;
+    const a0 = (face === "-y" ? cx : cy) - 1.5, a1 = a0 + 3.0, z0 = 4.7, zs = 6.9, R = 1.5, ac = a0 + 1.5;
     const sh = []; sh.push([a0, z0], [a1, z0]); for (let k = 0; k <= 16; k++) { const t = Math.PI * k / 16; sh.push([ac + R * Math.cos(t), zs + R * Math.sin(t)]); }
     if (face === "-y") elev(root, sh, T.y0 - 0.05, T.y0); else side(root, sh, T.x1, T.x1 + 0.05);   // plain stone panel
     const P3 = sh.map(([a, z]) => F(face, face === "-y" ? T.y0 : T.x1, a, z, 0.04));
@@ -286,7 +287,7 @@ function wings(root) {
     for (let i = 0; i < 16; i++) s.push([ring[i], ring[i + 1]]); lines(root, s);
   };
   panel("-y"); panel("+x");
-  emblem(root, cx, T.y0 - 0.06, 7.0, 2.3); emblem(root, T.x1 + 0.06, cy, 7.0, 2.3, true);
+  emblem(root, cx, T.y0 - 0.06, 6.55, 2.1); emblem(root, T.x1 + 0.06, cy, 6.55, 2.1, true);
   opening(root, "-y", T.y0, cx - 1.6, cx + 1.6, 1.3, 4.3, 3, 2);                       // big window on the front (photo)
   opening(root, "+x", T.x1, cy - 1.4, cy + 1.4, 0, 3.0, 2, 1, false);                  // glass doors
   opening(root, "+x", T.x1, cy - 2.6, cy - 1.55, 0, 3.0, 1, 2, false); opening(root, "+x", T.x1, cy + 1.55, cy + 2.6, 0, 3.0, 1, 2, false);
@@ -312,12 +313,19 @@ function garage(root) {
 function site(root) {
   flat(root, [[-60, -70], [170, -70], [170, 140], [-60, 140]], -0.03);
   const kerb = (pts) => slab(root, pts, 0, 0.15);
-  kerb([[-60, -30], [170, -30], [170, -27], [-60, -27]]);
-  kerb([[112, -27], [115, -27], [115, 140], [112, 140]]);
+  // Airway Blvd (y -45..-30) and the side street (x 115..131) run straight through and cross; a sidewalk on all four corners
+  kerb([[-60, -30], [115, -30], [115, 140], [112, 140], [112, -27], [-60, -27]]);
+  kerb([[-60, -48], [115, -48], [115, -70], [112, -70], [112, -45], [-60, -45]]);
+  kerb([[131, -30], [170, -30], [170, -27], [134, -27], [134, 140], [131, 140]]);
+  kerb([[131, -45], [170, -45], [170, -48], [134, -48], [134, -70], [131, -70]]);
   const dash = [];
-  for (let x = -58; x < 168; x += 8) dash.push([[x, -37.5, 0.01], [x + 4, -37.5, 0.01]]);
-  for (let y = -44; y < 138; y += 8) dash.push([[123, y, 0.01], [123, y + 4, 0.01]]);
-  lines(root, dash); lines(root, [[[-60, -45, 0.01], [131, -45, 0.01]], [[131, -45, 0.01], [131, 140, 0.01]]]);
+  for (let x = -58; x < 168; x += 8) if (x + 4 < 113 || x > 133) dash.push([[x, -37.5, 0.01], [x + 4, -37.5, 0.01]]);
+  for (let y = -68; y < 138; y += 8) if (y + 4 < -47 || y > -28) dash.push([[123, y, 0.01], [123, y + 4, 0.01]]);
+  for (let k = 0; k < 6; k++) {          // zebra crossings on the four sides of the junction
+    const a = -44 + k * 2.5; dash.push([[109.5, a, 0.01], [114, a, 0.01]], [[132, a, 0.01], [136.5, a, 0.01]]);
+    const b = 116 + k * 2.5; dash.push([[b, -27.5, 0.01], [b, -24, 0.01]], [[b, -51, 0.01], [b, -47.5, 0.01]]);
+  }
+  lines(root, dash);
   // apron with the diagonal stripes, straight out to Airway Blvd
   slab(root, [[0, -27], [25, -27], [25, 0], [0, 0]], 0, 0.06);
   const st = [], x0 = 0, x1 = 25, y0 = -27, y1 = 0;
@@ -337,12 +345,9 @@ function site(root) {
   for (let y = 36; y < 62; y += 3) stalls.push([[-11.5, y, 0.05], [-6.5, y, 0.05]]);
   lines(root, stalls);
   // walks, plaza, flagpoles with flags
-  slab(root, [[72.5, 4], [75.5, 4], [75.5, 72], [72.5, 72]], 0, 0.12);
-  slab(root, [[36, 62], [72.5, 62], [72.5, 65], [36, 65]], 0, 0.12);
-  slab(root, [[D.entry.x1, 7], [72.5, 7], [72.5, 10.5], [D.entry.x1, 10.5]], 0, 0.12);
-  const plaza = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.8, 0.14, 48), M.white); plaza.position.copy(V(66, 8.75, 0.07)); root.add(plaza);
-  const ring = []; for (let k = 0; k < 48; k++) { const a = k / 48 * 6.283, b = (k + 1) / 48 * 6.283; ring.push([[66 + 1.2 * Math.cos(a), 8.75 + 1.2 * Math.sin(a), 0.15], [66 + 1.2 * Math.cos(b), 8.75 + 1.2 * Math.sin(b), 0.15]]); }
-  lines(root, ring);
+  { const pc = [66, 8.75], pr = 3.8, h = Math.atan2(1.75, Math.sqrt(pr * pr - 1.75 * 1.75)), arc = (t0, t1) => { const r = []; for (let k = 0; k <= 24; k++) { const t = t0 + (t1 - t0) * k / 24; r.push([pc[0] + pr * Math.cos(t), pc[1] + pr * Math.sin(t)]); } return r; };
+    slab(root, [[D.entry.x1, 7], ...arc(Math.PI + h, 2 * Math.PI - h), [72.5, 7], [72.5, -27], [75.5, -27], [75.5, 90], [72.5, 90], [72.5, 65], [36, 65], [36, 62], [72.5, 62], [72.5, 10.5], ...arc(h, Math.PI - h), [D.entry.x1, 10.5]], 0, 0.12);
+    const bed = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 0.45, 40), M.white); bed.position.copy(V(pc[0], pc[1], 0.12 + 0.22)); root.add(bed); }   // round planter in the middle of the plaza
   for (const x of [61, 63.5]) {
     cyl(root, x, 3.5, 0, 12, 0.08, 8); const ball = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), M.white); ball.position.copy(V(x, 3.5, 12.1)); root.add(ball);
     box(root, x + 0.08, x + 2.0, 3.48, 3.52, 10.6, 11.8);
