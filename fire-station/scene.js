@@ -281,7 +281,7 @@ function wings(root) {
   windowRow(root, "-y", L.y0, L.x0, L.x1, 6, 1.8, 1.3, 3.9, 2, 2);
   // gabled L wing: brick walls, eaves, ridges running through and meeting
   house(root, A.x0, A.x1, A.y0, A.y1, e, p, "y", ["+y"]);
-  house(root, D.hall.x1, B.x1, B.y0, B.y1, e, p, "x", ["+x"], [0, 0.35]);   // runs into the hall wall (taller), so no loose gable above the tower
+  house(root, B.x0, B.x1, B.y0, B.y1, e, p, "x", ["+x"], [0, 0.35]);   // west gable closed flush against the side tower
   windowRow(root, "-y", B.y0, D.entry.x1 + 0.5, B.x1, 3, 1.6, 1.3, 4.3, 1, 2);       // south face (photo: tall windows)
   windowRow(root, "+x", B.x1, B.y0, B.y1, 3, 1.6, 1.3, 4.3, 1, 2);                   // east end
   windowRow(root, "+y", B.y1, A.x1, 49.5, 2, 1.6, 1.3, 3.9, 2, 2); windowRow(root, "+y", B.y1, 52.5, B.x1, 3, 1.6, 1.3, 3.9, 2, 2);   // garden side
@@ -325,7 +325,7 @@ function garage(root) {
   windowRow(root, "-x", G.x0, G.y0, G.y1, 4, 1.4, 1.4, 4.0, 1, 2);
   // front end (faces the hall): centred door with transom and canopy, a tall window either side
   opening(root, "-y", G.y0, mid - 0.8, mid + 0.8, 0, 2.9, 2, 2, false); box(root, mid - 1.3, mid + 1.3, G.y0 - 1.2, G.y0, 3.15, 3.4);
-  for (const a of [G.x0 + 1.6, mid + 1.6, G.x1 - 3.0]) opening(root, "-y", G.y0, a, a + 1.4, 1.4, 4.0, 1, 2);
+  for (const a of [G.x0 + 1.6, G.x1 - 4.8, G.x1 - 3.0]) opening(root, "-y", G.y0, a, a + 1.4, 1.4, 4.0, 1, 2);
   for (const a of [G.x0 + 1.6, mid - 0.7, G.x1 - 3.0]) opening(root, "+y", G.y1, a, a + 1.4, 1.4, 4.0, 1, 2);
 }
 
@@ -335,7 +335,7 @@ function site(root) {
   const kerb = (pts) => slab(root, pts, 0, 0.15);
   // Airway Blvd (y -45..-30) and the side street (x 115..131) run straight through and cross; a sidewalk on all four corners
   // near-side sidewalks, cut where the apron and the drives cross them so those stay level with the street
-  for (const [y0, y1] of [[-30, 6], [13, 62], [69, 90], [98, 140]]) kerb([[112, y0], [115, y0], [115, y1], [112, y1]]);
+  for (const [y0, y1] of [[-30, 13], [20, 62], [69, 90], [98, 140]]) kerb([[112, y0], [115, y0], [115, y1], [112, y1]]);
   kerb([[-60, -48], [115, -48], [115, -70], [112, -70], [112, -45], [-60, -45]]);
   kerb([[131, -30], [170, -30], [170, -27], [134, -27], [134, 140], [131, 140]]);
   kerb([[131, -45], [170, -45], [170, -48], [134, -48], [134, -70], [131, -70]]);
@@ -347,6 +347,7 @@ function site(root) {
     const b = 116 + k * 2.5; dash.push([[b, -27.5, 0.01], [b, -24, 0.01]], [[b, -51, 0.01], [b, -47.5, 0.01]]);
   }
   lines(root, dash);
+  lines(root, [[[-60, -30, 0.02], [112, -30, 0.02]]]);   // edge of Airway Blvd along the plot (no sidewalk on this side)
   // apron with the diagonal stripes, straight out to Airway Blvd
   slab(root, [[0, -30], [25, -30], [25, 0], [0, 0]], 0, 0.06);
   const st = [], x0 = 0, x1 = 25, y0 = -30, y1 = 0;
@@ -359,15 +360,15 @@ function site(root) {
   lines(root, st);
   // back yard + back drive to the side street, visitor parking with two drives
   slab(root, [[-12, 29], [26, 29], [26, 90], [115, 90], [115, 98], [-12, 98]], 0, 0.04);
-  slab(root, [[76, 4], [104, 4], [104, 72], [76, 72]], 0, 0.04);
-  slab(root, [[104, 6], [115, 6], [115, 13], [104, 13]], 0, 0.04); slab(root, [[104, 62], [115, 62], [115, 69], [104, 69]], 0, 0.04);
+  slab(root, [[76, 11], [104, 11], [104, 72], [76, 72]], 0, 0.04);   // parking starts where the entrance walk ends
+  slab(root, [[104, 13], [115, 13], [115, 20], [104, 20]], 0, 0.04); slab(root, [[104, 62], [115, 62], [115, 69], [104, 69]], 0, 0.04);
   const stalls = [];
-  for (let y = 7; y < 70; y += 3) stalls.push([[76.5, y, 0.05], [82, y, 0.05]], [[98, y, 0.05], [103.5, y, 0.05]]);
+  for (let y = 14; y < 70; y += 3) stalls.push([[76.5, y, 0.05], [82, y, 0.05]], [[98, y, 0.05], [103.5, y, 0.05]]);
   for (let y = 36; y < 62; y += 3) stalls.push([[-11.5, y, 0.05], [-6.5, y, 0.05]]);
   lines(root, stalls);
   // walks, plaza, flagpoles with flags
   { const pc = [66, 8.75], pr = 3.8, h = Math.atan2(1.75, Math.sqrt(pr * pr - 1.75 * 1.75)), arc = (t0, t1) => { const r = []; for (let k = 0; k <= 24; k++) { const t = t0 + (t1 - t0) * k / 24; r.push([pc[0] + pr * Math.cos(t), pc[1] + pr * Math.sin(t)]); } return r; };
-    slab(root, [[D.entry.x1, 7], ...arc(Math.PI + h, 2 * Math.PI - h), [76, 7], [76, 90], [72.5, 90], [72.5, 65], [26, 65], [26, 62], [72.5, 62], [72.5, 10.5], ...arc(h, Math.PI - h), [D.entry.x1, 10.5]], 0, 0.12);
+    slab(root, [[D.entry.x1, 7], ...arc(Math.PI + h, 2 * Math.PI - h), [112, 7], [112, 10.5], [76, 10.5], [76, 90], [72.5, 90], [72.5, 65], [26, 65], [26, 62], [72.5, 62], [72.5, 10.5], ...arc(h, Math.PI - h), [D.entry.x1, 10.5]], 0, 0.12);
     const bed = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 0.03, 40), M.white); bed.position.copy(V(pc[0], pc[1], 0.135)); root.add(bed); }   // centre circle of the plaza, flush with the paving
   for (const x of [61, 63.5]) {
     cyl(root, x, 3.5, 0, 12, 0.08, 8); const ball = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), M.white); ball.position.copy(V(x, 3.5, 12.1)); root.add(ball);
