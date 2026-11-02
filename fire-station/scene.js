@@ -10,11 +10,11 @@ export const V = (x, y, z) => new THREE.Vector3(x, z, -y);
 
 // ---------- dimensions ----------
 export const D = {
-  hall: { x0: 0, x1: 25, h: 10.5, open: 12 },                     // 4 bays between the side towers; the bays are open 12 m deep
+  hall: { x0: 0, x1: 25, h: 10.0, open: 12 },                     // 4 bays between the side towers; the bays are open 12 m deep
   tower: { h: 8.6, w: 5, y0: -0.6, y1: 29 },                     // brick side towers with the tall windows
   bays: [0.3, 6.4, 12.5, 18.6].map(x => [x, x + 4.5]),           // door openings, 4.5 m, piers 1.6 m
   door: { h: 4.9, spring: 6.6, top: 7.7 },                       // door head, arch spring, arch crown
-  gable: { x0: 4.6, x1: 20.4, z0: 10.6, peak: 14.5, depth: 29 },
+  gable: { x0: 4.6, x1: 20.4, z0: 10.9, peak: 14.6, depth: 29 },   // centre raised above the shoulders (page)
   sign: { x0: 7.25, x1: 17.75, z0: 8.6, z1: 9.85 },              // FIRE STATION board, centred on the gable (page)
   low: { x0: 30, x1: 49, y0: 0.5, y1: 12, h: 5.5 },              // low flat wing in front
   wingA: { x0: 26, x1: 40, y0: 20.5, y1: 48 },                   // gabled L wing, arm running back (ridge along y)
@@ -191,7 +191,9 @@ function hall(root) {
     box(root, cx - 0.35, cx + 0.35, 2, 2.8, dr.h - 0.12, dr.h);          // ceiling light (page)
   }
   // one cornice right across the top of the wall; the gable wall, its rake trim and the roof all share one slope, so nothing floats
-  box(root, H.x0 - 0.1, H.x1 + 0.1, -0.35, 0.4, H.h - 0.4, G.z0);
+  // like the page: the centre under the pediment is raised; the shoulders either side get their own cornice a step lower
+  box(root, H.x0 - 0.1, G.x0, -0.35, 0.4, H.h - 0.4, H.h); box(root, G.x1, H.x1 + 0.1, -0.35, 0.4, H.h - 0.4, H.h);
+  box(root, G.x0 - 0.5, G.x1 + 0.5, -0.5, 0.4, G.z0 - 0.45, G.z0);                                          // pediment base cornice
   { const k = (G.peak - G.z0) / ((G.x1 - G.x0) / 2), o = 0.35, t = 0.4, mid = (G.x0 + G.x1) / 2, zl = G.z0 - o * k;
     elev(root, [[G.x0 - o, zl], [mid, G.peak], [G.x1 + o, zl], [G.x1 + o, zl + t], [mid, G.peak + t], [G.x0 - o, zl + t]], -0.4, 0.4, M.white);
     elev(root, [[G.x0 - o, H.h], [G.x1 + o, H.h], [G.x1 + o, zl + t], [mid, G.peak + t], [G.x0 - o, zl + t]], 0.4, G.depth, M.roof); }
