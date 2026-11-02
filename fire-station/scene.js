@@ -13,7 +13,7 @@ export const D = {
   hall: { x0: 0, x1: 25, h: 10.0, open: 12 },                     // 4 bays between the side towers; the bays are open 12 m deep
   tower: { h: 8.6, w: 5, y0: -0.6, y1: 29 },                     // brick side towers with the tall windows
   bays: [1.4, 7.3, 13.2, 19.1].map(x => [x, x + 4.5]),   // 5 equal piers of 1.4 m (page), the outer two included           // door openings, 4.5 m, piers 1.6 m
-  door: { h: 5.7, glass: 6.35, spring: 6.9, top: 7.7 },                       // door head, arch spring, arch crown
+  door: { h: 5.5, glass: 6.1, spring: 6.5, top: 7.8 },                       // door head, arch spring, arch crown
   gable: { x0: 4.6, x1: 20.4, z0: 10.9, peak: 14.6, depth: 29 },   // centre raised above the shoulders (page)
   sign: { x0: 7.25, x1: 17.75, z0: 9.05, z1: 10.3 },              // FIRE STATION board, centred on the gable (page)
   low: { x0: 30, x1: 49, y0: 0.5, y1: 12, h: 5.5 },              // low flat wing in front
@@ -193,9 +193,9 @@ function hall(root) {
   side(root, [[0.4, dr.h], [H.open, dr.h], [H.open, 0], [T.y1 - 0.4, 0], [T.y1 - 0.4, H.h], [0.4, H.h]], H.x0, H.x1, M.brick);
   // arched brick surround with keystone (page), transom glass with its grid, rolled-up door under it
   for (const { a, b, cx, R, zc, t0, A } of arch) {
-    const outer = [], R2 = R + 0.6;
+    const outer = [], R2 = R + 0.7;
     for (let k = 0; k <= 16; k++) { const t = t0 + (Math.PI - 2 * t0) * k / 16; outer.push([cx + R2 * Math.cos(t), zc + R2 * Math.sin(t)]); }
-    elev(root, [...A, [b + 0.6, dr.spring], ...outer.slice(1, -1), [a - 0.6, dr.spring]], -0.22, 0.05, M.white);
+    elev(root, [...A, ...outer], -0.22, 0.05, M.white);   // archivolt: both ends cut on a line through the arch's centre (radial)
     elev(root, [[cx - 0.32, dr.top - 0.1], [cx + 0.32, dr.top - 0.1], [cx + 0.4, dr.top + 0.4], [cx - 0.4, dr.top + 0.4]], -0.3, 0.05, M.white);   // keystone
     // like the page: a short arched glass band (4 x 2 panes) on top, a plain header panel under it, the open bay below
     elev(root, [[a, dr.glass], [b, dr.glass], ...A.slice().reverse()], 0.2, 0.28, M.white);                  // glass
