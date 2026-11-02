@@ -364,8 +364,7 @@ function site(root) {
   lines(root, st);
   // back yard + back drive to the side street, visitor parking with two drives
   slab(root, [[-12, 29], [26, 29], [26, 90], [115, 90], [115, 98], [-12, 98]], 0, 0.04);
-  slab(root, [[76, 11], [104, 11], [104, 72], [76, 72]], 0, 0.04);   // parking starts where the entrance walk ends
-  slab(root, [[104, 13], [115, 13], [115, 20], [104, 20]], 0, 0.04); slab(root, [[104, 62], [115, 62], [115, 69], [104, 69]], 0, 0.04);
+  slab(root, [[76, 11], [104, 11], [104, 13], [115, 13], [115, 20], [104, 20], [104, 62], [115, 62], [115, 69], [104, 69], [104, 72], [76, 72]], 0, 0.04);   // parking + its two drives as one surface (no line across the drive mouths)
   const stalls = [];
   for (let y = 14; y < 70; y += 3) {
     stalls.push([[76.5, y, 0.05], [82, y, 0.05]]);
