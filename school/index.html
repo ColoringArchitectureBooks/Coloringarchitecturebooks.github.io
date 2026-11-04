@@ -399,7 +399,7 @@ for (const f of WEST_ROOF) slab(f.pts.map(([x, y]) => [x, y, f.pl[0] * x + f.pl[
   wall("E", d2.x0, d1.y0, [[0, 0], [d, 0], [d, d2.e0], [0, d1.e0]], {}); }
 // roof monitors: north riser (metal band) and the two triangular cheeks under the carried-on south slope
 for (const m of MONITORS) { const KM = (15.3 - 5.7) / 33.2, lo = m.H - KM * m.e, hi = m.H + KM * m.e, W = m.xb - m.xa;
-  wall("N", m.xb, m.r + m.e, [[0, lo], [W, lo], [W, hi], [0, hi]], { kind: "gym", riser: true });
+  wall("N", m.xb, m.r + m.e, [[0, lo], [W, lo], [W, hi], [0, hi]], { kind: "gym" });
   const z = RT + 0.02, L = [[m.xa, m.r + m.e, lo + z], [m.xb, m.r + m.e, lo + z], [m.xa, m.r, m.H + z], [m.xa, m.r + m.e, lo + z], [m.xb, m.r, m.H + z], [m.xb, m.r + m.e, lo + z]];
   root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(L.map(([x, y, zz]) => V(x, y, zz))), M.line));
   wall("E", m.xb, m.r, [[0, m.H], [m.e, lo], [m.e, hi]], { kind: "plain" });
