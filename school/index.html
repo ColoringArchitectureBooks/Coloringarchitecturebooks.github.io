@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>School 3D Model</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Single-theme on purpose: the model is a white coloring page. */
+  :root { --paper:#ffffff; --ink:#1a1a1a; --muted:#6b6b6b; color-scheme: light; }
+  html, body { margin:0; height:100%; background:var(--paper); color:var(--ink); overflow:hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  header { position:fixed; top:0; left:0; right:0; padding-top:max(14px, env(safe-area-inset-top, 0px));
+    padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); pointer-events:none; }
+  h1 { margin:0; font-size:17px; font-weight:700; }
+  .sub { margin-top:2px; font-size:13px; color:var(--muted); }
+  .bar { position:fixed; left:50%; transform:translateX(-50%); bottom:max(16px, env(safe-area-inset-bottom, 0px));
+    display:flex; gap:8px; flex-wrap:wrap; justify-content:center; width:max-content; max-width:calc(100% - 32px); }
+  button { font:inherit; font-size:14px; border:1.5px solid var(--ink); background:var(--paper); color:var(--ink);
+    border-radius:999px; padding:9px 16px; cursor:pointer; white-space:nowrap; }
+  button:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+  button[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
+  #status { position:fixed; inset:0; display:grid; place-items:center; font-size:15px; color:var(--muted); }
+</style>
+
+<canvas id="c"></canvas>
+<header>
+  <h1>School 3D Model</h1>
+  <div class="sub" id="ver">Coloring book · school</div>
+</header>
+<div id="status">Loading the building…</div>
+<div class="bar">
+  <button id="v-entry">المدخل</button>
+  <button id="v-door">المدخل من الجنب</button>
+  <button id="v-se">من فوق</button>
+  <button id="v-nw">من ورا</button>
+  <button id="v-top">مسقط</button>
+  <button id="v-court">الفصول</button>
+  <button id="v-site">الموقع كله</button>
+  <button id="spin" aria-pressed="false">لف</button>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { FontLoader } from "three/addons/loaders/FontLoader.js";
+import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
+const SCHOOL_FONT = {"glyphs":{"S":{"x_min":0,"x_max":826,"ha":915,"o":"m 826 306 q 701 55 826 148 q 423 -29 587 -29 q 138 60 255 -29 q 0 318 13 154 l 208 318 q 288 192 216 238 q 437 152 352 152 q 559 181 506 152 q 623 282 623 217 q 466 411 623 372 q 176 487 197 478 q 18 719 18 557 q 136 958 18 869 q 399 1040 244 1040 q 670 956 561 1040 q 791 713 791 864 l 591 713 q 526 826 583 786 q 393 866 469 866 q 277 838 326 866 q 218 742 218 804 q 374 617 218 655 q 667 542 646 552 q 826 306 826 471 "},"C":{"x_min":0,"x_max":970.828125,"ha":1043,"o":"m 970 345 q 802 70 933 169 q 490 -29 672 -29 q 130 130 268 -29 q 0 506 0 281 q 134 885 0 737 q 502 1040 275 1040 q 802 939 668 1040 q 965 679 936 838 l 745 679 q 649 809 716 761 q 495 857 582 857 q 283 747 361 857 q 214 508 214 648 q 282 267 214 367 q 493 154 359 154 q 651 204 584 154 q 752 345 718 255 l 970 345 "},"H":{"x_min":0,"x_max":838,"ha":953,"o":"m 838 0 l 628 0 l 628 450 l 210 450 l 210 0 l 0 0 l 0 1013 l 210 1013 l 210 635 l 628 635 l 628 1013 l 838 1013 l 838 0 "},"L":{"x_min":0,"x_max":704.171875,"ha":763,"o":"m 704 0 l 0 0 l 0 1013 l 208 1013 l 208 186 l 704 186 l 704 0 "},"O":{"x_min":0,"x_max":994,"ha":1094,"o":"m 497 -29 q 133 127 272 -29 q 0 505 0 277 q 131 883 0 733 q 497 1040 270 1040 q 860 883 721 1040 q 994 505 994 733 q 862 127 994 277 q 497 -29 723 -29 m 497 154 q 710 266 631 154 q 780 506 780 365 q 710 745 780 647 q 497 857 631 857 q 283 747 361 857 q 213 506 213 647 q 282 266 213 365 q 497 154 361 154 "}},"cssFontWeight":"bold","ascender":1216,"underlinePosition":-100,"cssFontStyle":"normal","boundingBox":{"yMin":-333,"xMin":-162,"yMax":1216,"xMax":1681},"resolution":1000,"original_font_information":{"postscript_name":"Helvetiker-Bold","version_string":"Version 1.00 2004 initial release","vendor_url":"http://www.magenta.gr","full_font_name":"Helvetiker Bold","font_family_name":"Helvetiker","copyright":"Copyright (c) Magenta ltd, 2004.","description":"","trademark":"","designer":"","designer_url":"","unique_font_identifier":"Magenta ltd:Helvetiker Bold:22-10-104","license_url":"http://www.ellak.gr/fonts/MgOpen/license.html","license_description":"Copyright (c) 2004 by MAGENTA Ltd. All Rights Reserved.\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of the fonts accompanying this license (\"Fonts\") and associated documentation files (the \"Font Software\"), to reproduce and distribute the Font Software, including without limitation the rights to use, copy, merge, publish, distribute, and/or sell copies of the Font Software, and to permit persons to whom the Font Software is furnished to do so, subject to the following conditions: \r\n\r\nThe above copyright and this permission notice shall be included in all copies of one or more of the Font Software typefaces.\r\n\r\nThe Font Software may be modified, altered, or added to, and in particular the designs of glyphs or characters in the Fonts may be modified and additional glyphs or characters may be added to the Fonts, only if the fonts are renamed to names not containing the word \"MgOpen\", or if the modifications are accepted for inclusion in the Font Software itself by the each appointed Administrator.\r\n\r\nThis License becomes null and void to the extent applicable to Fonts or Font Software that has been modified and is distributed under the \"MgOpen\" name.\r\n\r\nThe Font Software may be sold as part of a larger software package but no copy of one or more of the Font Software typefaces may be sold by itself. \r\n\r\nTHE FONT SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL MAGENTA OR PERSONS OR BODIES IN CHARGE OF ADMINISTRATION AND MAINTENANCE OF THE FONT SOFTWARE BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM OTHER DEALINGS IN THE FONT SOFTWARE.","manufacturer_name":"Magenta ltd","font_sub_family_name":"Bold"},"descender":-334,"familyName":"Helvetiker","lineHeight":1549,"underlineThickness":50};   // helvetiker bold, only S C H O L
+
+// plan coords (m): x east, y north, z up. Three is y-up: (x, z, -y)
+const V = (x, y, z) => new THREE.Vector3(x, z, -y);
+// aerial photo pixels -> metres (0.16 m/px, building SW corner = origin)
+const PX = (X) => (X - 80) * 0.16, PY = (Y) => (1110 - Y) * 0.16;
+
+const M = {
+  wall: new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }),
+  roof: new THREE.MeshLambertMaterial({ color: 0xf1f1f1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }),
+  ground: new THREE.MeshLambertMaterial({ color: 0xffffff }),
+  line: new THREE.LineBasicMaterial({ color: 0x111111 }),
+};
+const root = new THREE.Group();
+
+// a planar polygon from 3D plan points
+function face(pts, mat, uvf) {
+  const v = pts.map(p => V(...p));
+  const n = new THREE.Vector3().crossVectors(v[1].clone().sub(v[0]), v[2].clone().sub(v[0])).normalize();
+  const ax = Math.abs(n.x) > Math.abs(n.y) && Math.abs(n.x) > Math.abs(n.z) ? "x" : Math.abs(n.y) > Math.abs(n.z) ? "y" : "z";
+  const p2 = v.map(p => ax === "x" ? new THREE.Vector2(p.y, p.z) : ax === "y" ? new THREE.Vector2(p.x, p.z) : new THREE.Vector2(p.x, p.y));
+  const tri = THREE.ShapeUtils.triangulateShape(p2, []);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(v.flatMap(p => [p.x, p.y, p.z]), 3));
+  g.setIndex(tri.flat()); g.computeVertexNormals();
+  if (uvf) g.setAttribute("uv", new THREE.Float32BufferAttribute(pts.flatMap(p => uvf(p)), 2));
+  const m = new THREE.Mesh(g, mat); root.add(m);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), M.line); root.add(e);
+  return m;
+}
+const O = 0.8; // roof overhang
+// plain roof material (no seam lines) and a roof slab with real thickness: top, soffit and fascia edges
+M.roof = new THREE.MeshLambertMaterial({ color: 0xf4f4f4, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+M.soffit = new THREE.MeshBasicMaterial({ color: 0xc4c4c4, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+const RT = 0.45; // roof thickness (m)
+function slab(pts) {
+  const b = pts, t = pts.map(([x, y, z]) => [x, y, z + RT]);   // slab sits on top of the walls
+  face(t, M.roof); face([...b].reverse(), M.soffit);   // underside in shade, so the eave reads as roof, not as a gap
+  for (let i = 0; i < t.length; i++) { const j = (i + 1) % t.length; face([t[i], t[j], b[j], b[i]], M.roof); }
+  soffit(b);
+}
+// boxed eave: a flat soffit board under every level eave edge, from the fascia back to the wall line (overhang O)
+function soffit(b, O = 0.8) {
+  const n = b.length; let nx = 0, ny = 0, nz = 0;
+  for (let i = 0; i < n; i++) { const [x0, y0, z0] = b[i], [x1, y1, z1] = b[(i + 1) % n];
+    nx += (y0 - y1) * (z0 + z1); ny += (z0 - z1) * (x0 + x1); nz += (x0 - x1) * (y0 + y1); }
+  if (Math.abs(nz) < 1e-9) return;
+  let ga = -nx / nz, gb = -ny / nz; const gl = Math.hypot(ga, gb); if (gl < 0.02) return;   // flat slab: no eave
+  ga /= gl; gb /= gl;
+  const inside = (px, py) => { let c = false; for (let i = 0, j = n - 1; i < n; j = i++) { const [xi, yi] = b[i], [xj, yj] = b[j];
+    if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) c = !c; } return c; };
+  for (let i = 0; i < n; i++) { const p = b[i], q = b[(i + 1) % n];
+    if (Math.abs(p[2] - q[2]) > 1e-3 || Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.5) continue;
+    const mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2;
+    if (!inside(mx + ga * 0.05, my + gb * 0.05)) continue;   // ridge / top edge: not an eave
+    const z = p[2] - 0.01;
+    face([[p[0], p[1], z], [q[0], q[1], z], [q[0] + ga * O, q[1] + gb * O, z], [p[0] + ga * O, p[1] + gb * O, z]], M.soffit);
+  }
+}
+// standing-seam metal roof: one seam line every 0.6 m, running down the slope
+const seamTex = (() => { const c = document.createElement("canvas"); c.width = 32; c.height = 4; const g = c.getContext("2d");
+  g.fillStyle = "#f3f3f3"; g.fillRect(0, 0, 32, 4); g.fillStyle = "#555"; g.fillRect(0, 0, 2, 4);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace; return t; })();
+M.seam = new THREE.MeshLambertMaterial({ map: seamTex, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+const uvX = p => [p[0] / 0.6, p[1] / 0.6], uvY = p => [p[1] / 0.6, p[0] / 0.6];
+
+// gabled block, ridge along x (E-W). y0 south edge, y1 north edge, yr ridge line, eave heights zs/zn, ridge zr
+// ---------- textured walls: block coursing, punched windows, high ribbon glazing ----------
+function drawWall(W, H, outline, o) {
+  const ppm = 20, c = document.createElement("canvas"); c.width = Math.max(8, Math.ceil(W * ppm)); c.height = Math.max(8, Math.ceil(H * ppm));
+  const g = c.getContext("2d"), X = s => s * ppm, Y = z => (H - z) * ppm;
+  const ln = (s0, z0, s1, z1, lw = 1, col = "#111") => { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo(X(s0), Y(z0)); g.lineTo(X(s1), Y(z1)); g.stroke(); };
+  const rect = (s0, s1, z0, z1, lw = 1.5) => { g.fillStyle = "#fff"; g.fillRect(X(s0), Y(z1), X(s1) - X(s0), Y(z0) - Y(z1)); g.strokeStyle = "#111"; g.lineWidth = lw; g.strokeRect(X(s0), Y(z1), X(s1) - X(s0), Y(z0) - Y(z1)); };
+  g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+  g.save(); g.beginPath(); outline.forEach(([a, z], i) => i ? g.lineTo(X(a), Y(z)) : g.moveTo(X(a), Y(z))); g.closePath(); g.clip();
+  const eave = Math.min(...outline.map(p => p[1]).filter(z => z > 0.01));
+  if (o.kind === "plain") { }
+  else if (o.kind === "gym") { for (let a = 0.6; a < W; a += 0.6) ln(a, 0, a, H, 1, "#555"); }
+  else {
+    for (let r = 0, z = 0.6; z < H; r++, z += 0.6) { ln(0, z, W, z, 0.8, "#666"); for (let a = (r % 2) * 0.6; a < W; a += 1.2) ln(a, z - 0.6, a, z, 0.6, "#888"); }
+  }
+  const win = (s0, s1, z0, z1, cols = 2) => {
+    { const F = 0.85, sc = (s0 + s1) / 2, zc = (z0 + z1) / 2; s0 = sc + (s0 - sc) * F; s1 = sc + (s1 - sc) * F; z0 = zc + (z0 - zc) * F; z1 = zc + (z1 - zc) * F; } // windows at 85%
+    rect(s0 - 0.1, s1 + 0.1, z0 - 0.1, z1 + 0.1, 2); rect(s0, s1, z0, z1, 1.2);
+    for (let k = 1; k < cols; k++) ln(s0 + (s1 - s0) * k / cols, z0, s0 + (s1 - s0) * k / cols, z1, 1.5);
+    ln(s0, z0 + (z1 - z0) * 0.62, s1, z0 + (z1 - z0) * 0.62, 1.5); ln(s0 - 0.2, z0 - 0.1, s1 + 0.2, z0 - 0.1, 3);
+  };
+  if (o.ends && o.isEnd) {                                // dark board cladding in the middle of the gable end (photos)
+    const p0 = W * 0.33, p1 = W * 0.67; rect(p0, p1, 0, H + 1, 2);
+    for (let a = p0 + 0.3; a < p1; a += 0.3) ln(a, 0, a, H + 1, 0.8, "#555");
+    for (const z of (eave >= 7.5 ? [1.6, 4.8] : [1.6])) for (let k = 0; k < 3; k++) { const w = (p1 - p0 - 2) / 3; win(p0 + 0.5 + k * (w + 0.5), p0 + 0.5 + k * (w + 0.5) + w - 0.3, z, z + (z < 2 ? 2.3 : 1.6)); }   // ground sill/head 1.6-3.9 like the entrance
+  }
+  // windows follow the real photos instead of one stacked grid on every wall:
+  //   win "band": 2-storey classroom side — per bay: ground trio + curtain-wall strip above
+  //   win "row" : one row of small square windows (single-storey wings)
+  //   clere     : high ribbon glazing under the eave (raised roof monitors only)
+  if (o.win === "band" && !o.isEnd && W > 8) {
+    // one repeating module per 8 m bay: a trio of tall windows on the ground floor,
+    // and above it one rectangular curtain-wall strip the same width (mullions + one transom)
+    const bay = 8, n = Math.max(1, Math.floor((W - 2) / bay)), st = (W - n * bay) / 2;
+    const off = ((n % 4) + 1) % 4;   // rhythm: three modules, one blank bay, repeat (offset so both ends land on full modules where possible)
+    for (let k = 0; k < n; k++) { if ((k + off) % 4 === 3) continue; const a = st + k * bay + (bay - 5.2) / 2;
+      for (let j = 0; j < 3; j++) win(a + j * 2.0, a + j * 2.0 + 1.2, 1.6, 3.9, 1);
+      win(a - 0.3, a + 5.5, 4.8, 6.6, 6); }
+  }
+  if (o.win === "curtain") {   // full glass facade: one curtain wall from the plinth to the eave, mullion + transom grid
+    // glazed gable between two brick end piers, over a brick plinth; 3 m fin bays (3D, built in wall()), one light
+    // mullion in each bay, a single transom at door-head height, and the entrance doors on the ridge axis
+    const P = 3.0, z0 = 0.6, zt = 3.2, s0 = P, s1 = W - P;
+    g.fillStyle = "#e6e6e6"; g.fillRect(X(s0), 0, X(s1 - s0), Y(z0));
+    g.strokeStyle = "#111"; g.lineWidth = 3; g.strokeRect(X(s0), -10, X(s1 - s0), Y(z0) + 10);
+    const nb = Math.max(1, Math.round((s1 - s0) / 3)), bw = (s1 - s0) / nb;
+    for (let k = 0; k < nb; k++) ln(s0 + (k + 0.5) * bw, z0, s0 + (k + 0.5) * bw, H, 1);
+    ln(s0, zt, s1, zt, 2.5);
+    const dm = W / 2; rect(dm - 2.2, dm + 2.2, z0, zt - 0.2, 2.5); ln(dm, z0, dm, zt - 0.2, 2); ln(dm - 1.1, z0, dm - 1.1, zt - 0.2, 1); ln(dm + 1.1, z0, dm + 1.1, zt - 0.2, 1);
+  }
+  if (o.win === "row" && W > 4) {
+    // one motif only: trios of tall windows side by side, one trio per 8 m bay
+    const bay = 8, n = Math.max(1, Math.floor((W - 2) / bay)), st = (W - n * bay) / 2, zt = Math.min(3.9, eave - 0.6), zs = Math.min(1.6, zt - 1.4);   // one sill line with the entrance windows
+    for (let k = 0; k < n; k++) { const a = st + k * bay + (bay - 5.2) / 2;
+      for (let j = 0; j < 3; j++) win(a + j * 2.0, a + j * 2.0 + 1.2, zs, zt, 1); }
+  }
+  if (o.clere && eave >= 9.5 && W > 4) {
+    rect(1, W - 1, eave - 1.7, eave - 0.5, 2);
+    for (let a = 1 + 1.2; a < W - 1; a += 1.2) ln(a, eave - 1.7, a, eave - 0.5, 1.2);
+  }
+  g.restore();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+}
+const ROT = { S: 0, N: Math.PI, E: Math.PI / 2, W: -Math.PI / 2 };
+function wall(dir, ox, oy, outline, o = {}) {
+  const W = Math.max(...outline.map(p => p[0])), H = Math.max(...outline.map(p => p[1]));
+  const geo = new THREE.ShapeGeometry(new THREE.Shape(outline.map(([a, b]) => new THREE.Vector2(a, b))));
+  const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / W, uv.getY(i) / H);
+  const mat = new THREE.MeshLambertMaterial({ ...(o.kind === "plain" ? { color: 0xffffff } : { map: drawWall(W, H, outline, o) }), side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+  const m = new THREE.Mesh(geo, mat); m.rotation.y = ROT[dir]; m.position.copy(V(ox, oy, 0)); root.add(m);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), M.line); e.rotation.copy(m.rotation); e.position.copy(m.position); root.add(e);
+  if (o.win === "curtain") {   // glazed gable: deep brick-edge frame at the piers, vertical sun fins every bay up to the rake, a sun shelf at door head
+    const top = s => { let z = 0; outline.forEach((p, i) => { const q = outline[(i + 1) % outline.length]; const a = Math.min(p[0], q[0]), b = Math.max(p[0], q[0]);
+      if (p[1] > 0.01 && q[1] > 0.01 && s >= a - 1e-6 && s <= b + 1e-6 && b - a > 1e-6) z = Math.max(z, p[1] + (q[1] - p[1]) * (s - p[0]) / (q[0] - p[0])); }); return z; };
+    const P = 3.0, s0 = P, s1 = W - P, nb = Math.max(1, Math.round((s1 - s0) / 3)), bw = (s1 - s0) / nb, gs = [];
+    const bx = (a0, a1, z0, z1, d0, d1) => { const b = new THREE.BoxGeometry(a1 - a0, z1 - z0, d1 - d0); b.translate((a0 + a1) / 2, (z0 + z1) / 2, (d0 + d1) / 2); gs.push(b.toNonIndexed()); };
+    for (let k = 0; k <= nb; k++) { const s = s0 + k * bw, edge = k === 0 || k === nb, t = top(s) - 0.05;
+      edge ? bx(s - (k === 0 ? 0.6 : 0), s + (k === 0 ? 0 : 0.6), 0, t, 0, 1.2) : bx(s - 0.09, s + 0.09, 0.6, t, 0, 0.9); }
+    bx(s0, s1, 3.15, 3.3, 0, 1.4);                                    // sun shelf / canopy line across the glass
+    const fm = mergeGeometries(gs), fmesh = new THREE.Mesh(fm, M.wall); fmesh.rotation.copy(m.rotation); fmesh.position.copy(m.position); root.add(fmesh);
+    const fe = new THREE.LineSegments(new THREE.EdgesGeometry(fm, 20), M.line); fe.rotation.copy(m.rotation); fe.position.copy(m.position); root.add(fe);
+  }
+  { const base = []; outline.forEach((p, i) => { const q = outline[(i + 1) % outline.length]; if (p[1] < 0.01 && q[1] < 0.01) base.push(new THREE.Vector3(p[0], 0.17, 0.01), new THREE.Vector3(q[0], 0.17, 0.01)); });
+    if (base.length) { const bl = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(base), M.line); bl.rotation.copy(m.rotation); bl.position.copy(m.position); root.add(bl); } }   // where the wall meets the paving
+}
+const rectO = (W, h) => [[0, 0], [W, 0], [W, h], [0, h]];
+// gabled block, ridge along x (E-W). y0 south edge, y1 north edge, yr ridge line, eave heights zs/zn, ridge zr
+function gableX(x0, x1, y0, y1, yr, zs, zr, zn, skip = [], o = {}) {
+  const O = o.ov ?? 0.8;
+  const W = x1 - x0, D = y1 - y0, mid = yr > y0 + 0.01 && yr < y1 - 0.01;
+  if (!o.noS) wall("S", x0, y0, rectO(W, zs), o);
+  if (!skip.includes("north")) wall("N", x1, y1, rectO(W, zn), o);
+  const eo = { ...o, isEnd: true };
+  if (!skip.includes("east")) wall("E", x1, y0, mid ? [[0, 0], [D, 0], [D, zn], [yr - y0, zr], [0, zs]] : [[0, 0], [D, 0], [D, zn], [0, zs]], eo);
+  if (!skip.includes("west")) wall("W", x0, y1, mid ? [[0, 0], [D, 0], [D, zs], [y1 - yr, zr], [0, zn]] : [[0, 0], [D, 0], [D, zs], [0, zn]], o.glassW ? { ...eo, win: "curtain" } : eo);
+  const sS = (zr - zs) / Math.max(yr - y0, 0.01), sN = (zr - zn) / Math.max(y1 - yr, 0.01);
+  const SO = o.flushS ? 0 : O; // flushS: south slope continues a lower roof, so no lip at its foot
+  if (o.noRoof) return;
+  const OW = o.ovW ?? O, OE = o.ovE ?? O;   // 0 where the block butts a neighbour, so the roofs meet without overlapping
+  if (yr > y0 + 0.01) slab([[x0 - OW, y0 - SO, zs - sS * SO], [x1 + OE, y0 - SO, zs - sS * SO], [x1 + OE, yr, zr], [x0 - OW, yr, zr]]);
+  if (yr < y1 - 0.01) slab([[x0 - OW, yr, zr], [x1 + OE, yr, zr], [x1 + OE, y1 + O, zn - sN * O], [x0 - OW, y1 + O, zn - sN * O]]);
+}
+// gabled block, ridge along y (N-S). xr ridge line, eave heights zw/ze
+function gableY(x0, x1, y0, y1, xr, zw, zr, ze, o = {}) {
+  const W = x1 - x0, D = y1 - y0;
+  wall("W", x0, y1, rectO(D, zw), o);
+  wall("E", x1, y0, rectO(D, ze), o);
+  wall("S", x0, y0, [[0, 0], [W, 0], [W, ze], [xr - x0, zr], [0, zw]], { ...o, isEnd: true });
+  wall("N", x1, y1, [[0, 0], [W, 0], [W, zw], [x1 - xr, zr], [0, ze]], { ...o, isEnd: true });
+  if (o.noRoof) return;
+  const sW = (zr - zw) / (xr - x0), sE = (zr - ze) / (x1 - xr);
+  slab([[x0 - O, y0 - O, zw - sW * O], [x0 - O, y1 + O, zw - sW * O], [xr, y1 + O, zr], [xr, y0 - O, zr]]);
+  slab([[xr, y0 - O, zr], [xr, y1 + O, zr], [x1 + O, y1 + O, ze - sE * O], [x1 + O, y0 - O, ze - sE * O]]);
+}
+function flatBox(x0, x1, y0, y1, z0, z1) {
+  const g = new THREE.BoxGeometry(x1 - x0, z1 - z0, y1 - y0);
+  const m = new THREE.Mesh(g, M.wall); m.position.copy(V((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)); root.add(m);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(g), M.line); e.position.copy(m.position); root.add(e);
+  if (Math.min(z0, z1) < 0.01) groundLine([[x0, y0], [x1, y0], [x1, y1], [x0, y1]], true);
+}
+// line where something stands on the ground, drawn just above the 0.15 m paving so it is never hidden
+function groundLine(pts, closed = false) {
+  const v = []; for (let i = 0; i < pts.length - (closed ? 0 : 1); i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; v.push(V(a[0], a[1], 0.17), V(b[0], b[1], 0.17)); }
+  root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(v), M.line));
+}
+// helpers in aerial pixels: X range, Y range (Y top = north), ridge pixel, heights south / ridge / north
+const GX = (X0, X1, Ytop, Ybot, Yr, zs, zr, zn, o = {}) => gableX(PX(X0), PX(X1), PY(Ybot), PY(Ytop), PY(Yr), zs, zr, zn, [], o);
+const GY = (X0, X1, Ytop, Ybot, Xr, zw, zr, ze, o = {}) => gableY(PX(X0), PX(X1), PY(Ybot), PY(Ytop), PX(Xr), zw, zr, ze, o);
+const FB = (X0, X1, Ytop, Ybot, h, z0 = 0) => flatBox(PX(X0), PX(X1), PY(Ybot), PY(Ytop), z0, h);
+
+
+// ---------------- entrance facade, drawn like the coloring page ----------------
+// s = metres along the east face from its south end (y = EY0), z = height
+function facadeTexture(W, H, outline) {
+  const ppm = 48, c = document.createElement("canvas"); c.width = Math.ceil(W * ppm); c.height = Math.ceil(H * ppm);
+  const g = c.getContext("2d"), X = s => s * ppm, Y = z => (H - z) * ppm;
+  const rect = (s0, s1, z0, z1, fill = "#fff", lw = 2) => { g.fillStyle = fill; g.fillRect(X(s0), Y(z1), X(s1) - X(s0), Y(z0) - Y(z1)); g.lineWidth = lw; g.strokeRect(X(s0), Y(z1), X(s1) - X(s0), Y(z0) - Y(z1)); };
+  const ln = (s0, z0, s1, z1, lw = 1.5) => { g.lineWidth = lw; g.beginPath(); g.moveTo(X(s0), Y(z0)); g.lineTo(X(s1), Y(z1)); g.stroke(); };
+  g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.strokeStyle = "#111";
+  g.save(); g.beginPath(); outline.forEach(([s, z], i) => i ? g.lineTo(X(s), Y(z)) : g.moveTo(X(s), Y(z))); g.closePath(); g.clip();
+  // horizontal siding
+  for (let z = 0.35; z < H; z += 0.35) ln(0, z, W, z, 1);
+  // brick piers
+  const brick = (s0, s1, z0, z1) => {
+    rect(s0, s1, z0, z1, "#fff", 2.5);
+    for (let r = 0, z = z0; z < z1; r++, z += 0.3) { ln(s0, z, s1, z, 1); for (let s = s0 + (r % 2) * 0.45; s < s1; s += 0.9) ln(s, z, s, Math.min(z + 0.3, z1), 1); }
+  };
+  rect(25.8, 27.7, 0, 16, "#fff", 2.5);   // plain white wall: the divider between the glass bay and the SCHOOL panel (photo)
+  brick(39.4, EREC, 0, 16);
+  // wood-plank bay left of the glass (photo): narrow horizontal boards with staggered joints
+  rect(WB0, WB1, 0, 16, "#fff", 2.5);
+  for (let z = 0.35; z < 16; z += 0.35) ln(WB0, z, WB1, z, 1);   // plain horizontal siding like the coloring page (no joints, so it doesn't read as brick)
+  // window: frame + 2x2 panes
+  const win = (s0, s1, z0, z1, cols = 2) => {
+    { const F = 0.85, sc = (s0 + s1) / 2, zc = (z0 + z1) / 2; s0 = sc + (s0 - sc) * F; s1 = sc + (s1 - sc) * F; z0 = zc + (z0 - zc) * F; z1 = zc + (z1 - zc) * F; } // windows at 85%
+    rect(s0 - 0.12, s1 + 0.12, z0 - 0.12, z1 + 0.12, "#fff", 3); rect(s0, s1, z0, z1, "#fff", 2);
+    for (let k = 1; k < cols; k++) ln(s0 + (s1 - s0) * k / cols, z0, s0 + (s1 - s0) * k / cols, z1, 2.5);
+    const tz = z0 + (z1 - z0) * 0.74; ln(s0, tz, s1, tz, 2.5);   // transom high up: small top lights over tall panes (coloring page)
+    ln(s0 - 0.25, z0 - 0.12, s1 + 0.25, z0 - 0.12, 4);
+  };
+  // windows raised to sit well above the planting, as on the coloring page: sill 1.6 m, head 3.9 m
+  for (const s0 of [1.4, 4.2, 7.0, 9.7]) win(s0, s0 + 1.7, 1.6, 3.9);
+  for (const s0 of [28.7, 31.5, 34.2]) win(s0, s0 + 1.8, 1.6, 3.9);
+  for (const s0 of [46.6, 49.8, 53.0]) win(s0, s0 + 1.8, 4.4, 5.7, 2); // three small high windows on the long white wall (photo)
+  win(WB0 + 0.3, WB1 - 0.3, 1.6, 3.9, 5);                          // long window band along the wood bay, same sill/head as the rest
+  // entry portal: 4 glass doors + transom
+  rect(20.0, 25.8, 0, 4.3, "#fff", 3);
+  for (let k = 0; k < 4; k++) {
+    const a = 20.0 + k * 1.45; rect(a, a + 1.45, 0.05, 2.9, "#fff", 2.5); rect(a + 0.25, a + 1.2, 0.5, 2.6, "#fff", 1.5);
+    ln(a + (k % 2 ? 0.15 : 1.3), 1.3, a + (k % 2 ? 0.15 : 1.3), 1.9, 4);
+  }
+  for (let k = 0; k < 4; k++) rect(20.0 + k * 1.45, 20.0 + k * 1.45 + 1.45, 3.2, 4.05, "#fff", 2);
+  // tall glazing above the canopy, up to the roof, with hanging lights
+  g.save(); g.beginPath(); g.moveTo(X(20), Y(6.6)); g.lineTo(X(25.8), Y(6.6)); g.lineTo(X(25.8), Y(roofZ(25.8))); g.lineTo(X(20), Y(roofZ(20))); g.closePath(); g.clip();
+  g.fillStyle = "#fff"; g.fillRect(X(20), Y(16), X(5.8), Y(6.6) - Y(16));
+  for (let s = 20.0; s <= 25.81; s += 1.45) ln(s, 6.6, s, 16, 2.5);
+  ln(20, 9.4, 25.8, 9.4, 2.5); ln(20, 6.6, 25.8, 6.6, 3);
+  for (const [s, len] of [[21.6, 1.6], [22.4, 2.4], [23.1, 2.0], [23.9, 1.4]]) {
+    const top = roofZ(s) - 0.3; ln(s, top, s, top - len, 1.5); rect(s - 0.12, s + 0.12, top - len - 0.6, top - len, "#fff", 1.5);
+  }
+  g.restore();
+  // SCHOOL letters on the siding panel
+  g.font = `bold ${1.9 * ppm}px "Arial Rounded MT Bold", Arial, Helvetica, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#fff"; g.lineWidth = 5; g.lineJoin = "round";
+  g.restore();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+}
+function entranceFacade() {
+  const W = EREC, H = EZR + 0.5;
+  const outline = [[0, 0], [W, 0], [W, roofZ(W)], [EAPX, EZR], [ESTEP, EGL], [ESTEP, ESH1], [0, ESH0]];
+  // the face steps back 2 m at the north end: a return wall and a dark recessed wall under the long eave
+  const r0 = roofZ(EREC), r1 = roofZ(EY1 - EY0);
+  if (EREC < EY1 - EY0 - 0.01) {
+    wall("N", EX, EY0 + EREC, [[0, 0], [2, 0], [2, r0], [0, r0]], {});
+    wall("E", EX - 2, EY0 + EREC, [[0, 0], [EY1 - EY0 - EREC, 0], [EY1 - EY0 - EREC, r1], [0, r0]], { kind: "gym" });
+  }
+  // the glass bay, the doors and the white pier beside them sit back RD m; the roof keeps its slope above them (photo)
+  const RB = FRB, RD = FRD;
+  const mat = new THREE.MeshBasicMaterial({ map: facadeTexture(W, H, outline), side: THREE.DoubleSide });
+  const roofPts = [[EREC, roofZ(EREC)], [EAPX, EZR], [ESTEP, EGL], [ESTEP, ESH1], [0, ESH0]];
+  const seg = (a, b, x) => {
+    const pts = [[a, 0], [b, 0], [b, roofZ(b)], ...roofPts.filter(p => p[0] > a + 0.01 && p[0] < b - 0.01), [a, roofZ(a)]];
+    const geo = new THREE.ShapeGeometry(new THREE.Shape(pts.map(([p, q]) => new THREE.Vector2(p, q))));
+    const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / W, uv.getY(i) / H);
+    const m = new THREE.Mesh(geo, mat); m.rotation.y = Math.PI / 2; m.position.copy(V(x, EY0, 0)); root.add(m);
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), M.line); e.rotation.copy(m.rotation); e.position.copy(m.position); root.add(e);
+    groundLine([[x, EY0 + a], [x, EY0 + b]]);   // facade meets the ground
+  };
+  // everything left of the SCHOOL pier line (glass, doors and the whole low wing) sits back RD m in one plane
+  // planes: white wall | wood bay -0.6 | glass + doors -1.5 more (deep) | white divider | SCHOOL face
+  const GB1 = 25.8, GD = 1.5;
+  seg(0, WB0, EX - RD); seg(WB0, WB1, EX - RD - WD); seg(WB1, GB1, EX - RD - GD); seg(GB1, RB, EX + PP); seg(RB, W, EX);
+  wall("N", EX - RD, EY0 + WB0, rectO(WD, roofZ(WB0)), {});              // wood-bay step
+  wall("N", EX - RD - WD, EY0 + WB1, rectO(GD - WD, roofZ(WB1)), { kind: "plain" });    // glass bay: left return
+  wall("S", EX - RD - GD, EY0 + GB1, rectO(RD + GD + PP, roofZ(GB1)), { kind: "plain" });   // white pier side, full depth
+  wall("N", EX + PP, EY0 + RB, rectO(PP, roofZ(RB)), { kind: "plain" });         // glass bay: white return wall
+       // return wall where the face steps forward
+  // canopy: flat slab, columns at its front edge, horizontal beams from the wall out to each column
+  const cy0 = EY0 + CN, cy1 = EY0 + 39.4, D = 5.0;   // ends at the right edge of the SCHOOL panel
+  flatBox(EX - RD - 1.5, EX + D, cy0, cy1, 5.7, 6.5);
+  { // lines where the canopy slab meets the stepped facade (top and underside), so the junction reads in the drawing
+    const PR = [[0, WB0, EX - RD], [WB0, WB1, EX - RD - WD], [WB1, GB1, EX - RD - GD], [GB1, RB, EX + PP], [RB, 1e9, EX]], pts = [], o = 0.02;
+    for (const z of [6.5 + o, 5.7 - o]) {
+      PR.forEach(([a, b, x], i) => { const s0 = Math.max(a, CN), s1 = Math.min(b, 39.4); if (s1 > s0) pts.push(V(x + o, EY0 + s0, z), V(x + o, EY0 + s1, z));
+        const nx = PR[i + 1]; if (nx && b > CN && b < 39.4) pts.push(V(x + o, EY0 + b + (nx[2] > x ? -o : o), z), V(nx[2] + o, EY0 + b + (nx[2] > x ? -o : o), z)); });
+    }
+    root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), M.line)); }
+  for (const s of [18.9, 26.75, 33.0, 38.9]) {   // 26.75 = middle of the white pier
+    flatBox(EX + D - 0.7, EX + D - 0.35, EY0 + s - 0.18, EY0 + s + 0.18, 5.7, 0);
+    flatBox(EX + D - 0.7, EX + D - 0.35, EY0 + s - 0.25, EY0 + s + 0.25, 0.4, 0);
+    const x0 = s > WB1 && s < 25.8 ? EX - RD - 1.5 : s >= 25.8 && s < RB ? EX + PP : s < RB ? EX - RD : EX;
+    flatBox(x0, EX + D, EY0 + s - 0.15, EY0 + s + 0.15, 5.7, 5.35);
+  }
+  // street furniture along the face right of the doors (coloring page): bench, bike hoops, bench at the brick end
+  const G0 = 0.15, furn = [];
+  const fb = (x0, x1, y0, y1, z0, z1) => { const b = new THREE.BoxGeometry(x1 - x0, z1 - z0, y1 - y0); b.translate((x0 + x1) / 2, (z0 + z1) / 2, -(y0 + y1) / 2); furn.push(b.toNonIndexed()); };
+  const bench = (y0) => { const x0 = EX + 0.55, y1 = y0 + 1.9;
+    fb(x0, x0 + 0.5, y0, y1, G0 + 0.42, G0 + 0.5);                       // seat
+    fb(x0, x0 + 0.06, y0, y1, G0 + 0.62, G0 + 0.92);                     // back rail
+    for (const y of [y0 + 0.1, y1 - 0.16]) { fb(x0 + 0.05, x0 + 0.45, y, y + 0.06, G0, G0 + 0.42); fb(x0, x0 + 0.06, y, y + 0.06, G0 + 0.5, G0 + 0.92); }
+    groundLine([[x0 + 0.05, y0 + 0.1], [x0 + 0.45, y0 + 0.1]]); groundLine([[x0 + 0.05, y1 - 0.1], [x0 + 0.45, y1 - 0.1]]); };
+  const hoop = (y) => { const xc = EX + 1.1, r = 0.35, pts = [];   // inverted-U bike rack standing square to the wall, so a bike parks along it
+    pts.push(new THREE.Vector3(xc - r, G0, -y), new THREE.Vector3(xc - r, G0 + 0.55, -y));
+    for (let k = 1; k < 12; k++) { const a = Math.PI - k * Math.PI / 12; pts.push(new THREE.Vector3(xc + r * Math.cos(a), G0 + 0.55 + r * Math.sin(a), -y)); }
+    pts.push(new THREE.Vector3(xc + r, G0 + 0.55, -y), new THREE.Vector3(xc + r, G0, -y));
+    furn.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.05), 40, 0.045, 6).toNonIndexed()); };
+  bench(EY0 + 27.9);
+  for (let i = 0; i < 8; i++) hoop(EY0 + 30.6 + i * 0.85);   // eight hoops in one even row
+  bench(EY0 + 40.0);
+  { const fg = mergeGeometries(furn), fm = new THREE.Mesh(fg, M.wall); root.add(fm); root.add(new THREE.LineSegments(new THREE.EdgesGeometry(fg, 35), M.line)); }
+  // SCHOOL in raised 3D letters on the siding panel
+  { const font = new FontLoader().parse(SCHOOL_FONT);   // glyphs inlined: the page cannot fetch font files
+    const tg = new TextGeometry("SCHOOL", { font, size: 1.45, height: 0.18, curveSegments: 6, bevelEnabled: false });
+    tg.computeBoundingBox(); const bb = tg.boundingBox; tg.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, 0);
+    tg.rotateY(Math.PI / 2); tg.translate(EX + 0.02, 8.4, -(EY0 + 33.6));
+    root.add(new THREE.Mesh(tg, M.wall)); root.add(new THREE.LineSegments(new THREE.EdgesGeometry(tg, 30), M.line));
+  }
+  // bollards and two benches at the front walk
+  for (const s of [18.5, 20.5, 22.5, 24.5, 26.5, 28.5]) groundLine(Array.from({ length: 16 }, (_, k) => [EX + 12.4 + 0.15 * Math.cos(k * Math.PI / 8), EY0 + s + 0.15 * Math.sin(k * Math.PI / 8)]), true);
+  for (const s of [18.5, 20.5, 22.5, 24.5, 26.5, 28.5]) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 1.0, 16), M.wall); b.position.copy(V(EX + 12.4, EY0 + s, 0.5)); root.add(b); const be = new THREE.LineSegments(new THREE.EdgesGeometry(b.geometry, 40), M.line); be.position.copy(b.position); root.add(be); }
+}
+
+// ---------------- the building ----------------
+// west part (classroom wings, main block, central hall): every slope has the one shared pitch of the entrance roof;
+// roofs are the upper envelope of all the gables, computed in layout-scripts/roof-west.py, so where one block runs into
+// another the two roofs meet along a sloped intersection line, and each roof stops where its neighbour starts
+const WEST_ROOF = [{"pl": [0, 0.289157, 7.679518], "pts": [[10.4, 18.4], [32.8, 18.4], [32.8, 22.4], [58.08, 22.4], [58.08, 18.4], [107.2, 18.4], [107.2, 22.4], [128.64, 22.4], [128.64, 18.4], [137.6, 18.4], [137.6, -0.8], [10.4, -0.8]]}, {"pl": [0, -0.289157, 18.320482], "pts": [[73.28, 34.4], [73.453, 34.4], [89.28, 18.573], [105.107, 34.4], [105.28, 34.4], [105.28, 35.2], [137.6, 35.2], [137.6, 18.4], [128.64, 18.4], [128.64, 22.4], [107.2, 22.4], [107.2, 18.4], [58.08, 18.4], [58.08, 22.4], [32.8, 22.4], [32.8, 18.4], [10.4, 18.4], [10.4, 35.2], [73.28, 35.2]]}, {"pl": [0, 0.289157, -7.022892], "pts": [[6.4, 77.6], [24.0, 77.6], [24.0, 59.52], [63.36, 59.52], [63.36, 66.0], [86.207, 66.0], [73.28, 53.073], [73.28, 47.04], [72.48, 47.04], [72.48, 46.24], [6.4, 46.24]]}, {"pl": [0, 0.289157, -7.022892], "pts": [[141.2, 82.363], [149.2, 82.363], [149.2, 77.2], [156.0, 77.2], [156.0, 62.4], [153.0, 62.4], [153.0, 43.2], [116.2, 43.2], [116.2, 52.273], [105.28, 52.273], [105.28, 53.073], [92.353, 66.0], [141.2, 66.0]]}, {"pl": [0, -0.289157, 37.854217], "pts": [[24.0, 102.4], [24.0, 77.6], [6.4, 77.6], [6.4, 102.4]]}, {"pl": [0, 0.289157, -5.022892], "pts": [[23.2, 58.72], [23.2, 88.267], [32.0, 88.267], [32.0, 93.267], [75.2, 93.267], [75.2, 88.267], [88.0, 88.267], [88.0, 93.267], [103.2, 93.267], [103.2, 88.267], [142.0, 88.267], [142.0, 65.2], [64.16, 65.2], [64.16, 58.72]]}, {"pl": [0, -0.289157, 46.022892], "pts": [[142.0, 106.3], [142.0, 88.267], [103.2, 88.267], [103.2, 93.267], [88.0, 93.267], [88.0, 88.267], [75.2, 88.267], [75.2, 93.267], [32.0, 93.267], [32.0, 88.267], [23.2, 88.267], [23.2, 112.0], [105.2, 112.0], [105.2, 106.3]]}, {"pl": [0.289157, 0, -12.865904], "pts": [[73.453, 34.4], [72.48, 34.4], [72.48, 52.273], [86.207, 66.0], [89.28, 66.0], [89.28, 18.573]]}, {"pl": [-0.289157, 0, 38.765904], "pts": [[89.28, 66.0], [92.353, 66.0], [106.08, 52.273], [106.08, 34.4], [105.107, 34.4], [89.28, 18.573]]}];
+const WEST_WALLS = [{"n": "AB", "ax": "x", "x0": 11.200000000000001, "x1": 136.8, "y0": 0.0, "y1": 34.4, "r": 18.400000000000002, "H": 13.0, "e0": 7.68, "e1": 8.373, "o": {"ends": true, "win": "band"}}, {"n": "C", "ax": "x", "x0": 7.2, "x1": 89.28, "y0": 47.04, "y1": 101.60000000000001, "r": 77.60000000000001, "H": 15.415662650602414, "e0": 6.579, "e1": 8.476, "o": {"win": "row", "glassW": true}}, {"n": "D1", "ax": "x", "x0": 24.0, "x1": 63.36, "y0": 59.52, "y1": 111.2, "r": 88.26666666666667, "H": 20.5, "e0": 12.188, "e1": 13.869, "o": {"skip": ["north", "east"], "northTo": 104.4}}, {"n": "D2", "ax": "x", "x0": 63.36, "x1": 104.4, "y0": 66.0, "y1": 111.2, "r": 88.26666666666667, "H": 20.5, "e0": 14.061, "e1": 13.869, "o": {"skip": ["north", "west"]}}, {"n": "H", "ax": "y", "x0": 73.28, "x1": 105.28, "y0": 18.400000000000002, "y1": 68.48, "r": 89.28, "H": 12.95, "e0": 8.323, "e1": 8.323, "o": {}}];
+const MONITORS = [{"xa": 32.8, "xb": 58.08, "r": 18.4, "e": 4.0, "H": 13.0}, {"xa": 107.2, "xb": 128.64, "r": 18.4, "e": 4.0, "H": 13.0}, {"xa": 32.0, "xb": 75.2, "r": 88.267, "e": 5.0, "H": 20.5}, {"xa": 88.0, "xb": 103.2, "r": 88.267, "e": 5.0, "H": 20.5}];
+for (const w of WEST_WALLS) { const o = { ...w.o, noRoof: true };
+  if (w.ax === "x") { gableX(w.x0, w.x1, w.y0, w.y1, w.r, w.e0, w.H, w.e1, o.skip || [], o);
+    if (o.northTo) wall("N", o.northTo, w.y1, rectO(o.northTo - w.x0, w.e1), o);   // one north wall for the whole main block
+  } else gableY(w.x0, w.x1, w.y0, w.y1, w.r, w.e0, w.H, w.e1, o); }
+for (const f of WEST_ROOF) slab(f.pts.map(([x, y]) => [x, y, f.pl[0] * x + f.pl[1] * y + f.pl[2]]));
+// return wall where the main block's south wall steps back (D1 -> D2), so the notch is closed
+{ const d1 = WEST_WALLS.find(w => w.n === "D1"), d2 = WEST_WALLS.find(w => w.n === "D2"), d = d2.y0 - d1.y0;
+  wall("E", d2.x0, d1.y0, [[0, 0], [d, 0], [d, d2.e0], [0, d1.e0]], {}); }
+// roof monitors: north riser (metal band) and the two triangular cheeks under the carried-on south slope
+for (const m of MONITORS) { const KM = (15.3 - 5.7) / 33.2, lo = m.H - KM * m.e, hi = m.H + KM * m.e, W = m.xb - m.xa;
+  wall("N", m.xb, m.r + m.e, [[0, lo], [W, lo], [W, hi], [0, hi]], { kind: "gym" });
+  const z = RT + 0.02, L = [[m.xa, m.r + m.e, lo + z], [m.xb, m.r + m.e, lo + z], [m.xa, m.r, m.H + z], [m.xa, m.r + m.e, lo + z], [m.xb, m.r, m.H + z], [m.xb, m.r + m.e, lo + z]];
+  root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(L.map(([x, y, zz]) => V(x, y, zz))), M.line));
+  wall("E", m.xb, m.r, [[0, m.H], [m.e, lo], [m.e, hi]], { kind: "plain" });
+  wall("W", m.xa, m.r + m.e, [[0, lo], [0, hi], [m.e, m.H]], { kind: "plain" }); }
+// east block (gym + entrance): tallest roof, entrance gable on the east face a step lower
+// gym: stops at the low roof, so only its high clerestory band shows above it (photo)
+// gym south slope continues the same plane as the low roof and the entrance gable (one slope end to end)
+// level 3 (green): the gym, highest; its south eave sits a clerestory band above the low roof (photo)
+// every slope in this block is parallel: south slopes rise at the low-roof pitch, north slopes fall at the entrance-gable pitch
+// entrance gable (coloring page): east face, apex 3/4 to the north, long slope down to the south
+// coloring page: a long low shed roof (left) and, a step higher, the main gable over the glass, doors and SCHOOL panel
+const FRB = 27.7, FRD = 3.0, CN = 18.4, PP = 0.4;   // CN: canopy start = where the roof overhang steps back; PP: white pier projects
+const WB0 = 12.0, WB1 = 20.0, WD = 0.6;   // wood bay: a shallow 0.6 m step back, s 12..20   // face steps back FRD m for s < FRB
+const EX0 = 138, EX = 155.2, EY0 = 44, EY1 = 100.5, EREC = 56.5;   // EREC: where the face steps back 2 m (dark recess, photo)
+// gentler pitch like the coloring page: apex stays 15.3 m, both eaves raised (south 4.5 -> 5.7, north 6.0 -> 8.5)
+const ESTEP = 17.6, ESH0 = 5.7, EAPX = 33.2, EZR = 15.3, EZN = 8.5, ESH1 = ESH0 + (EZR - ESH0) * ESTEP / EAPX, EGL = ESH1;
+const KS = (EZR - ESH0) / EAPX, KN = (EZR - EZN) / (EY1 - EY0 - EAPX);   // the two shared pitches
+const roofZ = s => s < ESTEP ? ESH0 + s * (ESH1 - ESH0) / ESTEP : s < EAPX ? EGL + (s - ESTEP) * (EZR - EGL) / (EAPX - ESTEP) : EZR - (s - EAPX) * (EZR - EZN) / (EY1 - EY0 - EAPX);
+// entrance block = three gables, ridges E-W, each one further back and higher, all slopes parallel (Ahmed's prompt)
+const YAP = EY0 + EAPX;                       // red apex line
+// 1 RED (lowest): its gable end is the white entrance face. Long south slope 4.5 -> 15.3 m runs back to the
+//   green clerestory wall; short north slope 15.3 -> 6.0 m is only ~6 m deep behind the face.
+const XR0 = PX(770), XRN = EX - 6;
+const XRS = PX(738);   // red low wing now runs on west to the hall's east wall, same slopes (Ahmed)
+// 2 BLUE + 3 GREEN: blue is a lifted copy of red's north slope only;
+//   green is a copy of the red gable lifted 2.4 m, running back to the west.
+const XB0 = XRN - 8, YB1 = EY1 + 5, DG = 7.0;   // heights from the street photo: dark blocks stand well above red
+const zS = (y, d) => ESH0 + KS * (y - EY0) + d, zN = (y, d) => EZR - KN * (y - YAP) + d;
+// walls only (roofs are drawn below as single slabs, so no seam lines run across them)
+// open courtyard cut out next to the hall (Ahmed): east wall at XC, north wall at YC (where the red slope meets the hall eave)
+const XC = 117.0, YC = EY0 + (12.95 - KS * (PX(738) - PX(638)) - ESH0) / KS;
+gableX(XC, EX - FRD, EY0, EY0 + FRB, EY0 + FRB, ESH0, roofZ(FRB), roofZ(FRB), ["east", "north"], { noRoof: true, win: "row" });
+wall("S", XRS, YC, rectO(XC - XRS, zS(YC, 0)), { win: "row" });
+gableX(XRS, EX, EY0 + FRB, YAP, YAP, roofZ(FRB), EZR, EZR, ["east", "north"], { noRoof: true, noS: true });
+wall("N", EX, EY1, rectO(EX - XRN, EZN), { kind: "plain" });   // north end: plain, no windows
+// red south slope: one L-shaped slab whose edge steps back with the recessed face
+// behind the 6 m red north part, the south slope runs on past the apex at the same pitch until it meets blue's top
+const DB = 3.0, YBR = YAP + DB / (KS + KN), ZBR = zS(YBR, 0);
+// (red south slope is drawn with the west roofs: it now runs on west into the hall, see roof-west.py)
+// red north slope (6 m deep behind the face)
+slab([[XRN - O, YAP], [EX + O, YAP], [EX + O, EY1 + O], [XRN - O, EY1 + O]].map(([x, y]) => [x, y, zN(y, 0)]));
+// blue: only the slope falling to the right, lifted DB above red's; it starts at the apex line (nothing rises
+//   on the left side), so a dark step shows above red's north slope and it runs 5 m past the face
+gableX(XB0, XRN, YBR, YB1, YBR, ZBR, ZBR, zN(YB1, DB), ["east"], { kind: "gym", noS: true, noWin: true });
+wall("E", XRN, YAP, [[0, 0], [YB1 - YAP, 0], [YB1 - YAP, zN(YB1, DB)], [YBR - YAP, ZBR], [0, EZR]], { kind: "gym", noWin: true });
+// green: low on the south side (only DGS above red, a short clerestory wall), same south pitch carried up
+//   to a ridge further north (photo), then the shared north pitch down to a tall north wall
+{ const YG0 = EY0 + 22, DGS = 2.0, ZGR = 20.5, YGR = YAP + (ZGR - EZR - DGS) / KS;
+  gableX(XR0 - 6, XB0, YG0, YB1, YGR, zS(YG0, DGS), ZGR, ZGR - KN * (YB1 - YGR), [], { kind: "gym", noWin: true, noRoof: true }); }   // its roof is drawn with the west roofs, one plane with the main block
+// central hall linking the two wings, ridge north-south, rides over both
+// flat-roof annexes
+// FB(78, 125, 520, 710, 5.0);
+// FB(115, 210, 425, 475, 5.0);
+// FB(655, 780, 345, 450, 6.5);
+// FB(755, 800, 760, 790, 5.0);
+entranceFacade();
+
+// ---------------- site in 3D (from site plan v8, same metre grid: x east, y north) ----------------
+// coloring-book style like the building: white solids with black outlines, no text
+{
+const W0 = new THREE.MeshLambertMaterial({ color: 0xffffff, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(900, 1100), M.ground);
+ground.rotation.x = -Math.PI / 2; ground.position.copy(V(65, 190, -0.02)); root.add(ground);
+const segs = [];                                   // all thin lines go into one LineSegments
+const seg = (a, b) => segs.push(...V(...a).toArray(), ...V(...b).toArray());
+const pl = (pts, z = 0.03, closed = false) => { for (let i = 0; i < pts.length - (closed ? 0 : 1); i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; seg([a[0], a[1], a[2] ?? z], [b[0], b[1], b[2] ?? z]); } };
+const Rr = (x0, x1, y0, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+// raised flat solid (pad, curb, box) with outlines
+function pad(pts, h, z0 = 0, holes = []) {
+  const sh = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
+  for (const hp of holes) sh.holes.push(new THREE.Path(hp.map(([x, y]) => new THREE.Vector2(x, y))));
+  const g = new THREE.ExtrudeGeometry(sh, { depth: h, bevelEnabled: false, curveSegments: 24 });
+  const m = new THREE.Mesh(g, W0); m.rotation.x = -Math.PI / 2; m.position.y = z0; root.add(m);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), M.line); e.rotation.copy(m.rotation); e.position.copy(m.position); root.add(e);
+}
+const box = (x0, x1, y0, y1, z0, z1) => pad(Rr(x0, x1, y0, y1), z1 - z0, z0);
+// site layers: same solid, but outlines come from the polygon rings themselves (top + bottom loop, corner posts),
+// so the triangulation of big polygons with holes never leaks stray lines across aisles
+function padR(pts, h, z0 = 0, holes = []) {
+  const sh = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
+  for (const hp of holes) sh.holes.push(new THREE.Path(hp.map(([x, y]) => new THREE.Vector2(x, y))));
+  const g = new THREE.ExtrudeGeometry(sh, { depth: h, bevelEnabled: false, curveSegments: 24 });
+  const m = new THREE.Mesh(g, W0); m.rotation.x = -Math.PI / 2; m.position.y = z0; root.add(m);
+  const v = [];
+  for (const r of [pts, ...holes]) for (let i = 0; i < r.length; i++) {
+    const a = r[(i + r.length - 1) % r.length], b = r[i], c = r[(i + 1) % r.length];
+    for (const z of [z0, z0 + h]) v.push(...V(b[0], b[1], z).toArray(), ...V(c[0], c[1], z).toArray());
+    if (Math.abs((b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0])) > 1e-6) v.push(...V(b[0], b[1], z0).toArray(), ...V(b[0], b[1], z0 + h).toArray());
+  }
+  const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.Float32BufferAttribute(v, 3)); root.add(new THREE.LineSegments(lg, M.line));
+}
+// oriented box along a segment a->b, width w
+function bar(a, b, w, z0, z1) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy), nx = -dy / l * w / 2, ny = dx / l * w / 2;
+  pad([[a[0] + nx, a[1] + ny], [b[0] + nx, b[1] + ny], [b[0] - nx, b[1] - ny], [a[0] - nx, a[1] - ny]], z1 - z0, z0);
+}
+const walk = (pts, w, h = 0.08) => { for (let i = 0; i + 1 < pts.length; i++) bar(pts[i], pts[i + 1], w, 0, h); };
+// fence: posts every 3 m, top and bottom rails
+function fence(pts, h = 1.8, closed = false, step = 3) {
+  pl(pts.map(p => [p[0], p[1], h]), h, closed); pl(pts.map(p => [p[0], p[1], 0.15]), 0.15, closed);
+  for (let i = 0; i < pts.length - (closed ? 0 : 1); i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(l / step));
+    for (let k = 0; k <= n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, y = a[1] + (b[1] - a[1]) * k / n; seg([x, y, 0], [x, y, h]); }
+  }
+}
+// bleachers: one solid with a stepped profile, front edge xf, step depth dx (sign = direction away from the field)
+function stands(xf, dx, n, y0, y1) {
+  const pr = [[xf, 0]]; for (let k = 0; k < n; k++) { pr.push([xf + dx * k, 0.7 * (k + 1)]); pr.push([xf + dx * (k + 1), 0.7 * (k + 1)]); }
+  pr.push([xf + dx * n, 0]);
+  const sh = new THREE.Shape(pr.map(([x, z]) => new THREE.Vector2(x, z)));
+  const g = new THREE.ExtrudeGeometry(sh, { depth: y1 - y0, bevelEnabled: false });
+  const m = new THREE.Mesh(g, W0); m.position.z = -y1; root.add(m);   // shape x = world x, shape y = height, extrude along world -y
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), M.line); e.position.copy(m.position); root.add(e);
+}
+// low-poly tree: trunk + faceted crown
+const crownG = new THREE.IcosahedronGeometry(1, 0), crownE = new THREE.EdgesGeometry(crownG, 1);
+const trunkG = new THREE.CylinderGeometry(0.18, 0.25, 1, 6), trunkE = new THREE.EdgesGeometry(trunkG, 30);
+function tree(x, y, r = 3, h = 7) {
+  const t = new THREE.Mesh(trunkG, W0); t.scale.set(1, h - r, 1); t.position.copy(V(x, y, (h - r) / 2)); root.add(t);
+  const c = new THREE.Mesh(crownG, W0); c.scale.set(r, r * 1.1, r); c.position.copy(V(x, y, h)); c.rotation.y = (x * 7 + y * 3) % 6.28; root.add(c);
+  const ce = new THREE.LineSegments(crownE, M.line); ce.scale.copy(c.scale); ce.position.copy(c.position); ce.rotation.copy(c.rotation); root.add(ce);
+}
+let seed = 7; const rnd = (a, b) => { seed = (seed * 16807) % 2147483647; return a + (b - a) * (seed / 2147483647); };
+
+// ---- merged ground layers (layout-scripts/site-layers.py): paving, lawns + islands, walks, sport surfaces
+const SITE_LAYERS = {"P": {"h": 0.05, "polys": [{"o": [[-125.0, -124.0], [-125.0, -106.0], [-1.0, -106.0], [-1.0, -99.0], [-40.0, -99.0], [-40.0, -92.0], [-34.5, -92.0], [-34.5, -89.0], [-40.0, -89.0], [-40.0, -21.0], [-34.5, -21.0], [-34.5, -18.0], [-40.0, -18.0], [-40.0, -8.0], [35.0, -8.0], [35.0, -18.0], [32.0, -18.0], [26.5, -18.0], [26.5, -21.0], [32.0, -21.0], [32.0, -89.0], [26.5, -89.0], [26.5, -92.0], [32.0, -92.0], [35.0, -92.0], [35.0, -99.0], [11.0, -99.0], [11.0, -106.0], [81.0, -106.0], [81.0, -99.0], [39.0, -99.0], [39.0, -92.0], [42.0, -92.0], [47.5, -92.0], [47.5, -89.0], [42.0, -89.0], [42.0, -21.0], [47.5, -21.0], [47.5, -18.0], [42.0, -18.0], [39.0, -18.0], [39.0, -8.0], [117.0, -8.0], [117.0, -18.0], [114.0, -18.0], [108.5, -18.0], [108.5, -21.0], [114.0, -21.0], [114.0, -89.0], [108.5, -89.0], [108.5, -92.0], [114.0, -92.0], [117.0, -92.0], [117.0, -99.0], [93.0, -99.0], [93.0, -106.0], [163.0, -106.0], [163.0, -99.0], [121.0, -99.0], [121.0, -92.0], [124.0, -92.0], [129.5, -92.0], [129.5, -89.0], [124.0, -89.0], [124.0, -21.0], [129.5, -21.0], [129.5, -18.0], [124.0, -18.0], [121.0, -18.0], [121.0, -8.0], [168.0, -8.0], [168.0, -6.0], [168.0, 128.0], [168.0, 140.0], [178.0, 140.0], [178.0, 134.0], [182.0, 134.0], [215.0, 134.0], [216.0, 134.0], [228.0, 134.0], [228.0, 311.0], [216.0, 311.0], [216.0, 298.0], [168.0, 298.0], [168.0, 332.0], [216.0, 332.0], [216.0, 319.0], [228.0, 319.0], [228.0, 510.0], [246.0, 510.0], [246.0, -106.0], [255.0, -106.0], [255.0, -124.0], [246.0, -124.0], [228.0, -124.0]], "h": [[[216.0, 126.0], [215.0, 126.0], [209.0, 126.0], [209.0, 121.5], [215.0, 121.5], [215.0, 72.9], [209.0, 72.9], [209.0, 62.1], [215.0, 62.1], [215.0, 5.4], [209.0, 5.4], [209.0, 2.0], [215.0, 2.0], [216.0, 2.0], [228.0, 2.0], [228.0, 126.0]], [[175.0, -99.0], [175.0, -106.0], [228.0, -106.0], [228.0, -6.0], [216.0, -6.0], [215.0, -6.0], [182.0, -6.0], [178.0, -6.0], [178.0, -8.0], [178.0, -18.0], [172.5, -18.0], [172.5, -21.0], [178.0, -21.0], [183.5, -21.0], [183.5, -18.0], [190.5, -18.0], [190.5, -21.0], [196.0, -21.0], [196.0, -89.0], [190.5, -89.0], [190.5, -92.0], [196.0, -92.0], [196.0, -99.0]], [[193.0, 126.0], [193.0, 121.5], [203.0, 121.5], [203.0, 126.0]], [[193.0, 72.9], [193.0, 62.1], [203.0, 62.1], [203.0, 72.9]], [[193.0, 5.4], [193.0, 2.0], [203.0, 2.0], [203.0, 5.4]], [[178.0, 62.1], [178.0, 2.0], [182.0, 2.0], [187.0, 2.0], [187.0, 5.4], [182.0, 5.4], [182.0, 62.1], [187.0, 62.1], [187.0, 72.9], [182.0, 72.9], [182.0, 121.5], [187.0, 121.5], [187.0, 126.0], [182.0, 126.0], [178.0, 126.0], [178.0, 72.9]], [[178.0, -92.0], [183.5, -92.0], [183.5, -89.0], [178.0, -89.0], [172.5, -89.0], [172.5, -92.0]], [[165.5, -89.0], [160.0, -89.0], [154.5, -89.0], [154.5, -92.0], [160.0, -92.0], [165.5, -92.0]], [[160.0, -18.0], [154.5, -18.0], [154.5, -21.0], [160.0, -21.0], [165.5, -21.0], [165.5, -18.0]], [[142.0, -21.0], [147.5, -21.0], [147.5, -18.0], [142.0, -18.0], [136.5, -18.0], [136.5, -21.0]], [[142.0, -89.0], [136.5, -89.0], [136.5, -92.0], [142.0, -92.0], [147.5, -92.0], [147.5, -89.0]], [[96.0, -89.0], [90.5, -89.0], [90.5, -92.0], [96.0, -92.0], [101.5, -92.0], [101.5, -89.0]], [[101.5, -18.0], [96.0, -18.0], [90.5, -18.0], [90.5, -21.0], [96.0, -21.0], [101.5, -21.0]], [[78.0, -89.0], [72.5, -89.0], [72.5, -92.0], [78.0, -92.0], [83.5, -92.0], [83.5, -89.0]], [[72.5, -21.0], [78.0, -21.0], [83.5, -21.0], [83.5, -18.0], [78.0, -18.0], [72.5, -18.0]], [[54.5, -18.0], [54.5, -21.0], [60.0, -21.0], [65.5, -21.0], [65.5, -18.0], [60.0, -18.0]], [[54.5, -89.0], [54.5, -92.0], [60.0, -92.0], [65.5, -92.0], [65.5, -89.0], [60.0, -89.0]], [[14.0, -21.0], [19.5, -21.0], [19.5, -18.0], [14.0, -18.0], [8.5, -18.0], [8.5, -21.0]], [[14.0, -92.0], [19.5, -92.0], [19.5, -89.0], [14.0, -89.0], [8.5, -89.0], [8.5, -92.0]], [[-4.0, -21.0], [1.5, -21.0], [1.5, -18.0], [-4.0, -18.0], [-9.5, -18.0], [-9.5, -21.0]], [[-4.0, -89.0], [-9.5, -89.0], [-9.5, -92.0], [-4.0, -92.0], [1.5, -92.0], [1.5, -89.0]], [[-27.5, -21.0], [-22.0, -21.0], [-16.5, -21.0], [-16.5, -18.0], [-22.0, -18.0], [-27.5, -18.0]], [[-27.5, -89.0], [-27.5, -92.0], [-22.0, -92.0], [-16.5, -92.0], [-16.5, -89.0], [-22.0, -89.0]]]}, {"o": [[-108.0, 475.0], [-103.0, 475.0], [-103.0, 168.0], [-10.0, 168.0], [-10.0, 160.0], [-70.0, 160.0], [-70.0, 140.0], [-10.0, 140.0], [-10.0, 132.0], [-100.0, 132.0], [-100.0, 128.0], [-100.0, 21.75], [-100.77, 21.29], [-100.0, 20.0], [-100.0, -99.0], [-100.0, -100.0], [-108.0, -100.0], [-108.0, 132.0], [-108.0, 140.0], [-108.0, 168.0]], "h": []}]}, "G": {"h": 0.12, "polys": [{"o": [[216.0, 134.0], [215.0, 134.0], [182.0, 134.0], [178.0, 134.0], [178.0, 140.0], [216.0, 140.0]], "h": []}, {"o": [[215.0, 72.9], [215.0, 121.5], [209.0, 121.5], [209.0, 126.0], [215.0, 126.0], [216.0, 126.0], [216.0, 121.5], [216.0, 72.9], [216.0, 62.1], [216.0, 5.4], [216.0, 2.0], [215.0, 2.0], [209.0, 2.0], [209.0, 5.4], [215.0, 5.4], [215.0, 62.1], [209.0, 62.1], [209.0, 72.9]], "h": []}, {"o": [[196.0, -92.0], [190.5, -92.0], [190.5, -89.0], [196.0, -89.0], [196.0, -21.0], [190.5, -21.0], [190.5, -18.0], [183.5, -18.0], [183.5, -21.0], [178.0, -21.0], [172.5, -21.0], [172.5, -18.0], [178.0, -18.0], [178.0, -6.0], [182.0, -6.0], [215.0, -6.0], [216.0, -6.0], [216.0, -18.0], [215.0, -18.0], [215.0, -99.0], [196.0, -99.0]], "h": []}, {"o": [[203.0, 126.0], [203.0, 121.5], [193.0, 121.5], [193.0, 126.0]], "h": []}, {"o": [[203.0, 72.9], [203.0, 62.1], [193.0, 62.1], [193.0, 72.9]], "h": []}, {"o": [[203.0, 5.4], [203.0, 2.0], [193.0, 2.0], [193.0, 5.4]], "h": []}, {"o": [[178.0, 126.0], [182.0, 126.0], [187.0, 126.0], [187.0, 121.5], [182.0, 121.5], [182.0, 72.9], [178.0, 72.9]], "h": []}, {"o": [[178.0, 62.1], [182.0, 62.1], [182.0, 5.4], [187.0, 5.4], [187.0, 2.0], [182.0, 2.0], [178.0, 2.0]], "h": []}, {"o": [[172.5, -92.0], [172.5, -89.0], [178.0, -89.0], [183.5, -89.0], [183.5, -92.0], [178.0, -92.0]], "h": []}, {"o": [[167.0, 100.5], [167.0, 74.0], [163.0, 74.0], [163.0, 100.5]], "h": []}, {"o": [[167.0, 61.0], [167.0, 44.0], [163.0, 44.0], [163.0, 61.0]], "h": []}, {"o": [[165.5, -18.0], [165.5, -21.0], [160.0, -21.0], [154.5, -21.0], [154.5, -18.0], [160.0, -18.0]], "h": []}, {"o": [[165.5, -92.0], [160.0, -92.0], [154.5, -92.0], [154.5, -89.0], [160.0, -89.0], [165.5, -89.0]], "h": []}, {"o": [[157.0, 100.5], [157.0, 86.5], [155.2, 86.5], [155.2, 100.5]], "h": []}, {"o": [[154.2, 61.0], [154.2, 44.0], [152.2, 44.0], [152.2, 61.0]], "h": []}, {"o": [[147.5, -89.0], [147.5, -92.0], [142.0, -92.0], [136.5, -92.0], [136.5, -89.0], [142.0, -89.0]], "h": []}, {"o": [[136.5, -21.0], [136.5, -18.0], [142.0, -18.0], [147.5, -18.0], [147.5, -21.0], [142.0, -21.0]], "h": []}, {"o": [[124.0, -18.0], [129.5, -18.0], [129.5, -21.0], [124.0, -21.0], [124.0, -89.0], [129.5, -89.0], [129.5, -92.0], [124.0, -92.0], [121.0, -92.0], [121.0, -18.0]], "h": []}, {"o": [[108.5, -92.0], [108.5, -89.0], [114.0, -89.0], [114.0, -21.0], [108.5, -21.0], [108.5, -18.0], [114.0, -18.0], [117.0, -18.0], [117.0, -92.0], [114.0, -92.0]], "h": []}, {"o": [[101.5, -21.0], [96.0, -21.0], [90.5, -21.0], [90.5, -18.0], [96.0, -18.0], [101.5, -18.0]], "h": []}, {"o": [[101.5, -89.0], [101.5, -92.0], [96.0, -92.0], [90.5, -92.0], [90.5, -89.0], [96.0, -89.0]], "h": []}, {"o": [[83.5, -89.0], [83.5, -92.0], [78.0, -92.0], [72.5, -92.0], [72.5, -89.0], [78.0, -89.0]], "h": []}, {"o": [[72.5, -18.0], [78.0, -18.0], [83.5, -18.0], [83.5, -21.0], [78.0, -21.0], [72.5, -21.0]], "h": []}, {"o": [[60.0, -18.0], [65.5, -18.0], [65.5, -21.0], [60.0, -21.0], [54.5, -21.0], [54.5, -18.0]], "h": []}, {"o": [[60.0, -89.0], [65.5, -89.0], [65.5, -92.0], [60.0, -92.0], [54.5, -92.0], [54.5, -89.0]], "h": []}, {"o": [[42.0, -18.0], [47.5, -18.0], [47.5, -21.0], [42.0, -21.0], [42.0, -89.0], [47.5, -89.0], [47.5, -92.0], [42.0, -92.0], [39.0, -92.0], [39.0, -18.0]], "h": []}, {"o": [[26.5, -92.0], [26.5, -89.0], [32.0, -89.0], [32.0, -21.0], [26.5, -21.0], [26.5, -18.0], [32.0, -18.0], [35.0, -18.0], [35.0, -92.0], [32.0, -92.0]], "h": []}, {"o": [[8.5, -21.0], [8.5, -18.0], [14.0, -18.0], [19.5, -18.0], [19.5, -21.0], [14.0, -21.0]], "h": []}, {"o": [[8.5, -92.0], [8.5, -89.0], [14.0, -89.0], [19.5, -89.0], [19.5, -92.0], [14.0, -92.0]], "h": []}, {"o": [[1.5, -89.0], [1.5, -92.0], [-4.0, -92.0], [-9.5, -92.0], [-9.5, -89.0], [-4.0, -89.0]], "h": []}, {"o": [[-9.5, -21.0], [-9.5, -18.0], [-4.0, -18.0], [1.5, -18.0], [1.5, -21.0], [-4.0, -21.0]], "h": []}, {"o": [[-100.0, 20.0], [-99.23, 18.71], [-73.85, 33.94], [-58.48, 64.69], [-60.45, 94.28], [-34.44, 113.55], [-6.0, 116.49], [-6.0, -2.0], [-46.0, -2.0], [-46.0, -99.0], [-100.0, -99.0]], "h": []}, {"o": [[-100.0, 128.0], [-6.0, 128.0], [-6.0, 118.0], [-6.15, 119.49], [-35.56, 116.45], [-63.55, 95.72], [-61.52, 65.31], [-76.15, 36.06], [-100.0, 21.75]], "h": []}, {"o": [[-10.0, 160.0], [-10.0, 140.0], [-70.0, 140.0], [-70.0, 160.0]], "h": []}, {"o": [[-22.0, -89.0], [-16.5, -89.0], [-16.5, -92.0], [-22.0, -92.0], [-27.5, -92.0], [-27.5, -89.0]], "h": []}, {"o": [[-27.5, -18.0], [-22.0, -18.0], [-16.5, -18.0], [-16.5, -21.0], [-22.0, -21.0], [-27.5, -21.0]], "h": []}, {"o": [[-34.5, -18.0], [-34.5, -21.0], [-40.0, -21.0], [-40.0, -18.0]], "h": []}, {"o": [[-34.5, -89.0], [-34.5, -92.0], [-40.0, -92.0], [-40.0, -89.0]], "h": []}]}, "W": {"h": 0.15, "polys": [{"o": [[-6.0, 116.49], [-34.44, 113.55], [-60.45, 94.28], [-58.48, 64.69], [-73.85, 33.94], [-99.23, 18.71], [-100.77, 21.29], [-76.15, 36.06], [-61.52, 65.31], [-63.55, 95.72], [-35.56, 116.45], [-6.15, 119.49], [-6.0, 118.0], [-6.0, 128.0], [25.0, 128.0], [25.0, 226.0], [12.0, 226.0], [12.0, 233.0], [-35.0, 233.0], [-35.0, 237.0], [12.0, 237.0], [12.0, 252.0], [25.0, 252.0], [25.0, 337.5], [-100.0, 337.5], [-100.0, 344.5], [-96.5, 344.5], [-96.5, 352.0], [-91.5, 352.0], [-91.5, 344.5], [46.5, 344.5], [46.5, 356.0], [51.5, 356.0], [51.5, 344.5], [164.0, 344.5], [164.0, 356.0], [168.0, 356.0], [168.0, 344.5], [216.0, 344.5], [216.0, 337.5], [165.0, 337.5], [165.0, 275.6], [167.0, 275.6], [167.0, 272.6], [165.0, 272.6], [165.0, 239.0], [167.0, 239.0], [167.0, 236.0], [165.0, 236.0], [165.0, 202.4], [167.0, 202.4], [167.0, 199.4], [165.0, 199.4], [165.0, 165.8], [167.0, 165.8], [167.0, 162.8], [165.0, 162.8], [165.0, 140.0], [159.0, 140.0], [159.0, 337.5], [31.0, 337.5], [31.0, 134.0], [96.0, 134.0], [96.0, 128.0], [160.0, 128.0], [168.0, 128.0], [168.0, -6.0], [160.0, -6.0], [121.0, -6.0], [121.0, -99.0], [117.0, -99.0], [117.0, -6.0], [39.0, -6.0], [39.0, -99.0], [35.0, -99.0], [35.0, -6.0], [-6.0, -6.0]], "h": [[[163.0, 44.0], [167.0, 44.0], [167.0, 61.0], [163.0, 61.0]], [[163.0, 74.0], [167.0, 74.0], [167.0, 100.5], [163.0, 100.5]], [[155.2, 86.5], [157.0, 86.5], [157.0, 100.5], [155.2, 100.5]], [[152.2, 44.0], [154.2, 44.0], [154.2, 61.0], [152.2, 61.0]]]}, {"o": [[178.0, 62.1], [178.0, 72.9], [187.0, 72.9], [187.0, 62.1]], "h": []}, {"o": [[147.85, 181.08], [146.51, 177.45], [144.89, 173.94], [143.0, 170.57], [140.85, 167.35], [138.46, 164.31], [135.83, 161.47], [132.99, 158.85], [129.95, 156.45], [126.74, 154.3], [123.36, 152.41], [119.85, 150.79], [116.22, 149.46], [112.5, 148.41], [108.71, 147.65], [104.86, 147.2], [101.0, 147.05], [97.14, 147.2], [93.29, 147.65], [89.5, 148.41], [85.78, 149.46], [82.15, 150.79], [78.64, 152.41], [75.26, 154.3], [72.05, 156.45], [69.01, 158.85], [66.17, 161.47], [63.54, 164.31], [61.15, 167.35], [59.0, 170.57], [57.11, 173.94], [55.49, 177.45], [54.15, 181.08], [53.1, 184.81], [52.35, 188.6], [51.89, 192.44], [51.74, 196.31], [51.74, 280.69], [51.89, 284.56], [52.35, 288.4], [53.1, 292.19], [54.15, 295.92], [55.49, 299.55], [57.11, 303.06], [59.0, 306.43], [61.15, 309.65], [63.54, 312.69], [66.17, 315.53], [69.01, 318.15], [72.05, 320.55], [75.26, 322.7], [78.64, 324.59], [82.15, 326.21], [85.78, 327.54], [89.5, 328.59], [93.29, 329.35], [97.14, 329.8], [101.0, 329.95], [104.86, 329.8], [108.71, 329.35], [112.5, 328.59], [116.22, 327.54], [119.85, 326.21], [123.36, 324.59], [126.74, 322.7], [129.95, 320.55], [132.99, 318.15], [135.83, 315.53], [138.46, 312.69], [140.85, 309.65], [143.0, 306.43], [144.89, 303.06], [146.51, 299.55], [147.85, 295.92], [148.9, 292.19], [149.65, 288.4], [150.11, 284.56], [150.26, 280.69], [150.26, 196.31], [150.11, 192.44], [149.65, 188.6], [148.9, 184.81]], "h": []}]}, "T": {"h": 0.15, "polys": [{"o": [[147.26, 196.31], [147.12, 192.68], [146.69, 189.07], [145.98, 185.51], [145.0, 182.01], [143.74, 178.6], [142.22, 175.3], [140.44, 172.13], [138.43, 169.11], [136.18, 166.26], [133.71, 163.59], [131.04, 161.13], [128.19, 158.88], [125.17, 156.86], [122.0, 155.09], [118.7, 153.57], [115.3, 152.31], [111.8, 151.32], [108.24, 150.61], [104.63, 150.19], [101.0, 150.05], [97.37, 150.19], [93.76, 150.61], [90.2, 151.32], [86.7, 152.31], [83.3, 153.57], [80.0, 155.09], [76.83, 156.86], [73.81, 158.88], [70.96, 161.13], [68.29, 163.59], [65.82, 166.26], [63.57, 169.11], [61.56, 172.13], [59.78, 175.3], [58.26, 178.6], [57.0, 182.01], [56.02, 185.51], [55.31, 189.07], [54.88, 192.68], [54.74, 196.31], [54.74, 280.69], [54.88, 284.32], [55.31, 287.93], [56.02, 291.49], [57.0, 294.99], [58.26, 298.4], [59.78, 301.7], [61.56, 304.87], [63.57, 307.89], [65.82, 310.74], [68.29, 313.41], [70.96, 315.87], [73.81, 318.12], [76.83, 320.14], [80.0, 321.91], [83.3, 323.43], [86.7, 324.69], [90.2, 325.68], [93.76, 326.39], [97.37, 326.81], [101.0, 326.95], [104.63, 326.81], [108.24, 326.39], [111.8, 325.68], [115.3, 324.69], [118.7, 323.43], [122.0, 321.91], [125.17, 320.14], [128.19, 318.12], [131.04, 315.87], [133.71, 313.41], [136.18, 310.74], [138.43, 307.89], [140.44, 304.87], [142.22, 301.7], [143.74, 298.4], [145.0, 294.99], [145.98, 291.49], [146.69, 287.93], [147.12, 284.32], [147.26, 280.69]], "h": [[[137.39, 283.56], [137.05, 286.4], [136.49, 289.22], [135.71, 291.97], [134.72, 294.66], [133.52, 297.27], [132.12, 299.77], [130.53, 302.15], [128.75, 304.4], [126.81, 306.5], [124.7, 308.45], [122.45, 310.22], [120.07, 311.82], [117.57, 313.22], [114.97, 314.42], [112.28, 315.41], [109.52, 316.19], [106.71, 316.75], [103.86, 317.08], [101.0, 317.19], [98.14, 317.08], [95.29, 316.75], [92.48, 316.19], [89.72, 315.41], [87.03, 314.42], [84.43, 313.22], [81.93, 311.82], [79.55, 310.22], [77.3, 308.45], [75.19, 306.5], [73.25, 304.4], [71.47, 302.15], [69.88, 299.77], [68.48, 297.27], [67.28, 294.66], [66.29, 291.97], [65.51, 289.22], [64.95, 286.4], [64.61, 283.56], [64.5, 280.69], [64.5, 196.31], [64.61, 193.44], [64.95, 190.6], [65.51, 187.78], [66.29, 185.03], [67.28, 182.34], [68.48, 179.73], [69.88, 177.23], [71.47, 174.85], [73.25, 172.6], [75.19, 170.5], [77.3, 168.55], [79.55, 166.78], [81.93, 165.18], [84.43, 163.78], [87.03, 162.58], [89.72, 161.59], [92.48, 160.81], [95.29, 160.25], [98.14, 159.92], [101.0, 159.81], [103.86, 159.92], [106.71, 160.25], [109.52, 160.81], [112.28, 161.59], [114.97, 162.58], [117.57, 163.78], [120.07, 165.18], [122.45, 166.78], [124.7, 168.55], [126.81, 170.5], [128.75, 172.6], [130.53, 174.85], [132.12, 177.23], [133.52, 179.73], [134.72, 182.34], [135.71, 185.03], [136.49, 187.78], [137.05, 190.6], [137.39, 193.44], [137.5, 196.31], [137.5, 280.69]]]}, {"o": [[137.5, 280.69], [137.5, 196.31], [137.39, 193.44], [137.05, 190.6], [136.49, 187.78], [135.71, 185.03], [134.72, 182.34], [133.52, 179.73], [132.12, 177.23], [130.53, 174.85], [128.75, 172.6], [126.81, 170.5], [124.7, 168.55], [122.45, 166.78], [120.07, 165.18], [117.57, 163.78], [114.97, 162.58], [112.28, 161.59], [109.52, 160.81], [106.71, 160.25], [103.86, 159.92], [101.0, 159.81], [98.14, 159.92], [95.29, 160.25], [92.48, 160.81], [89.72, 161.59], [87.03, 162.58], [84.43, 163.78], [81.93, 165.18], [79.55, 166.78], [77.3, 168.55], [75.19, 170.5], [73.25, 172.6], [71.47, 174.85], [69.88, 177.23], [68.48, 179.73], [67.28, 182.34], [66.29, 185.03], [65.51, 187.78], [64.95, 190.6], [64.61, 193.44], [64.5, 196.31], [64.5, 280.69], [64.61, 283.56], [64.95, 286.4], [65.51, 289.22], [66.29, 291.97], [67.28, 294.66], [68.48, 297.27], [69.88, 299.77], [71.47, 302.15], [73.25, 304.4], [75.19, 306.5], [77.3, 308.45], [79.55, 310.22], [81.93, 311.82], [84.43, 313.22], [87.03, 314.42], [89.72, 315.41], [92.48, 316.19], [95.29, 316.75], [98.14, 317.08], [101.0, 317.19], [103.86, 317.08], [106.71, 316.75], [109.52, 316.19], [112.28, 315.41], [114.97, 314.42], [117.57, 313.22], [120.07, 311.82], [122.45, 310.22], [124.7, 308.45], [126.81, 306.5], [128.75, 304.4], [130.53, 302.15], [132.12, 299.77], [133.52, 297.27], [134.72, 294.66], [135.71, 291.97], [136.49, 289.22], [137.05, 286.4], [137.39, 283.56]], "h": []}, {"o": [[201.0, 146.0], [167.0, 146.0], [167.0, 292.4], [201.0, 292.4]], "h": []}]}};
+for (const k of ["P", "G", "W"]) for (const p of SITE_LAYERS[k].polys) padR(p.o, SITE_LAYERS[k].h, 0, p.h);
+SITE_LAYERS.T.polys.forEach((p, i) => i < 2 ? pad(p.o, 0.05, 0.15, p.h) : pad(p.o, 0.1, 0, p.h));   // track + infield on the apron, tennis on the ground
+// ---- streets, plot fence, sidewalk ring around the building
+for (let x = -120; x < 250; x += 6) seg([x, -115, 0.06], [x + 3, -115, 0.06]);
+for (let y = -100; y < 505; y += 6) seg([237, y, 0.06], [237, y + 3, 0.06]);
+fence(Rr(-112, 222, -100, 482), 1.8, true, 4);
+
+// ---- green area (west + south-west) with a winding path and trees
+const GREEN = [[-100, -99], [-46, -99], [-46, -2], [-6, -2], [-6, 128], [-100, 128]];
+for (let i = 0; i < 400; i++) {
+  const x = rnd(-96, -10), y = rnd(-95, 124), keep = rnd(0, 1), r = rnd(2.5, 4);
+  if (x > -50 && y < 2) continue; if (keep < 0.8) continue;
+  tree(x, y, r, r + rnd(3, 5));
+}
+
+// ---- south parking: 3 lots, N-S aisles, tree islands, walks between lots, entries from Knott Rd
+const LY0 = -92, LY1 = -18;
+for (const px of [-40, 42, 124]) for (let k = 0; k < 4; k++) {
+  const bx = px + 18 * k;
+  for (const [x0, x1] of [[bx, bx + 5.5], [bx + 12.5, bx + 18]]) {
+    for (let j = 0; j < 26; j++) seg([x0, LY0 + 3 + 2.7 * j, 0.06], [x1, LY0 + 3 + 2.7 * j, 0.06]);
+    tree((x0 + x1) / 2, LY0 + 1.5, 1.6, 5); tree((x0 + x1) / 2, LY1 - 1.5, 1.6, 5);
+  }
+}
+for (const wx of [32, 114]) {
+  for (let yy = -88; yy < -20; yy += 9) { tree(wx + 1.6, yy, 1.4, 5); tree(wx + 8.4, yy, 1.4, 5); }
+}
+for (let y = -92; y < -20; y += 12) tree(205.5, y, 2.4, 6);
+for (const ex of [5, 87, 169]) { seg([ex, -106, 0.06], [ex, -99, 0.06]); }
+
+// ---- drop-off lane + east lot (staff / visitors), crosswalk to the main door
+for (let y = 62; y < 74; y += 2) pad(Rr(168, 178, y, y + 1), 0.02, 0.05);
+// one stall width (2.7 m) everywhere, laid out from the middle of the lot (entrance axis y 67.5) out to both ends;
+// curb islands at the row ends and on the entrance axis are green layers in site-layers.py (outer rows join the green strips)
+for (let k = -24; k <= 24; k++) { const y = 67.5 + 2.7 * k; if (y < 5.3 || y > 121.6 || Math.abs(k) === 1 || k === 0) continue;   // no lines inside the curb islands
+  for (const bx of [182, 198]) for (const [x0, x1] of [[bx, bx + 5], [bx + 11, bx + 16]]) seg([x0, y, 0.06], [x1, y, 0.06]); }
+
+// ---- forecourt paving joints: only the lines Ahmed drew, building edge to the walk-side bed, in a light grey
+{ const Z = 0.16, xs = (y) => y < 61.01 ? 152.2 : y < 71.7 ? 152.2 : 155.2, pts = [];
+  for (let k = 0; k <= 3; k++) { const y = 44 + k * 17 / 3; pts.push(V(xs(y), y, Z), V(163, y, Z)); }        // left of the doors: 4 lines
+  for (let k = 0; k <= 4; k++) { const y = 74 + k * 26.5 / 4; pts.push(V(155.2, y, Z), V(163, y, Z)); }     // right of the doors: 5 lines
+  root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xa8a8a8 }))); }
+
+// ---- west service road, bus loop
+for (let x = -66; x < -14; x += 4) seg([x, 133, 0.06], [x + 2.5, 138, 0.06]);
+for (let x = -64; x < -14; x += 12) tree(x, 150, 2.2, 6);
+
+// ---- pedestrian network
+const WS = 28, ES = 162, PYW = 341;
+box(14, 25, 236, 248, 0.1, 3.2); box(13.5, 25.5, 235.5, 248.5, 3.2, 3.6);   // gate / ticket / WC
+box(26, 40, 346, 356, 0, 3.2); box(25.5, 40.5, 345.5, 356.5, 3.2, 3.6);   // snacks / WC
+
+// ---- 400 m track + football field, stands, scoreboard
+const TX = 101, TY = 238.5, L = 84.39, r0 = 36.5, r1 = 46.26;
+const stadium = (r, n = 40) => {
+  const p = []; for (let k = 0; k <= n; k++) { const a = Math.PI * k / n; p.push([TX + r * Math.cos(a), TY + L / 2 + r * Math.sin(a)]); }
+  for (let k = 0; k <= n; k++) { const a = Math.PI * k / n; p.push([TX - r * Math.cos(a), TY - L / 2 - r * Math.sin(a)]); } return p; };
+for (let k = 1; k < 8; k++) pl(stadium(r0 + 1.22 * k), 0.21, true);
+const fx0 = TX - 24.4, fx1 = TX + 24.4, fy0 = TY - 54.86, fy1 = TY + 54.86;
+pl(Rr(fx0, fx1, fy0, fy1), 0.21, true);
+for (let k = 1; k < 12; k++) seg([fx0, fy0 + 9.144 * k, 0.21], [fx1, fy0 + 9.144 * k, 0.21]);
+for (const gy of [fy0, fy1]) {   // goal posts
+  seg([TX, gy, 0], [TX, gy, 3.05]); seg([TX - 2.82, gy, 3.05], [TX + 2.82, gy, 3.05]);
+  seg([TX - 2.82, gy, 3.05], [TX - 2.82, gy, 9.1]); seg([TX + 2.82, gy, 3.05], [TX + 2.82, gy, 9.1]);
+}
+// jumps: runways + pits in the D zones
+pad(Rr(TX - 26, TX + 16, fy1 + 7.4, fy1 + 8.6), 0.05, 0.2); pad(Rr(TX + 16, TX + 22, fy1 + 5, fy1 + 11), 0.6, 0.2);
+pad(Rr(TX - 26, TX + 14, fy0 - 8.6, fy0 - 7.4), 0.05, 0.2); pad(Rr(TX + 14, TX + 23, fy0 - 9.5, fy0 - 6.5), 0.05, 0.2);
+// home stands (west): stepped bleachers rising away from the field, press box on top
+stands(TX - 50, -1.85, 7, TY - 40, TY + 40);
+box(TX - 63, TX - 59, TY - 10, TY + 10, 4.9, 8.2); box(TX - 63.4, TX - 58.6, TY - 10.4, TY + 10.4, 8.2, 8.6);
+// visitor stands (east)
+stands(TX + 50, 1.5, 4, TY - 25, TY + 25);
+// scoreboard north of the track
+box(TX - 6, TX + 6, TY + 95, TY + 95.5, 4.5, 9); box(TX - 4.2, TX - 3.8, TY + 95.1, TY + 95.4, 0, 4.5); box(TX + 3.8, TX + 4.2, TY + 95.1, TY + 95.4, 0, 4.5);
+fence(stadium(r1 + 3), 1.2, true, 4);
+
+// ---- tennis: 4 fenced pairs, nets
+for (let i = 0; i < 4; i++) {
+  const y0 = 146 + i * 36.6, X0 = 167;
+  for (const cx of [X0 + 3.66, X0 + 3.66 + 10.97 + 3.66]) {
+    const a = y0 + 6.4, b = y0 + 30.17, n = y0 + 18.3, z = 0.11;
+    pl(Rr(cx, cx + 10.97, a, b), z, true);
+    seg([cx + 1.37, a, z], [cx + 1.37, b, z]); seg([cx + 9.6, a, z], [cx + 9.6, b, z]);
+    seg([cx + 1.37, n - 6.4, z], [cx + 9.6, n - 6.4, z]); seg([cx + 1.37, n + 6.4, z], [cx + 9.6, n + 6.4, z]);
+    seg([cx + 5.485, n - 6.4, z], [cx + 5.485, n + 6.4, z]);
+    box(cx - 0.9, cx + 11.87, n - 0.04, n + 0.04, 0.1, 1.0);
+  }
+  fence(Rr(X0, X0 + 34, y0, y0 + 36.6), 3.0, true, 3);
+}
+
+// ---- field parking off SE 15th St
+for (let x = 170; x < 215; x += 3) { seg([x, 298, 0.06], [x, 303.5, 0.06]); seg([x, 332, 0.06], [x, 326.5, 0.06]); }
+
+// ---- baseball + softball (home SW, toward NE): outfield fence, foul lines, infield, mound, bases, backstop, dugouts
+function diamond(hx, hy, base, rubber, lines, center, arc, back, moundR) {
+  const rot = (u, v) => [hx + (u + v) / Math.SQRT2, hy + (v - u) / Math.SQRT2];
+  const fan = [];
+  for (let k = -45; k <= 45; k += 3) { const t = k * Math.PI / 180, r = lines + (center - lines) * Math.cos(2 * t); fan.push(rot(r * Math.sin(t), r * Math.cos(t))); }
+  fence(fan, 2.4, false, 4);
+  pl([fan[0], [hx, hy], fan[fan.length - 1]], 0.04);
+  const ip = [[hx, hy]]; for (let k = -50; k <= 50; k += 5) { const t = k * Math.PI / 180; ip.push(rot(arc * Math.sin(t), rubber + arc * Math.cos(t))); }
+  pad(ip, 0.05);
+  const s = base / Math.SQRT2; pl([rot(0, 0), rot(s, s), rot(0, 2 * s), rot(-s, s)], 0.07, true);
+  for (const p of [rot(s, s), rot(0, 2 * s), rot(-s, s)]) box(p[0] - 0.25, p[0] + 0.25, p[1] - 0.25, p[1] + 0.25, 0.05, 0.15);
+  const c = rot(0, rubber), mp = []; for (let k = 0; k < 24; k++) mp.push([c[0] + moundR * Math.cos(k * Math.PI / 12), c[1] + moundR * Math.sin(k * Math.PI / 12)]);
+  pad(mp, 0.25, 0.05);
+  fence([rot(-back * 0.9, -back * 0.25), rot(back * 0.9, -back * 0.25)], 6, false, 3);
+  bar(rot(6, -2), rot(6 + back * 0.6, -2 + back * 0.6), 2.6, 0, 2.4); bar(rot(-6, -2), rot(-6 - back * 0.6, -2 + back * 0.6), 2.6, 0, 2.4);
+}
+diamond(-82, 362, 27.43, 18.44, 98, 122, 29, 18.3, 2.7);
+diamond(54, 360, 18.29, 13.11, 67, 67, 18.3, 7.6, 2.4);
+
+// ---- soccer 100 x 64 with goals, team benches
+const SX0 = 134, SY0 = 362, z = 0.04;
+pl(Rr(SX0, SX0 + 64, SY0, SY0 + 100), z, true); seg([SX0, SY0 + 50, z], [SX0 + 64, SY0 + 50, z]);
+{ const cc = []; for (let k = 0; k < 32; k++) cc.push([SX0 + 32 + 9.15 * Math.cos(k * Math.PI / 16), SY0 + 50 + 9.15 * Math.sin(k * Math.PI / 16)]); pl(cc, z, true); }
+for (const yb of [SY0, SY0 + 83.5]) pl(Rr(SX0 + 11.8, SX0 + 52.2, yb, yb + 16.5), z, true);
+for (const gy of [SY0, SY0 + 100]) { const a = SX0 + 32 - 3.66, b = SX0 + 32 + 3.66;
+  seg([a, gy, 0], [a, gy, 2.44]); seg([b, gy, 0], [b, gy, 2.44]); seg([a, gy, 2.44], [b, gy, 2.44]); }
+box(SX0 + 72, SX0 + 78, SY0 + 25, SY0 + 75, 0, 1.2);
+
+// ---- practice lawn with throws circle + cage
+const LX0 = -95, LX1 = -35, LYa = 178, LYb = 292, tcx = (LX0 + LX1) / 2, tcy = LYa + 6;
+pl(Rr(LX0, LX1, LYa, LYb), 0.04, true);
+for (const half of [17.46]) { const a0 = (90 - half) * Math.PI / 180, a1 = (90 + half) * Math.PI / 180;
+  pl([[tcx + 80 * Math.cos(a0), tcy + 80 * Math.sin(a0)], [tcx, tcy], [tcx + 80 * Math.cos(a1), tcy + 80 * Math.sin(a1)]], 0.04); }
+{ const cp = []; for (let k = 0; k < 20; k++) cp.push([tcx + 1.25 * Math.cos(k * Math.PI / 10), tcy + 1.25 * Math.sin(k * Math.PI / 10)]); pad(cp, 0.05);
+  const cage = []; for (let k = 3; k <= 17; k++) cage.push([tcx + 3.5 * Math.cos(-Math.PI / 2 + k * Math.PI / 10), tcy + 3.5 * Math.sin(-Math.PI / 2 + k * Math.PI / 10)]); fence(cage, 4, false, 1.2); }
+
+
+
+root.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(segs, 3)), M.line));
+}
+
+// ---------------- viewer ----------------
+const canvas = document.getElementById("c");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xffffff); scene.add(root);
+scene.add(new THREE.HemisphereLight(0xffffff, 0xdddddd, 2.4));
+const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(-60, 90, 80); scene.add(sun);
+const camera = new THREE.PerspectiveCamera(34, 1, 0.5, 3000);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.minDistance = 10; controls.maxDistance = 900;
+controls.maxPolarAngle = Math.PI / 2 - 0.02; controls.autoRotateSpeed = 1.0;
+const VIEWS = {
+  entry: { eye: [210, 68, 3.5], tgt: [150, 68, 7.5] },   // same framing as the coloring page
+  door: { eye: [188, 40, 7], tgt: [152, 66, 6] },
+  se: { eye: [250, -110, 120], tgt: [78, 60, 4] },
+  nw: { eye: [-110, 230, 110], tgt: [78, 60, 4] },
+  top: { eye: [78, 59.9, 330], tgt: [78, 60, 0] },
+  court: { eye: [205, 5, 14], tgt: [130, 30, 6] },
+  chk: { eye: [185, 5, 38], tgt: [135, 60, 8] },
+  photo: { eye: [235, 40, 55], tgt: [130, 72, 8] },
+  m16: { eye: [200, 30, 32], tgt: [148, 72, 10] },
+  m20: { eye: [180, 42, 24], tgt: [150, 64, 9] },
+  ne: { eye: [215, 150, 8], tgt: [140, 80, 9] },
+  m24: { eye: [200, 20, 40], tgt: [140, 70, 10] },
+  wst: { eye: [-30, 85, 70], tgt: [95, 85, 10] },
+  cy: { eye: [96, 40, 30], tgt: [112, 68, 12] },
+  n1: { eye: [40, 170, 18], tgt: [64, 111, 9] },
+  site: { eye: [300, -230, 300], tgt: [60, 200, 0] },
+  k1: { eye: [80, 20, 40], tgt: [110, 52, 5] },
+  j1: { eye: [96, 52, 21], tgt: [104.4, 66, 14] },
+  s1: { eye: [90, -45, 22], tgt: [90, 60, 12] },
+  b3: { eye: [50, 15, 28], tgt: [74, 48, 6] },
+  b4: { eye: [74, 47, 120], tgt: [74, 47.1, 0] },
+  b1: { eye: [150, -15, 45], tgt: [108, 62, 6] },
+  b2: { eye: [120, -20, 40], tgt: [100, 62, 6] },
+  a1: { eye: [60, 0, 55], tgt: [95, 75, 8] },
+  a2: { eye: [130, 0, 55], tgt: [90, 75, 8] },
+};
+function setView(k) { const v = VIEWS[k]; camera.position.copy(V(...v.eye)); controls.target.copy(V(...v.tgt)); controls.update(); }
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.8 ? 58 : 34; camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", resize); resize();
+setView(new URLSearchParams(location.search).get("view") || "entry");   // always open on the entrance
+document.getElementById("status").remove();
+for (const k of Object.keys(VIEWS)) if (document.getElementById("v-" + k)) document.getElementById("v-" + k).onclick = () => setView(k);
+const spinBtn = document.getElementById("spin");
+spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute("aria-pressed", controls.autoRotate); };
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+window.__ready = true;
+</script>
