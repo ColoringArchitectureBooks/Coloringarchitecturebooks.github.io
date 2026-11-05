@@ -20,7 +20,7 @@
     border-radius:999px; padding:9px 16px; cursor:pointer; white-space:nowrap; }
   button:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
   button[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
-  .hint { position:fixed; left:0; right:0; bottom:calc(max(16px, env(safe-area-inset-bottom, 0px)) + 96px);
+  .hint { position:fixed; left:0; right:0; bottom:calc(max(16px, env(safe-area-inset-bottom, 0px)) + 52px);
     text-align:center; font-size:13px; color:var(--muted); pointer-events:none; transition:opacity .6s; }
   #status { position:fixed; inset:0; display:grid; place-items:center; font-size:15px; color:var(--muted); }
 </style>
@@ -28,7 +28,6 @@
 <canvas id="c"></canvas>
 <header>
   <h1>Fire Station 3D Model</h1>
-  <div class="sub">Coloring book · fire station</div>
 </header>
 <div id="status">Loading the building…</div>
 <div class="hint" id="hint">Drag to turn the fire station, pinch to zoom</div>
