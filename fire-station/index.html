@@ -33,11 +33,9 @@
 <div id="status">Loading the building…</div>
 <div class="hint" id="hint" dir="rtl">اسحب بصباعك عشان تلف المطافي، وقرّب بصباعين</div>
 <div class="bar">
-  <button id="v-front">الواجهة</button>
-  <button id="v-obl">من فوق</button>
-  <button id="v-back">من ورا</button>
-  <button id="v-entry">المدخل</button>
-  <button id="spin" aria-pressed="false">لف</button>
+  <button id="v-front">Front</button>
+  <button id="v-obl">Aerial</button>
+  <button id="spin" aria-pressed="false">Spin</button>
 </div>
 
 <script type="importmap">
@@ -75,7 +73,7 @@ setView("front");
 buildScene(scene).then(() => document.getElementById("status").remove())
   .catch(() => { document.getElementById("status").textContent = "Couldn't load the model. Please refresh the page."; });
 
-for (const k of Object.keys(VIEWS)) document.getElementById("v-" + k).onclick = () => setView(k);
+for (const k of Object.keys(VIEWS)) if (document.getElementById("v-" + k)) document.getElementById("v-" + k).onclick = () => setView(k);
 const spinBtn = document.getElementById("spin");
 spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute("aria-pressed", controls.autoRotate); };
 const hint = document.getElementById("hint");
