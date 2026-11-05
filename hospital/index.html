@@ -34,9 +34,9 @@
 <div id="status">Loading the building…</div>
 <div class="hint" id="hint" dir="rtl">اسحب بصباعك عشان تلف المستشفى، وقرّب بصباعين</div>
 <div class="bar">
+  <button id="v-front">Front</button>
+  <button id="v-aerial">Aerial</button>
   <button id="spin" aria-pressed="false">Spin</button>
-  <button id="front">Whole site</button>
-  <button id="reset">Reset view</button>
 </div>
 
 <script type="importmap">
@@ -161,8 +161,8 @@ spinBtn.onclick = () => {
   controls.autoRotate = !controls.autoRotate;
   spinBtn.setAttribute("aria-pressed", controls.autoRotate);
 };
-document.getElementById("front").onclick = () => setView(VIEWS.front);
-document.getElementById("reset").onclick = () => setView(VIEWS.start);
+document.getElementById("v-front").onclick = () => setView(VIEWS.start);
+document.getElementById("v-aerial").onclick = () => setView(VIEWS.front);
 
 const hint = document.getElementById("hint");
 controls.addEventListener("start", () => { hint.style.opacity = 0; }, { once: true });

@@ -34,9 +34,9 @@
 <div id="status">Loading the building…</div>
 <div class="hint" id="hint" dir="rtl">اسحب بصباعك عشان تلف المبنى، وقرّب بصباعين</div>
 <div class="bar">
+  <button id="v-front">Front</button>
+  <button id="v-aerial">Aerial</button>
   <button id="spin" aria-pressed="false">Spin</button>
-  <button id="front">Front</button>
-  <button id="reset">Reset view</button>
 </div>
 
 <script type="importmap">
@@ -75,11 +75,12 @@ controls.autoRotateSpeed = 1.2;
 const VIEWS = {
   start: { dir: [-0.28, 0.14, 1], target: [1.5, 4, 4] },   // like the coloring page: front-left, near eye level
   front: { dir: [0, 0.05, 1], target: [0, 4, 4] },
+  aerial: { dir: [0.55, 0.85, 1], target: [0, 1, 0], halfW: 34, halfH: 20 },   // the whole site from above
 };
 let current = VIEWS.start;
 function setView(v) {
   current = v;
-  const halfW = 25, halfH = 10;   // half extents to keep in frame, with a margin
+  const halfW = v.halfW || 25, halfH = v.halfH || 10;   // half extents to keep in frame, with a margin
   const vfov = THREE.MathUtils.degToRad(camera.fov);
   const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
   const d = Math.max(halfW / Math.tan(hfov / 2), halfH / Math.tan(vfov / 2));
@@ -148,8 +149,8 @@ spinBtn.onclick = () => {
   controls.autoRotate = !controls.autoRotate;
   spinBtn.setAttribute("aria-pressed", controls.autoRotate);
 };
-document.getElementById("front").onclick = () => setView(VIEWS.front);
-document.getElementById("reset").onclick = () => setView(VIEWS.start);
+document.getElementById("v-front").onclick = () => setView(VIEWS.start);
+document.getElementById("v-aerial").onclick = () => setView(VIEWS.aerial);
 
 const hint = document.getElementById("hint");
 controls.addEventListener("start", () => { hint.style.opacity = 0; }, { once: true });
