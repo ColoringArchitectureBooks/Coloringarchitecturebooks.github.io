@@ -19,7 +19,7 @@ export const D = {
   posts: [60, 230, 418, 590, 745, 920, 1085, 1240, 1410].map(PX), postY: -2.75,
   tower: { x0: 8.1, x1: 14.9, h: 9.58 },                              // two-storey block with the bracketed cornice
   gable: { x0: 15.33, x1: 22.5, eave: 7.67, pitch: 0.83 },            // cross gable on the right, ridge front to back
-  entry: { x0: 10.9, x1: 17.0, eave: 4.5, peak: 7.08, y0: -3.25 },    // TRAIN STATION gable over the canopy
+  entry: { x0: 10.9, x1: 17.04, eave: 5.1, peak: 6.8, y0: -3.25 },    // TRAIN STATION gable over the canopy
   track: [-7.0, -11.2], gauge: 1.435, rail: -0.72, ground: -1.0,
   platform: { x0: -18, x1: 42, y0: -5.3, y1: 9 },
 };
@@ -153,7 +153,7 @@ function opening(root, face, at, a0, a1, z0, z1, cols = 2, rows = 2, sill = true
 }
 // tall arched window (page): segmental head, arched hood moulding, sill, cross muntins
 function archWindow(root, face, at, a0, a1, z0, z1) {
-  const w = a1 - a0, ac = (a0 + a1) / 2, rise = w * 0.32, zs = z1 - rise;
+  const w = a1 - a0, ac = (a0 + a1) / 2, rise = w * 0.22, zs = z1 - rise;
   const R = (w * w / 4 + rise * rise) / (2 * rise), zc = z1 - R, th0 = Math.asin((w / 2) / R);
   const arc = (r, n = 16) => { const p = []; for (let k = 0; k <= n; k++) { const t = -th0 + 2 * th0 * k / n; p.push([ac + r * Math.sin(t), zc + r * Math.cos(t)]); } return p; };
   const mk = (pts, o0, o1) => {       // shape (a, z) on the face, standing o0..o1 out of the wall
@@ -169,7 +169,14 @@ function archWindow(root, face, at, a0, a1, z0, z1) {
   const f = 0.1;
   mk([[a0 + f, z0 + f], [a1 - f, z0 + f], ...arc(R - f).reverse()], 0, 0.03);                                   // glass
   mk([[a0, z0], ...arc(R), [a1, z0], [a1 - f, z0], ...arc(R - f).reverse(), [a0 + f, z0]], 0, 0.08);          // frame
-  mk([[a0 - 0.16, zs - 0.05], ...arc(R + 0.16), [a1 + 0.16, zs - 0.05], [a1 + 0.01, zs - 0.05], ...arc(R + 0.01).reverse(), [a0 - 0.01, zs - 0.05]], 0, 0.16);   // hood
+  const seg = (xa, xb, za, zt, n = 18) => {      // circular segment through (xa,za), (xb,za) and the crown (mid, zt)
+    const hw = (xb - xa) / 2, h = zt - za, r = (hw * hw + h * h) / (2 * h), cz = zt - r, t0 = Math.asin(hw / r), m = (xa + xb) / 2;
+    return Array.from({ length: n + 1 }, (_, k) => { const t = -t0 + 2 * t0 * k / n; return [m + r * Math.sin(t), cz + r * Math.cos(t)]; });
+  };
+  const hz = zs - 0.22, ho = 0.2;                // hood ends drop a little below the springing (page)
+  const inner = seg(a0 - 0.02, a1 + 0.02, hz, z1 + 0.03), outer = seg(a0 - ho, a1 + ho, hz, z1 + 0.22);
+  mk([...outer, ...inner.reverse()], 0, 0.14);                                                                  // hood
+  mk([...seg(a0 - ho, a1 + ho, hz, z1 + 0.22), ...seg(a0 - ho + 0.07, a1 + ho - 0.07, hz, z1 + 0.15).reverse()], 0.14, 0.2);   // raised outer band
   fbox(root, face, at, a0 - 0.15, a1 + 0.15, z0 - 0.14, z0, 0, 0.18);                   // sill
   fbox(root, face, at, a0 - 0.05, a1 + 0.05, z0 - 0.34, z0 - 0.14, 0, 0.08);            // apron under the sill
   lines(root, [[F(face, at, ac, z0 + f, 0.05), F(face, at, ac, z1 - f, 0.05)], [F(face, at, a0 + f, (z0 + zs) / 2 + 0.2, 0.05), F(face, at, a1 - f, (z0 + zs) / 2 + 0.2, 0.05)]]);
@@ -189,10 +196,8 @@ function hall(root) {
   plane(root, [[R.x0, R.y0, e], [R.x0 + hipIn, mid, rr], [R.x0, R.y1, e]], M.roof, [0, 1, 0]);
   box(root, R.x0, gx, R.y1 - 0.02, R.y1 + 0.02, e - 0.25, e);                                           // back fascia
   // low hipped roof over the hall's left end: sits at the canopy's top line, so only the canopy shows here (page)
-  const lx = H.x0 - 0.3, lr = e + 0.4, lh = mid - R.y0, lx1 = R.x0 + 0.7;
-  plane(root, [[lx, R.y0, e], [lx1, R.y0, e], [lx1, mid, lr], [lx + lh, mid, lr]]);
-  plane(root, [[lx, R.y1, e], [lx + lh, mid, lr], [lx1, mid, lr], [lx1, R.y1, e]]);
-  plane(root, [[lx, R.y0, e], [lx + lh, mid, lr], [lx, R.y1, e]], M.roof, [0, 1, 0]);
+  const lx = H.x0 - 0.3, lx1 = R.x0 + 0.7;
+  plane(root, [[lx, R.y0, e + 0.01], [lx1, R.y0, e + 0.01], [lx1, R.y1, e + 0.01], [lx, R.y1, e + 0.01]]);
   box(root, lx, R.x0, R.y1 - 0.02, R.y1 + 0.02, e - 0.25, e);
   box(root, lx - 0.02, lx + 0.02, R.y0, R.y1, e - 0.25, e);
   // canopy roof from the fascia up to the wall line, hipped at both ends (page)
@@ -230,9 +235,18 @@ function hall(root) {
   for (let i = 0; i + 1 < D.posts.length; i++) elev(root, spandrel(D.posts[i] + pw / 2, D.posts[i + 1] - pw / 2), py - t / 2, py + t / 2);
   for (const x of [D.posts[0], D.posts[D.posts.length - 1]]) side(root, spandrel(py + pw / 2, H.y0), x - t / 2, x + t / 2);
   // small brackets at each post head (page)
-  for (const x of D.posts) for (const s of [-1, 1]) {
-    const b = x + s * pw / 2;
-    elev(root, [[b, 4.15], [b, C.z0], [b + s * 0.55, C.z0]].map(p => s < 0 ? p : p), py - 0.05, py + 0.05);
+  for (const x of D.posts) {
+    for (const s of [-1, 1]) {      // triangle bracket with a pierced inner triangle (page)
+      const b = x + s * pw / 2;
+      elev(root, [[b, 4.12], [b, C.z0], [b + s * 0.58, C.z0]], py - 0.05, py + 0.05);
+      elev(root, [[b + s * 0.1, 4.3], [b + s * 0.1, C.z0 - 0.07], [b + s * 0.4, C.z0 - 0.07]], py - 0.075, py + 0.075);
+    }
+    box(root, x - 0.07, x + 0.07, py - pw / 2 - 0.08, py - pw / 2, C.z0 - 0.38, C.z0);                       // drop at the post head
+  }
+  for (const [x, s, xe] of [[D.posts[0], -1, C.x0], [D.posts[D.posts.length - 1], 1, C.x1]]) {         // curved outer brackets out to the canopy ends (page)
+    const b = x + s * pw / 2, W = Math.abs(xe - b) - 0.12, pts = [[b, zs]];
+    for (let k = 1; k <= 16; k++) { const th = Math.PI / 2 * k / 16; pts.push([b + s * W * (1 - Math.cos(th)), zs + (C.z0 - zs) * Math.sin(th)]); }
+    pts.push([b, C.z0]); elev(root, s < 0 ? pts.reverse() : pts, py - t / 2, py + t / 2);
   }
 }
 
@@ -245,11 +259,18 @@ function tower(root) {
   const o = 0.35, zc = T.h + 0.42;
   box(root, T.x0 - o, T.x1 + o, y0 - o, y1 + o, zc - 0.22, zc);                                             // cornice
   box(root, T.x0 - o + 0.12, T.x1 + o - 0.12, y0 - o + 0.12, y1 + o - 0.12, T.h, zc - 0.22);
-  for (let x = T.x0 + 0.35; x < T.x1 - 0.2; x += 0.62) {                                                   // brackets under the cornice
-    box(root, x - 0.08, x + 0.08, y0 - 0.3, y0, T.h - 0.3, zc - 0.22); box(root, x - 0.08, x + 0.08, y1, y1 + 0.3, T.h - 0.3, zc - 0.22);
+  box(root, T.x0 - 0.1, T.x1 + 0.1, y0 - 0.1, y1 + 0.1, T.h - 0.42, T.h - 0.3);                             // frieze bottom band
+  const kt = zc - 0.22, kb = T.h - 0.3;
+  const corbel = (o) => {          // profile (out, z): deep under the cornice, scrolling back to the wall
+    const p = [[0, kt], [o * 0.3, kt], [o * 0.3, kt - 0.07]];
+    for (let k = 1; k <= 8; k++) { const th = Math.PI / 2 * k / 8; p.push([o * (0.08 + 0.22 * Math.cos(th)), kt - 0.07 - (kt - 0.07 - kb - 0.06) * Math.sin(th)]); }
+    p.push([o * 0.08, kb], [0, kb]); return p;
+  };
+  for (let x = T.x0 + 0.4; x < T.x1 - 0.2; x += 0.7) {
+    side(root, corbel(-1).map(([o, z]) => [y0 + o, z]), x - 0.1, x + 0.1); side(root, corbel(1).map(([o, z]) => [y1 + o, z]), x - 0.1, x + 0.1);
   }
-  for (let y = y0 + 0.35; y < y1 - 0.2; y += 0.62) {
-    box(root, T.x0 - 0.3, T.x0, y - 0.08, y + 0.08, T.h - 0.3, zc - 0.22); box(root, T.x1, T.x1 + 0.3, y - 0.08, y + 0.08, T.h - 0.3, zc - 0.22);
+  for (let y = y0 + 0.4; y < y1 - 0.2; y += 0.7) {
+    elev(root, corbel(-1).map(([o, z]) => [T.x0 + o, z]).reverse(), y - 0.1, y + 0.1); elev(root, corbel(1).map(([o, z]) => [T.x1 + o, z]), y - 0.1, y + 0.1);
   }
   // low hipped roof with a flat top (page)
   const a = [T.x0 - o, y0 - o], b = [T.x1 + o, y1 + o], i = 1.0, zt = 11.0;
@@ -283,20 +304,21 @@ function crossGable(root) {
   }
   for (const x of [G.x0, G.x1]) for (const y of [y0, y1]) box(root, x - 0.12, x + 0.12, y - 0.12, y + 0.12, H.eave - 0.3, G.eave);   // corner boards (page)
   // truss in the front gable: collar, king post with a drop, X braces (page)
-  const yt = y0 - 0.12, zc = 9.42;           // collar just above the window hood (page)
+  const yt = y0 - 0.12, zc = 9.32;           // collar just above the window hood (page)
   const wAt = (z) => (pk + 0.12 - 0.46 - z) / G.pitch - 0.05;      // half-width inside the bargeboards at height z
   box(root, mid - wAt(zc), mid + wAt(zc), yt - 0.08, yt + 0.08, zc - 0.08, zc + 0.08);                                       // collar
   box(root, mid - 0.1, mid + 0.1, yt - 0.12, yt + 0.12, zc - 0.12, pk - 0.3);                                                // king post
-  const drop = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.3, 4), M.white); drop.rotation.x = Math.PI; drop.position.copy(V(mid, yt - 0.14, zc - 0.22)); root.add(drop);
+  box(root, mid - 0.1, mid + 0.1, yt - 0.1, yt + 0.1, zc - 0.26, zc - 0.12);
+  const drop = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.12, 4), M.white); drop.rotation.x = Math.PI; drop.position.copy(V(mid, yt, zc - 0.32)); root.add(drop);
+  box(root, mid - 0.13, mid + 0.13, yt - 0.14, yt + 0.12, pk - 0.62, pk - 0.4);                                              // bolt cap at the king-post head
   const strut = (ax, az, bx, bz) => { const A = V(ax, yt, az), B = V(bx, yt, bz), m = new THREE.Mesh(new THREE.BoxGeometry(0.12, A.distanceTo(B), 0.12), M.white);
     m.position.copy(A).add(B).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize()); root.add(m); };
   for (const s of [-1, 1]) {      // X braces between the collar, the king post and the rafters (page)
-    const zu = zc + 0.62;
-    strut(mid + s * 0.12, zc + 0.08, mid + s * wAt(zu), zu);
-    strut(mid + s * 0.12, zu, mid + s * wAt(zc + 0.08), zc + 0.08);
+    let zu = zc + 0.5; for (let k = 0; k < 20; k++) zu = zc + 0.1 + 0.55 * (wAt(zu) - 0.1);    // brace rises 0.55 per metre out to the rafter
+    strut(mid + s * 0.1, zc + 0.1, mid + s * (wAt(zu) + 0.04), zu);
   }
-  archWindow(root, "-y", y0, PX(1110), PX(1185), 6.75, PZ(362));
-  archWindow(root, "+y", y1, PX(1110), PX(1185), 6.75, PZ(362));
+  archWindow(root, "-y", y0, PX(1110), PX(1185), 6.75, PZ(380));
+  archWindow(root, "+y", y1, PX(1110), PX(1185), 6.75, PZ(380));
 }
 
 // ---------- dormer on the left of the roof (page): flat front with corner pilasters, sloped cheeks,
@@ -325,18 +347,21 @@ function entryGable(root, font) {
     const xe = s < 0 ? E.x0 : E.x1;
     plane(root, [[xe, yf - 0.2, E.eave], [mid, yf - 0.2, E.peak], [mid, yb, E.peak], [xe, yb, E.eave]], M.roof, [0, 1, 0]);
   }
-  const t = 0.24, fz = 0.42;     // wide bargeboard (page: thick double line), outer band + inner band
+  const t = 0.24, fz = 0.3;      // bargeboard (page: thick double line), outer band + inner band
   const k = 0.25;   // the eave ends kick out level for a short return (page)
   elev(root, [[E.x0 - k, E.eave - fz], [E.x0, E.eave - fz], [mid, E.peak - fz], [E.x1, E.eave - fz], [E.x1 + k, E.eave - fz], [E.x1 + k, E.eave], [E.x1, E.eave], [mid, E.peak], [E.x0, E.eave], [E.x0 - k, E.eave]], yf - 0.2 - t, yf - 0.2);
-  const f2 = 0.16, d2 = 0.3;
+  const f2 = 0.12, d2 = 0.3;
   elev(root, [[E.x0 + d2, E.eave - fz - f2 + d2 * pitch], [mid, E.peak - fz - f2], [E.x1 - d2, E.eave - fz - f2 + d2 * pitch], [E.x1 - d2, E.eave - fz + d2 * pitch], [mid, E.peak - fz], [E.x0 + d2, E.eave - fz + d2 * pitch]], yf - 0.2 - t + 0.06, yf - 0.2);
   // truss: king post, two raking braces, short X under the peak (page)
   const yt = yf - 0.08;
-  box(root, mid - 0.06, mid + 0.06, yt - 0.06, yt + 0.06, 5.45, E.peak - 0.3);
+  const zk = 5.42, under = (d) => E.peak - d * pitch - fz - f2 + 0.02;      // collar height; rafter underside d metres from the middle
+  box(root, mid - 0.08, mid + 0.08, yt - 0.06, yt + 0.06, zk - 0.12, E.peak - 0.3);                          // king post
+  const kd = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.16, 4), M.white); kd.rotation.x = Math.PI; kd.position.copy(V(mid, yt, zk - 0.2)); root.add(kd);
   const strut = (ax, az, bx, bz) => { const A = V(ax, yt, az), B = V(bx, yt, bz), m = new THREE.Mesh(new THREE.BoxGeometry(0.09, A.distanceTo(B), 0.09), M.white);
     m.position.copy(A).add(B).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize()); root.add(m); };
-  for (const s of [-1, 1]) { strut(mid, 5.55, mid + s * 1.6, zIn(mid + s * 1.6) - 0.3); strut(mid + s * 0.06, E.peak - 0.6, mid + s * 1.1, 5.55); }
-  box(root, mid - 1.9, mid + 1.9, yt - 0.05, yt + 0.05, 5.45, 5.55);
+  for (const s of [-1, 1]) { strut(mid + s * 0.1, zk + 0.05, mid + s * 0.8, under(0.8) - 0.04); strut(mid + s * 0.1, under(0.1) - 0.1, mid + s * 0.8, zk + 0.05); }
+  const cw = (E.peak - fz - f2 - zk - 0.05) / pitch;
+  box(root, mid - cw, mid + cw, yt - 0.05, yt + 0.05, zk - 0.05, zk + 0.05);                                // collar
   // finial at the peak
   cyl(root, mid, yf - 0.15, E.peak + 0.12, 0.08, 0.25); ball(root, mid, yf - 0.15, E.peak + 0.33, 0.12);
   const sp = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 8), M.white); sp.position.copy(V(mid, yf - 0.15, E.peak + 0.58)); root.add(sp);
