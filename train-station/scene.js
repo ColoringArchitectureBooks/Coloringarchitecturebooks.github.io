@@ -152,8 +152,8 @@ function opening(root, face, at, a0, a1, z0, z1, cols = 2, rows = 2, sill = true
   if (sill) fbox(root, face, at, a0 - 0.12, a1 + 0.12, z0 - 0.12, z0, 0, 0.16);
 }
 // tall arched window (page): segmental head, arched hood moulding, sill, cross muntins
-function archWindow(root, face, at, a0, a1, z0, z1) {
-  const w = a1 - a0, ac = (a0 + a1) / 2, rise = w * 0.22, zs = z1 - rise;
+function archWindow(root, face, at, a0, a1, z0, z1, hood = true) {
+  const w = a1 - a0, ac = (a0 + a1) / 2, rise = w * 0.16, zs = z1 - rise;
   const R = (w * w / 4 + rise * rise) / (2 * rise), zc = z1 - R, th0 = Math.asin((w / 2) / R);
   const arc = (r, n = 16) => { const p = []; for (let k = 0; k <= n; k++) { const t = -th0 + 2 * th0 * k / n; p.push([ac + r * Math.sin(t), zc + r * Math.cos(t)]); } return p; };
   const mk = (pts, o0, o1) => {       // shape (a, z) on the face, standing o0..o1 out of the wall
@@ -173,10 +173,12 @@ function archWindow(root, face, at, a0, a1, z0, z1) {
     const hw = (xb - xa) / 2, h = zt - za, r = (hw * hw + h * h) / (2 * h), cz = zt - r, t0 = Math.asin(hw / r), m = (xa + xb) / 2;
     return Array.from({ length: n + 1 }, (_, k) => { const t = -t0 + 2 * t0 * k / n; return [m + r * Math.sin(t), cz + r * Math.cos(t)]; });
   };
-  const hz = zs - 0.22, ho = 0.2;                // hood ends drop a little below the springing (page)
-  const inner = seg(a0 - 0.02, a1 + 0.02, hz, z1 + 0.03), outer = seg(a0 - ho, a1 + ho, hz, z1 + 0.22);
-  mk([...outer, ...inner.reverse()], 0, 0.14);                                                                  // hood
-  mk([...seg(a0 - ho, a1 + ho, hz, z1 + 0.22), ...seg(a0 - ho + 0.07, a1 + ho - 0.07, hz, z1 + 0.15).reverse()], 0.14, 0.2);   // raised outer band
+  if (hood) {      // flat segmental hood, thick at the crown, ends dropping straight down a little (page)
+    const ho = 0.2, zo = z1 + 0.24, ze = zo - 0.21 * (w + 2 * ho), zi = z1 + 0.06 - 0.2 * (w + 0.04), zb = Math.min(ze - 0.18, zi - 0.04);
+    const outer = seg(a0 - ho, a1 + ho, ze, zo), inner = seg(a0 - 0.02, a1 + 0.02, zi, z1 + 0.06);
+    mk([[a0 - ho, zb], ...outer, [a1 + ho, zb], [a1 + 0.02, zb], ...inner.reverse(), [a0 - 0.02, zb]], 0, 0.14);
+    mk([...seg(a0 - ho, a1 + ho, ze, zo), ...seg(a0 - ho, a1 + ho, ze - 0.07, zo - 0.07).reverse()], 0.14, 0.2);   // raised top band
+  }
   fbox(root, face, at, a0 - 0.15, a1 + 0.15, z0 - 0.14, z0, 0, 0.18);                   // sill
   fbox(root, face, at, a0 - 0.05, a1 + 0.05, z0 - 0.34, z0 - 0.14, 0, 0.08);            // apron under the sill
   lines(root, [[F(face, at, ac, z0 + f, 0.05), F(face, at, ac, z1 - f, 0.05)], [F(face, at, a0 + f, (z0 + zs) / 2 + 0.2, 0.05), F(face, at, a1 - f, (z0 + zs) / 2 + 0.2, 0.05)]]);
@@ -196,10 +198,9 @@ function hall(root) {
   plane(root, [[R.x0, R.y0, e], [R.x0 + hipIn, mid, rr], [R.x0, R.y1, e]], M.roof, [0, 1, 0]);
   box(root, R.x0, gx, R.y1 - 0.02, R.y1 + 0.02, e - 0.25, e);                                           // back fascia
   // low hipped roof over the hall's left end: sits at the canopy's top line, so only the canopy shows here (page)
-  const lx = H.x0 - 0.3, lx1 = R.x0 + 0.7;
-  plane(root, [[lx, R.y0, e + 0.01], [lx1, R.y0, e + 0.01], [lx1, R.y1, e + 0.01], [lx, R.y1, e + 0.01]]);
-  box(root, lx, R.x0, R.y1 - 0.02, R.y1 + 0.02, e - 0.25, e);
-  box(root, lx - 0.02, lx + 0.02, R.y0, R.y1, e - 0.25, e);
+  const lx = H.x0, lx1 = R.x0 + 0.7;
+  plane(root, [[lx, R.y0, e - 0.01], [lx1, R.y0, e - 0.01], [lx1, R.y1, e - 0.01], [lx, R.y1, e - 0.01]]);
+  box(root, lx, R.x0, H.y1 - 0.02, H.y1 + 0.06, e - 0.25, e - 0.01);
   // canopy roof from the fascia up to the wall line, hipped at both ends (page)
   const a = 0.6, top = H.eave;
   plane(root, [[C.x0, C.y, C.z1], [C.x1, C.y, C.z1], [C.x1 - a, 0, top], [C.x0 + a, 0, top]]);
@@ -261,11 +262,19 @@ function tower(root) {
   box(root, T.x0 - o + 0.12, T.x1 + o - 0.12, y0 - o + 0.12, y1 + o - 0.12, T.h, zc - 0.22);
   box(root, T.x0 - 0.1, T.x1 + 0.1, y0 - 0.1, y1 + 0.1, T.h - 0.42, T.h - 0.3);                             // frieze bottom band
   const kt = zc - 0.22, kb = T.h - 0.3;
-  const corbel = (o) => {          // profile (out, z): deep under the cornice, scrolling back to the wall
-    const p = [[0, kt], [o * 0.3, kt], [o * 0.3, kt - 0.07]];
-    for (let k = 1; k <= 8; k++) { const th = Math.PI / 2 * k / 8; p.push([o * (0.08 + 0.22 * Math.cos(th)), kt - 0.07 - (kt - 0.07 - kb - 0.06) * Math.sin(th)]); }
-    p.push([o * 0.08, kb], [0, kb]); return p;
+  const corbel = (o, d = 0.3, b = kb) => {          // profile (out, z): deep under the cornice, scrolling back to the wall
+    const p = [[0, kt], [o * d, kt], [o * d, kt - 0.07]];
+    for (let k = 1; k <= 8; k++) { const th = Math.PI / 2 * k / 8; p.push([o * (0.08 + (d - 0.08) * Math.cos(th)), kt - 0.07 - (kt - 0.07 - b - 0.06) * Math.sin(th)]); }
+    p.push([o * 0.08, b], [0, b]); return p;
   };
+  for (const y of [y0 + 0.02, y1 - 0.22]) {        // corner corbels: their scroll shows at the cornice ends (page)
+    elev(root, corbel(-1, o - 0.03, T.h - 0.42).map(([q, z]) => [T.x0 + q, z]).reverse(), y, y + 0.2);
+    elev(root, corbel(1, o - 0.03, T.h - 0.42).map(([q, z]) => [T.x1 + q, z]), y, y + 0.2);
+  }
+  for (const x of [T.x0 + 0.02, T.x1 - 0.22]) {
+    side(root, corbel(-1, o - 0.03, T.h - 0.42).map(([q, z]) => [y0 + q, z]), x, x + 0.2);
+    side(root, corbel(1, o - 0.03, T.h - 0.42).map(([q, z]) => [y1 + q, z]), x, x + 0.2);
+  }
   for (let x = T.x0 + 0.4; x < T.x1 - 0.2; x += 0.7) {
     side(root, corbel(-1).map(([o, z]) => [y0 + o, z]), x - 0.1, x + 0.1); side(root, corbel(1).map(([o, z]) => [y1 + o, z]), x - 0.1, x + 0.1);
   }
@@ -324,17 +333,18 @@ function crossGable(root) {
 // ---------- dormer on the left of the roof (page): flat front with corner pilasters, sloped cheeks,
 // a curved roof with a thick double-line eave that overhangs front and sides, arched window
 function dormer(root) {
-  const x0 = PX(322), x1 = PX(428), yf = 0.15, yb = 3.35, zt = 8.42, crown = 8.95, o = 0.3, c = (x0 + x1) / 2;
+  const x0 = PX(322), x1 = PX(428), yf = 0.15, yb = 3.35, zt = 8.38, crown = 8.92, o = 0.32, c = (x0 + x1) / 2;
   box(root, x0, x1, yf, yb, 6.5, zt, M.siding);
   for (const x of [x0, x1]) box(root, x - 0.13, x + 0.13, yf - 0.1, yf + 0.05, 6.55, zt);                         // corner pilasters
   box(root, x0 - 0.1, x1 + 0.1, yf - 0.12, yf + 0.05, 6.5, 6.7);                                                    // base board
   const arc = (w, h, z0, n = 24) => { const p = []; for (let k = 0; k <= n; k++) { const t = Math.PI - Math.PI * k / n; p.push([c + w * Math.cos(t), z0 + h * Math.sin(t)]); } return p; };
-  const w = (x1 - x0) / 2 + o, th = 0.24;
-  elev(root, [[c - w, zt - 0.05], ...arc(w, crown - zt, zt), [c + w, zt - 0.05]], yf - o, yb);                     // roof body
-  // eave band: outer and inner arc (two lines on the page), with the ends kicked out
-  elev(root, [[c - w - 0.12, zt - th], ...arc(w + 0.12, crown - zt + 0.05, zt - 0.05), [c + w + 0.12, zt - th], [c + w - 0.05, zt - th], ...arc(w - 0.05, crown - zt - th, zt - 0.05).reverse(), [c - w + 0.05, zt - th]], yf - o - 0.12, yf - o + 0.05);
-  elev(root, [[c - w + 0.02, zt - th - 0.12], ...arc(w + 0.02, crown - zt - th + 0.05, zt - th - 0.1), [c + w - 0.02, zt - th - 0.12], [c + w - 0.12, zt - th - 0.12], ...arc(w - 0.12, crown - zt - th - 0.1, zt - th - 0.1).reverse(), [c - w + 0.12, zt - th - 0.12]], yf - o - 0.02, yf - o + 0.08);
-  archWindow(root, "-y", yf - 0.05, PX(342), PX(410), 6.85, PZ(402));
+  const w = (x1 - x0) / 2 + o, th = 0.3;
+  const seg = (hw, za, zc, n = 24) => { const r = (hw * hw + (zc - za) ** 2) / (2 * (zc - za)), t0 = Math.asin(hw / r);
+    return Array.from({ length: n + 1 }, (_, k) => { const t = -t0 + 2 * t0 * k / n; return [c + r * Math.sin(t), zc - r + r * Math.cos(t)]; }); };
+  elev(root, [...seg(w, zt, crown), [c + w, zt - 0.02], [c - w, zt - 0.02]].reverse(), yf - o + 0.1, yb);         // curved roof body
+  // one thick curved eave band whose ends run out past the walls (page)
+  elev(root, [...seg(w + 0.06, zt - 0.02, crown + 0.03), ...seg(w - 0.1, zt - th, crown - th).reverse()], yf - o - 0.04, yf - o + 0.14);
+  archWindow(root, "-y", yf - 0.05, PX(342), PX(410), 6.85, PZ(404), false);
 }
 
 // ---------- TRAIN STATION gable over the canopy, with the sign, truss and finial ----------
