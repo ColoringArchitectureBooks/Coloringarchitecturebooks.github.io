@@ -13,7 +13,7 @@ const PX = (px) => (px - 10) / 60, PZ = (py) => (905 - py) / 60;
 
 // ---------- dimensions ----------
 export const D = {
-  hall: { x0: 1.0, x1: 22.5, y0: 0.3, y1: 6.3, eave: 6.5 },          // ground-floor walls; the main roof's eave sits at 6.5
+  hall: { x0: 1.0, x1: 23.1, y0: 0.3, y1: 6.3, eave: 6.5 },          // ground-floor walls; the main roof's eave sits at 6.5
   roof: { x0: 0.6, y0: 0, y1: 6.7, ridge: 9.33 },                     // hipped main roof (ridge height off the page)
   canopy: { x0: 0, x1: 23.7, y: -3.0, z0: 4.67, z1: 5.17 },          // platform canopy: fascia 4.67..5.17, rises to the wall at 6.5
   posts: [60, 230, 418, 590, 745, 920, 1085, 1240, 1410].map(PX), postY: -2.75,
@@ -263,32 +263,44 @@ function crossGable(root) {
     const xe = s < 0 ? G.x0 - o : G.x1 + o;
     plane(root, [[xe, y0 - ov, e0], [mid, y0 - ov, pk + 0.12], [mid, y1 + ov, pk + 0.12], [xe, y1 + ov, e0]], M.roof, [0, 1, 0]);
   }
-  for (const y of [y0 - ov, y1 + ov]) {      // bargeboards
-    const t = 0.18, fz = 0.32;
+  for (const y of [y0 - ov, y1 + ov]) {      // wide bargeboards with an inner band (page: double line)
+    const t = 0.22, fz = 0.32, sgn = y < y0 ? -1 : 1;
     elev(root, [[G.x0 - o, e0 - fz], [mid, pk + 0.12 - fz], [G.x1 + o, e0 - fz], [G.x1 + o, e0], [mid, pk + 0.12], [G.x0 - o, e0]], y - t / 2, y + t / 2);
+    const f2 = 0.14;
+    elev(root, [[G.x0 - o + 0.25, e0 - fz + 0.25 * G.pitch - 0.02], [mid, pk + 0.12 - fz], [G.x1 + o - 0.25, e0 - fz + 0.25 * G.pitch - 0.02], [G.x1 + o - 0.25, e0 - fz + 0.25 * G.pitch + f2 - 0.02], [mid, pk + 0.12 - fz + f2], [G.x0 - o + 0.25, e0 - fz + 0.25 * G.pitch + f2 - 0.02]].map(([a, z]) => [a, z - f2]), y + sgn * t / 2, y + sgn * (t / 2 + 0.06));
   }
   for (const x of [G.x0, G.x1]) for (const y of [y0, y1]) box(root, x - 0.12, x + 0.12, y - 0.12, y + 0.12, H.eave - 0.3, G.eave);   // corner boards (page)
   // truss in the front gable: collar, king post with a drop, X braces (page)
-  const yt = y0 - 0.2, zc = 9.6;
-  const wAt = (z) => (pk - z) / G.pitch;      // half-width of the gable at height z
-  box(root, mid - wAt(zc) + 0.15, mid + wAt(zc) - 0.15, yt - 0.06, yt + 0.06, zc - 0.07, zc + 0.07);
-  box(root, mid - 0.07, mid + 0.07, yt - 0.08, yt + 0.08, zc - 0.55, pk - 0.05);
-  const drop = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.35, 4), M.white); drop.rotation.x = Math.PI; drop.position.copy(V(mid, yt - 0.02, zc - 0.72)); root.add(drop);
-  const strut = (ax, az, bx, bz) => { const A = V(ax, yt, az), B = V(bx, yt, bz), m = new THREE.Mesh(new THREE.BoxGeometry(0.1, A.distanceTo(B), 0.1), M.white);
+  const yt = y0 - 0.12, zc = 9.42;           // collar just above the window hood (page)
+  const wAt = (z) => (pk + 0.12 - 0.46 - z) / G.pitch - 0.05;      // half-width inside the bargeboards at height z
+  box(root, mid - wAt(zc), mid + wAt(zc), yt - 0.08, yt + 0.08, zc - 0.08, zc + 0.08);                                       // collar
+  box(root, mid - 0.1, mid + 0.1, yt - 0.12, yt + 0.12, zc - 0.12, pk - 0.3);                                                // king post
+  const drop = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.3, 4), M.white); drop.rotation.x = Math.PI; drop.position.copy(V(mid, yt - 0.14, zc - 0.22)); root.add(drop);
+  const strut = (ax, az, bx, bz) => { const A = V(ax, yt, az), B = V(bx, yt, bz), m = new THREE.Mesh(new THREE.BoxGeometry(0.12, A.distanceTo(B), 0.12), M.white);
     m.position.copy(A).add(B).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize()); root.add(m); };
-  for (const s of [-1, 1]) { strut(mid + s * 0.1, zc + 0.08, mid + s * (wAt(pk - 1.0) - 0.05), pk - 1.0); strut(mid + s * 0.1, pk - 0.9, mid + s * (wAt(zc + 0.1) - 0.3), zc + 0.1); }
+  for (const s of [-1, 1]) {      // X braces between the collar, the king post and the rafters (page)
+    const zu = zc + 0.62;
+    strut(mid + s * 0.12, zc + 0.08, mid + s * wAt(zu), zu);
+    strut(mid + s * 0.12, zu, mid + s * wAt(zc + 0.08), zc + 0.08);
+  }
   archWindow(root, "-y", y0, PX(1110), PX(1185), 6.75, PZ(362));
   archWindow(root, "+y", y1, PX(1110), PX(1185), 6.75, PZ(362));
 }
 
-// ---------- dormer on the left of the roof: arched hood roof, arched window ----------
+// ---------- dormer on the left of the roof (page): flat front with corner pilasters, sloped cheeks,
+// a curved roof with a thick double-line eave that overhangs front and sides, arched window
 function dormer(root) {
-  const x0 = PX(320), x1 = PX(430), yf = 0.15, yb = 3.35, zt = 8.42, crown = 9.0, o = 0.2;
+  const x0 = PX(322), x1 = PX(428), yf = 0.15, yb = 3.35, zt = 8.42, crown = 8.95, o = 0.3, c = (x0 + x1) / 2;
   box(root, x0, x1, yf, yb, 6.5, zt, M.siding);
-  const seg = []; const w = (x1 - x0) / 2 + o, c = (x0 + x1) / 2;
-  for (let k = 0; k <= 20; k++) { const t = Math.PI - Math.PI * k / 20; seg.push([c + w * Math.cos(t), zt + (crown - zt) * Math.sin(t)]); }
-  elev(root, [[c - w, zt - 0.12], ...seg, [c + w, zt - 0.12]], yf - 0.25, yb);
-  archWindow(root, "-y", yf, PX(342), PX(410), 6.75, PZ(402));
+  for (const x of [x0, x1]) box(root, x - 0.13, x + 0.13, yf - 0.1, yf + 0.05, 6.55, zt);                         // corner pilasters
+  box(root, x0 - 0.1, x1 + 0.1, yf - 0.12, yf + 0.05, 6.5, 6.7);                                                    // base board
+  const arc = (w, h, z0, n = 24) => { const p = []; for (let k = 0; k <= n; k++) { const t = Math.PI - Math.PI * k / n; p.push([c + w * Math.cos(t), z0 + h * Math.sin(t)]); } return p; };
+  const w = (x1 - x0) / 2 + o, th = 0.24;
+  elev(root, [[c - w, zt - 0.05], ...arc(w, crown - zt, zt), [c + w, zt - 0.05]], yf - o, yb);                     // roof body
+  // eave band: outer and inner arc (two lines on the page), with the ends kicked out
+  elev(root, [[c - w - 0.12, zt - th], ...arc(w + 0.12, crown - zt + 0.05, zt - 0.05), [c + w + 0.12, zt - th], [c + w - 0.05, zt - th], ...arc(w - 0.05, crown - zt - th, zt - 0.05).reverse(), [c - w + 0.05, zt - th]], yf - o - 0.12, yf - o + 0.05);
+  elev(root, [[c - w + 0.02, zt - th - 0.12], ...arc(w + 0.02, crown - zt - th + 0.05, zt - th - 0.1), [c + w - 0.02, zt - th - 0.12], [c + w - 0.12, zt - th - 0.12], ...arc(w - 0.12, crown - zt - th - 0.1, zt - th - 0.1).reverse(), [c - w + 0.12, zt - th - 0.12]], yf - o - 0.02, yf - o + 0.08);
+  archWindow(root, "-y", yf - 0.05, PX(342), PX(410), 6.85, PZ(402));
 }
 
 // ---------- TRAIN STATION gable over the canopy, with the sign, truss and finial ----------
@@ -301,8 +313,11 @@ function entryGable(root, font) {
     const xe = s < 0 ? E.x0 : E.x1;
     plane(root, [[xe, yf - 0.2, E.eave], [mid, yf - 0.2, E.peak], [mid, yb, E.peak], [xe, yb, E.eave]], M.roof, [0, 1, 0]);
   }
-  const t = 0.16, fz = 0.3;     // bargeboard
-  elev(root, [[E.x0, E.eave - fz], [mid, E.peak - fz], [E.x1, E.eave - fz], [E.x1, E.eave], [mid, E.peak], [E.x0, E.eave]], yf - 0.2 - t, yf - 0.2);
+  const t = 0.24, fz = 0.42;     // wide bargeboard (page: thick double line), outer band + inner band
+  const k = 0.25;   // the eave ends kick out level for a short return (page)
+  elev(root, [[E.x0 - k, E.eave - fz], [E.x0, E.eave - fz], [mid, E.peak - fz], [E.x1, E.eave - fz], [E.x1 + k, E.eave - fz], [E.x1 + k, E.eave], [E.x1, E.eave], [mid, E.peak], [E.x0, E.eave], [E.x0 - k, E.eave]], yf - 0.2 - t, yf - 0.2);
+  const f2 = 0.16, d2 = 0.3;
+  elev(root, [[E.x0 + d2, E.eave - fz - f2 + d2 * pitch], [mid, E.peak - fz - f2], [E.x1 - d2, E.eave - fz - f2 + d2 * pitch], [E.x1 - d2, E.eave - fz + d2 * pitch], [mid, E.peak - fz], [E.x0 + d2, E.eave - fz + d2 * pitch]], yf - 0.2 - t + 0.06, yf - 0.2);
   // truss: king post, two raking braces, short X under the peak (page)
   const yt = yf - 0.08;
   box(root, mid - 0.06, mid + 0.06, yt - 0.06, yt + 0.06, 5.45, E.peak - 0.3);
@@ -386,68 +401,135 @@ function fence(root) {
   for (const x of [x0, x1 - 0.12]) box(root, x, x + 0.14, y - 0.07, y + 0.07, 0, 1.45);
 }
 
-// ---------- the train: steam locomotive and one coach on track 1 (page) ----------
-function wheel(root, x, y, zr, r, spokes = 12) {
+// ---------- the train (page + photo of a 2-8-0 steam engine): locomotive, tender, two coaches on track 1 ----------
+// wheel with spokes on the outer face; out = +1 / -1 is the side the outer face looks to (plan y)
+function wheel(root, x, y, zr, r, out, spokes = 12) {
   const zc = zr + r;
-  cyl(root, x, y, zc, r, 0.14, "y", 32); cyl(root, x, y + Math.sign(y + 7) * 0.08, zc, r * 0.18, 0.1, "y", 16);
-  const s = []; const yo = y + Math.sign(y + 7) * 0.075;
-  for (let k = 0; k < spokes; k++) { const a = 2 * Math.PI * k / spokes; s.push([[x + r * 0.18 * Math.cos(a), yo, zc + r * 0.18 * Math.sin(a)], [x + r * 0.82 * Math.cos(a), yo, zc + r * 0.82 * Math.sin(a)]]); }
+  cyl(root, x, y, zc, r, 0.14, "y", 32); cyl(root, x, y + out * 0.08, zc, r * 0.18, 0.1, "y", 16);
+  const s = [], yo = y + out * 0.075;
+  for (let k = 0; k < spokes; k++) { const a = 2 * Math.PI * k / spokes; s.push([[x + r * 0.18 * Math.cos(a), yo, zc + r * 0.18 * Math.sin(a)], [x + r * 0.8 * Math.cos(a), yo, zc + r * 0.8 * Math.sin(a)]]); }
   const n = 40; for (let k = 0; k < n; k++) { const a = 2 * Math.PI * k / n, b = 2 * Math.PI * (k + 1) / n; s.push([[x + r * 0.84 * Math.cos(a), yo, zc + r * 0.84 * Math.sin(a)], [x + r * 0.84 * Math.cos(b), yo, zc + r * 0.84 * Math.sin(b)]]); }
   lines(root, s);
 }
-function train(root) {
-  const yc = D.track[0], zr = D.rail, hw = 0.75;
-  // locomotive
-  const drv = [PX(277), PX(378), PX(482)], rd = 0.85;
-  for (const x of drv) for (const s of [-1, 1]) wheel(root, x, yc + s * hw, zr, rd);
-  for (const s of [-1, 1]) wheel(root, PX(632), yc + s * hw, zr, 0.48, 8);
+function rod(root, a, b, r = 0.05, seg = 8) {      // a thin round bar between two plan points
+  const A = V(...a), B = V(...b), m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, A.distanceTo(B), seg), M.white);
+  m.position.copy(A).add(B).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize()); root.add(m); return m;
+}
+function truck(root, x, yc, zr, hw) {             // a 2-axle bogie: side frames, springs, small spoked wheels
+  for (const dx of [-0.85, 0.85]) for (const s of [-1, 1]) wheel(root, x + dx, yc + s * hw, zr, 0.42, s, 8);
+  for (const s of [-1, 1]) { box(root, x - 1.35, x + 1.35, yc + s * (hw + 0.2) - 0.05, yc + s * (hw + 0.2) + 0.05, zr + 0.3, zr + 0.62); box(root, x - 0.25, x + 0.25, yc + s * (hw + 0.2) - 0.07, yc + s * (hw + 0.2) + 0.07, zr + 0.62, zr + 0.85); }
+  box(root, x - 0.3, x + 0.3, yc - hw, yc + hw, zr + 0.62, zr + 0.85);
+}
+function locomotive(root, yc, zr, hw) {
+  const drv = [PX(277), PX(378), PX(482)], rd = 0.85;            // three big driving wheels (page)
+  for (const x of drv) for (const s of [-1, 1]) wheel(root, x, yc + s * hw, zr, rd, s, 14);
+  for (const s of [-1, 1]) wheel(root, PX(632), yc + s * hw, zr, 0.48, s, 8);
   for (const s of [-1, 1]) {
-    const yr = yc + s * (hw + 0.14);
-    box(root, drv[0] - 0.05, drv[2] + 0.05, yr - 0.04, yr + 0.04, zr + rd - 0.08, zr + rd + 0.08);                    // side rod
-    box(root, drv[2], PX(560), yr - 0.04, yr + 0.04, zr + rd + 0.05, zr + rd + 0.17);                                 // main rod to the cylinder
-    box(root, PX(535), PX(595), yc + s * 0.95 - 0.2, yc + s * 0.95 + 0.2, 0.05, 1.05);                                // cylinder / steam chest
-    cyl(root, (PX(535) + PX(595)) / 2, yc + s * 0.95, 0.55, 0.36, PX(605) - PX(525), "x", 20);
+    const yr = yc + s * (hw + 0.16);
+    box(root, drv[0] - 0.05, drv[2] + 0.05, yr - 0.04, yr + 0.04, zr + rd - 0.08, zr + rd + 0.08);                     // side rod
+    for (const x of drv) cyl(root, x, yr + s * 0.04, zr + rd, 0.09, 0.08, "y", 12);                                    // crank pins
+    rod(root, [drv[1], yr + s * 0.1, zr + rd + 0.2], [PX(560), yr + s * 0.1, 0.55], 0.06);                            // main rod to the crosshead
+    box(root, PX(545), PX(600), yr - 0.03, yr + 0.03, 0.45, 0.65);                                                     // crosshead guide
+    cyl(root, PX(580), yc + s * 0.98, 0.55, 0.38, 1.25, "x", 20);                                                      // cylinder
+    cyl(root, PX(580), yc + s * 0.98, 1.05, 0.22, 0.95, "x", 16);                                                      // steam chest
+    for (const xx of [PX(580) - 0.66, PX(580) + 0.66]) cyl(root, xx, yc + s * 0.98, 0.55, 0.42, 0.08, "x", 20);        // cylinder covers
+    rod(root, [PX(300), yc + s * 0.95, 2.15], [PX(625), yc + s * 0.95, 2.15], 0.03);                                   // boiler handrail (photo)
+    for (const x of [PX(330), PX(430), PX(530), PX(615)]) rod(root, [x, yc + s * 0.8, 2.0], [x, yc + s * 0.95, 2.15], 0.025);
+    box(root, PX(190), PX(660), yc + s * 1.1 - 0.03, yc + s * 1.1 + 0.03, 1.0, 1.14);                                  // running board edge band (photo: white edge)
   }
-  box(root, PX(190), PX(660), yc - 1.05, yc + 1.05, 0.95, 1.12);                                                       // running board
-  box(root, PX(200), PX(655), yc - 0.45, yc + 0.45, 0.2, 0.95);                                                        // frame
-  const bx0 = PX(320), bx1 = PX(628), bz = 1.62, br = 0.8;
+  box(root, PX(190), PX(660), yc - 1.1, yc + 1.1, 1.0, 1.12);                                                          // running board
+  box(root, PX(200), PX(655), yc - 0.45, yc + 0.45, 0.2, 1.0);                                                         // frame
+  const bx0 = PX(320), bx1 = PX(628), bz = 1.7, br = 0.78;
   cyl(root, (bx0 + bx1) / 2, yc, bz, br, bx1 - bx0, "x", 32);                                                          // boiler
   for (const x of [PX(395), PX(470), PX(530)]) cyl(root, x, yc, bz, br + 0.03, 0.07, "x", 32);                         // boiler bands
-  cyl(root, PX(641), yc, bz, br + 0.06, PX(654) - PX(628), "x", 32); cyl(root, PX(657), yc, bz, 0.5, 0.06, "x", 24);   // smokebox front and door
-  cyl(root, PX(575), yc, 3.0, 0.3, 1.5, "z", 20); cyl(root, PX(575), yc, 3.95, 0.3, 0.42, "z", 20, M.white, 0.44);     // smokestack, flared top
+  cyl(root, PX(641), yc, bz, br + 0.1, PX(654) - PX(628), "x", 32);                                                    // smokebox
+  cyl(root, PX(656), yc, bz, br + 0.02, 0.06, "x", 32); cyl(root, PX(660), yc, bz, 0.55, 0.06, "x", 28);              // front ring and door (photo)
+  box(root, PX(661), PX(664), yc - 0.24, yc + 0.24, bz - 0.12, bz + 0.18);                                             // number plate
+  for (const z of [bz + 0.32, bz - 0.28]) box(root, PX(661), PX(664), yc - 0.5, yc + 0.02, z - 0.03, z + 0.03);        // door hinge straps
+  cyl(root, PX(663), yc, bz, 0.06, 0.12, "x", 10);                                                                     // door handle
+  cyl(root, PX(575), yc, 3.0, 0.3, 1.5, "z", 20); cyl(root, PX(575), yc, 3.95, 0.3, 0.42, "z", 20, M.white, 0.44);     // smokestack with the flared top (page)
   cyl(root, PX(575), yc, 4.2, 0.44, 0.08, "z", 20);
-  for (const x of [PX(390), PX(470)]) { cyl(root, x, yc, 2.6, 0.34, 0.6, "z", 20); cyl(root, x, yc, 2.95, 0.4, 0.1, "z", 20); ball(root, x, yc, 3.05, 0.3); }
+  for (const x of [PX(390), PX(470)]) { cyl(root, x, yc, 2.6, 0.34, 0.6, "z", 20); cyl(root, x, yc, 2.95, 0.4, 0.1, "z", 20); ball(root, x, yc, 3.05, 0.3); }   // sand + steam domes
+  { const bell = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.24, 0.32, 16), M.white); bell.position.copy(V(PX(520), yc, 2.68)); root.add(bell);   // bell (photo)
+    box(root, PX(520) - 0.04, PX(520) + 0.04, yc - 0.22, yc + 0.22, 2.45, 2.95); ball(root, PX(520), yc, 2.88, 0.06); }
   box(root, PX(605), PX(645), yc - 0.25, yc + 0.25, 2.55, 3.25); cyl(root, PX(648), yc, 2.9, 0.2, 0.08, "x", 20);     // headlight
+  box(root, PX(615), PX(640), yc - 0.08, yc + 0.08, 3.25, 3.4);
   cyl(root, PX(340), yc, 2.6, 0.08, 0.5, "z", 10); ball(root, PX(340), yc, 2.9, 0.1);                                  // whistle
-  // cab with two side windows and a curved roof
+  cyl(root, PX(470), yc + 1.0, 1.65, 0.2, 0.9, "z", 14); cyl(root, PX(470), yc + 1.0, 2.15, 0.24, 0.1, "z", 14);        // air pump on the fireman's side (photo)
+  for (const s of [-1, 1]) {                                                                                           // front steps / ladder by the smokebox (photo)
+    const ys = yc + s * 1.05;
+    rod(root, [PX(650), ys, 1.12], [PX(668), ys, -0.1], 0.03); rod(root, [PX(620), ys, 1.12], [PX(640), ys, -0.1], 0.03);
+    for (const z of [0.15, 0.55]) box(root, PX(628) + (1.12 - z) * 0.25, PX(660) + (1.12 - z) * 0.25, ys - 0.12, ys + 0.12, z - 0.03, z + 0.03);
+  }
+  // cab: two side windows, a front window either side of the boiler, a curved roof with an overhang
   const c0 = PX(190), c1 = PX(325), cw = 1.15;
   box(root, c0, c1, yc - cw, yc + cw, 1.12, 3.25);
-  side(root, [[yc - cw - 0.15, 3.25], ...Array.from({ length: 17 }, (_, k) => { const t = Math.PI * k / 16; return [yc - (cw + 0.15) * Math.cos(t), 3.25 + 0.3 * Math.sin(t)]; }), [yc + cw + 0.15, 3.25]], c0 - 0.15, c1 + 0.1);
+  side(root, [[yc - cw - 0.18, 3.25], ...Array.from({ length: 17 }, (_, k) => { const t = Math.PI * k / 16; return [yc - (cw + 0.18) * Math.cos(t), 3.25 + 0.32 * Math.sin(t)]; }), [yc + cw + 0.18, 3.25]], c0 - 0.25, c1 + 0.2);
   for (const [a0, a1] of [[PX(210), PX(245)], [PX(258), PX(292)]]) for (const s of [-1, 1]) {
-    const yy = yc + s * (cw + 0.01), zz0 = PZ(790), zz1 = PZ(735);
-    lines(root, [[[a0, yy, zz0], [a1, yy, zz0]], [[a1, yy, zz0], [a1, yy, zz1]], [[a1, yy, zz1], [a0, yy, zz1]], [[a0, yy, zz1], [a0, yy, zz0]]]);
+    const yy = yc + s * cw, zz0 = PZ(790), zz1 = PZ(735);
+    fbox(root, s < 0 ? "-y" : "+y", yy, a0, a1, zz0, zz0 + 0.08, 0, 0.05); fbox(root, s < 0 ? "-y" : "+y", yy, a0, a1, zz1 - 0.08, zz1, 0, 0.05);
+    fbox(root, s < 0 ? "-y" : "+y", yy, a0, a0 + 0.08, zz0, zz1, 0, 0.05); fbox(root, s < 0 ? "-y" : "+y", yy, a1 - 0.08, a1, zz0, zz1, 0, 0.05);
   }
-  // cowcatcher (pilot): sloped bars
-  side(root, [[yc - 0.85, zr + 0.05], [yc + 0.85, zr + 0.05], [yc + 0.85, 0.75], [yc - 0.85, 0.75]], PX(655), PX(668));
-  const pc = [];
-  for (let k = 0; k <= 6; k++) { const yy = yc - 0.85 + 1.7 * k / 6; pc.push([[PX(662), yy, 0.75], [PX(745), yy, zr + 0.08]]); }
-  pc.push([[PX(745), yc - 0.85, zr + 0.08], [PX(745), yc + 0.85, zr + 0.08]]); lines(root, pc);
-  elev(root, [[PX(662), 0.75], [PX(745), zr + 0.08], [PX(662), zr + 0.08]], yc - 0.86, yc - 0.82); elev(root, [[PX(662), 0.75], [PX(745), zr + 0.08], [PX(662), zr + 0.08]], yc + 0.82, yc + 0.86);
-  box(root, PX(655), PX(668), yc - 0.9, yc + 0.9, 0.75, 1.0);                                                         // buffer beam
-  // coach behind the cab, running off to the left (page)
-  const k0 = -15.2, k1 = PX(175), kw = 1.4, kb = 0.35, kt = 3.2;
-  box(root, k0, k1, yc - kw, yc + kw, kb, kt);
-  side(root, [[yc - kw - 0.08, kt], ...Array.from({ length: 17 }, (_, k) => { const t = Math.PI * k / 16; return [yc - (kw + 0.08) * Math.cos(t), kt + 0.38 * Math.sin(t)]; }), [yc + kw + 0.08, kt]], k0 - 0.1, k1 + 0.1);
-  box(root, k0 + 0.5, k1 - 0.5, yc - 0.5, yc + 0.5, -0.1, kb);
-  for (const x of [k0 + 1.6, k0 + 2.8, PX(118), PX(183)]) for (const s of [-1, 1]) wheel(root, x, yc + s * hw, zr, 0.42, 8);
-  const ww = 1.0, wz0 = PZ(780), wz1 = PZ(715), win = [];
-  for (let x = k1 - 0.75 - ww; x > k0 + 0.6; x -= 1.4) for (const s of [-1, 1]) {
-    const yy = yc + s * (kw + 0.01);
-    win.push([[x, yy, wz0], [x + ww, yy, wz0]], [[x + ww, yy, wz0], [x + ww, yy, wz1]], [[x + ww, yy, wz1], [x, yy, wz1]], [[x, yy, wz1], [x, yy, wz0]]);
+  for (const s of [-1, 1]) { const ys = yc + s * 0.7; lines(root, [[[c1 + 0.01, ys - 0.25, 2.5], [c1 + 0.01, ys + 0.25, 2.5]], [[c1 + 0.01, ys + 0.25, 2.5], [c1 + 0.01, ys + 0.25, 3.05]], [[c1 + 0.01, ys + 0.25, 3.05], [c1 + 0.01, ys - 0.25, 3.05]], [[c1 + 0.01, ys - 0.25, 3.05], [c1 + 0.01, ys - 0.25, 2.5]]]); }
+  for (const s of [-1, 1]) rod(root, [c0 + 0.1, yc + s * (cw + 0.08), 1.2], [c0 + 0.1, yc + s * (cw + 0.08), 2.9], 0.03);   // grab irons
+  // pilot (cowcatcher): a V in plan, bars running down and forward from the buffer beam to the rail (page + photo)
+  const pb = PX(665), pt = PX(745), pz = 0.78, pzr = zr + 0.06, pw = 0.9;
+  box(root, PX(655), pb, yc - 1.0, yc + 1.0, 0.72, 1.0);                                                              // buffer beam
+  box(root, pb, pb + 0.25, yc - 0.12, yc + 0.12, 0.78, 0.95);                                                          // coupler
+  for (const s of [-1, 1]) for (let k = 0; k <= 4; k++) {
+    const t = k / 4, yy = yc + s * pw * (1 - t);
+    rod(root, [pb + 0.25 * t, yy, pz], [pb + (pt - pb) * t + 0.1, yy * 1 + 0, pzr], 0.045, 6);
   }
-  for (const s of [-1, 1]) { const yy = yc + s * (kw + 0.01); win.push([[k0, yy, 1.0], [k1, yy, 1.0]], [[k0, yy, 2.85], [k1, yy, 2.85]]); }
-  lines(root, win);
-  box(root, k1 - 0.3, k1 + 0.02, yc - 0.45, yc + 0.45, 0.55, 2.9);                                                    // end door
+  rod(root, [pb, yc - pw, pzr], [pt, yc, pzr], 0.05, 6); rod(root, [pb, yc + pw, pzr], [pt, yc, pzr], 0.05, 6);       // bottom edge of the V
+  rod(root, [pb, yc, pz], [pt, yc, pzr], 0.05, 6);                                                                     // nose bar
+}
+function tender(root, yc, zr, hw, x0, x1) {        // coal + water tender behind the cab (photo)
+  const w = 1.25, zb = 0.55, zt = 2.45;
+  truck(root, x0 + 1.6, yc, zr, hw); truck(root, x1 - 1.6, yc, zr, hw);
+  box(root, x0, x1, yc - 0.55, yc + 0.55, zr + 0.85, zb);                                                              // frame
+  box(root, x0, x1, yc - w, yc + w, zb, zt);                                                                           // tank
+  box(root, x0 - 0.04, x1 + 0.04, yc - w - 0.04, yc + w + 0.04, zt - 0.12, zt);                                       // top flare
+  side(root, [[yc - w + 0.1, zt], [yc + w - 0.1, zt], [yc + w - 0.1, zt + 0.35], [yc - w + 0.1, zt + 0.35]], x1 - 2.6, x1 - 0.05);   // coal bunker
+  { const g = []; let k = 3; const rnd = () => (k = (k * 16807) % 2147483647) / 2147483647;                           // coal lumps drawn as lines
+    for (let i = 0; i < 26; i++) { const x = x1 - 2.5 + rnd() * 2.3, y = yc - w + 0.2 + rnd() * (2 * w - 0.4); g.push([[x, y, zt + 0.36], [x + 0.18, y + 0.08, zt + 0.36]]); } lines(root, g); }
+  cyl(root, x0 + 1.4, yc, zt + 0.08, 0.32, 0.16, "z", 20);                                                            // water hatch
+  for (const s of [-1, 1]) lines(root, [[[x0 + 0.1, yc + s * (w + 0.01), 0.75], [x1 - 0.1, yc + s * (w + 0.01), 0.75]]]);
+  for (const z of [0.8, 1.3, 1.8]) box(root, x0 - 0.12, x0 - 0.02, yc + 0.55, yc + 0.95, z - 0.03, z + 0.03);           // rear ladder
+  box(root, x0 - 0.25, x0, yc - 0.12, yc + 0.12, 0.78, 0.95);
+}
+function coach(root, yc, zr, hw, x0, x1) {          // passenger coach: clerestory roof, window row, vestibule doors, two bogies
+  const w = 1.4, zb = 0.45, zt = 3.1;
+  truck(root, x0 + 2.2, yc, zr, hw); truck(root, x1 - 2.2, yc, zr, hw);
+  box(root, x0 + 0.6, x1 - 0.6, yc - 0.6, yc + 0.6, zr + 0.85, zb);
+  box(root, x0, x1, yc - w, yc + w, zb, zt);
+  const arcRoof = (r, h, z) => [[yc - r, z], ...Array.from({ length: 17 }, (_, k) => { const t = Math.PI * k / 16; return [yc - r * Math.cos(t), z + h * Math.sin(t)]; }), [yc + r, z]];
+  side(root, arcRoof(w + 0.1, 0.3, zt), x0 - 0.15, x1 + 0.15);                                                         // lower roof
+  side(root, [[yc - 0.55, zt + 0.22], [yc + 0.55, zt + 0.22], [yc + 0.55, zt + 0.62], [yc - 0.55, zt + 0.62]], x0 + 1.0, x1 - 1.0);   // clerestory
+  side(root, arcRoof(0.68, 0.12, zt + 0.62), x0 + 0.9, x1 - 0.9);
+  const g = [];
+  for (const s of [-1, 1]) {
+    const yy = yc + s * (w + 0.01);
+    for (let x = x0 + 1.5; x + 0.9 < x1 - 1.3; x += 1.25) {
+      g.push([[x, yy, 1.85], [x + 0.9, yy, 1.85]], [[x + 0.9, yy, 1.85], [x + 0.9, yy, 2.75]], [[x + 0.9, yy, 2.75], [x, yy, 2.75]], [[x, yy, 2.75], [x, yy, 1.85]]);
+      g.push([[x, yy, 2.45], [x + 0.9, yy, 2.45]]);
+    }
+    for (const xd of [x0 + 0.35, x1 - 1.15]) g.push([[xd, yy, zb + 0.1], [xd, yy, 2.85]], [[xd + 0.8, yy, zb + 0.1], [xd + 0.8, yy, 2.85]], [[xd, yy, 2.85], [xd + 0.8, yy, 2.85]], [[xd + 0.15, yy, 2.1], [xd + 0.65, yy, 2.1]], [[xd + 0.15, yy, 2.7], [xd + 0.65, yy, 2.7]], [[xd + 0.15, yy, 2.1], [xd + 0.15, yy, 2.7]], [[xd + 0.65, yy, 2.1], [xd + 0.65, yy, 2.7]]);
+    g.push([[x0, yy, 1.6], [x1, yy, 1.6]], [[x0, yy, 2.95], [x1, yy, 2.95]]);                                          // belt rail and letter board
+    for (let x = x0 + 1.5; x < x1 - 1.3; x += 1.25) g.push([[x, yc + s * 0.56, zt + 0.32], [x, yc + s * 0.56, zt + 0.55]]);   // clerestory window mullions
+    for (const xd of [x0 + 0.35, x1 - 1.15]) box(root, xd, xd + 0.8, yy - s * 0.0 - 0.1, yy + 0.1, zb - 0.28, zb - 0.22);   // step
+  }
+  lines(root, g);
+  for (const x of [x0, x1]) box(root, x - 0.06, x + 0.06, yc - 0.6, yc + 0.6, zb + 0.1, 2.85);                         // end doors
+  for (const x of [x0 - 0.25, x1]) box(root, x, x + 0.25, yc - 0.12, yc + 0.12, 0.6, 0.78);                            // couplers
+}
+function train(root) {
+  const yc = D.track[0], zr = D.rail, hw = 0.75;
+  locomotive(root, yc, zr, hw);
+  const t1 = PX(186), t0 = t1 - 6.6;            // tender right behind the cab
+  tender(root, yc, zr, hw, t0, t1);
+  const L = 14.0, gap = 0.6;                    // two coaches (14 m) running off to the left
+  coach(root, yc, zr, hw, t0 - gap - L, t0 - gap);
+  coach(root, yc, zr, hw, t0 - 2 * gap - 2 * L, t0 - 2 * gap - L);
 }
 
 // ---------- site: platform, tracks, ballast, parking, street ----------
