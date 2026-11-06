@@ -13,9 +13,9 @@ const PX = (px) => (px - 10) / 60, PZ = (py) => (905 - py) / 60;
 
 // ---------- dimensions ----------
 export const D = {
-  hall: { x0: 1.0, x1: 23.1, y0: 0.3, y1: 6.3, eave: 6.5 },          // ground-floor walls; the main roof's eave sits at 6.5
-  roof: { x0: 0.6, y0: 0, y1: 6.7, ridge: 9.33 },                     // hipped main roof (ridge height off the page)
-  canopy: { x0: 0, x1: 23.7, y: -3.0, z0: 4.67, z1: 5.17 },          // platform canopy: fascia 4.67..5.17, rises to the wall at 6.5
+  hall: { x0: 0.6, x1: 23.4, y0: 0.3, y1: 6.3, eave: 6.5 },          // ground-floor walls; the main roof's eave sits at 6.5
+  roof: { x0: 4.3, hx: 0.95, y0: 0, y1: 6.7, ridge: 9.33 },           // upper main roof: steep hip just left of the dormer (page)
+  canopy: { x0: 0, x1: 24.0, y: -3.0, z0: 4.67, z1: 5.17 },          // platform canopy: fascia 4.67..5.17, rises to the wall at 6.5
   posts: [60, 230, 418, 590, 745, 920, 1085, 1240, 1410].map(PX), postY: -2.75,
   tower: { x0: 8.1, x1: 14.9, h: 9.58 },                              // two-storey block with the bracketed cornice
   gable: { x0: 15.33, x1: 22.5, eave: 7.67, pitch: 0.83 },            // cross gable on the right, ridge front to back
@@ -183,23 +183,35 @@ function hall(root) {
   const R = D.roof, e = H.eave, mid = (R.y0 + R.y1) / 2, rr = R.ridge, gx = D.gable.x0, gp = D.gable.pitch;
   const ry = (z) => (z - e) / rpitch;                               // depth where the front slope reaches height z
   const xv = (z) => gx + (z - D.gable.eave) / gp;                    // x where the gable's left slope reaches height z
-  const hipIn = mid - R.y0;
+  const hipIn = R.hx;
   plane(root, [[R.x0, R.y0, e], [gx, R.y0, e], [gx, ry(D.gable.eave), D.gable.eave], [xv(rr), mid, rr], [R.x0 + hipIn, mid, rr]]);
   plane(root, [[R.x0, R.y1, e], [R.x0 + hipIn, mid, rr], [xv(rr), mid, rr], [gx, R.y1 - ry(D.gable.eave), D.gable.eave], [gx, R.y1, e]]);
   plane(root, [[R.x0, R.y0, e], [R.x0 + hipIn, mid, rr], [R.x0, R.y1, e]], M.roof, [0, 1, 0]);
   box(root, R.x0, gx, R.y1 - 0.02, R.y1 + 0.02, e - 0.25, e);                                           // back fascia
-  box(root, R.x0 - 0.02, R.x0 + 0.02, R.y0, R.y1, e - 0.25, e);                                         // left fascia
+  // low hipped roof over the hall's left end: sits at the canopy's top line, so only the canopy shows here (page)
+  const lx = H.x0 - 0.3, lr = e + 0.4, lh = mid - R.y0, lx1 = R.x0 + 0.7;
+  plane(root, [[lx, R.y0, e], [lx1, R.y0, e], [lx1, mid, lr], [lx + lh, mid, lr]]);
+  plane(root, [[lx, R.y1, e], [lx + lh, mid, lr], [lx1, mid, lr], [lx1, R.y1, e]]);
+  plane(root, [[lx, R.y0, e], [lx + lh, mid, lr], [lx, R.y1, e]], M.roof, [0, 1, 0]);
+  box(root, lx, R.x0, R.y1 - 0.02, R.y1 + 0.02, e - 0.25, e);
+  box(root, lx - 0.02, lx + 0.02, R.y0, R.y1, e - 0.25, e);
   // canopy roof from the fascia up to the wall line, hipped at both ends (page)
   const a = 0.6, top = H.eave;
   plane(root, [[C.x0, C.y, C.z1], [C.x1, C.y, C.z1], [C.x1 - a, 0, top], [C.x0 + a, 0, top]]);
   plane(root, [[C.x0, C.y, C.z1], [C.x0 + a, 0, top], [C.x0, 0, C.z1]], M.roof, [0, 1, 0]);
   plane(root, [[C.x1, C.y, C.z1], [C.x1, 0, C.z1], [C.x1 - a, 0, top]], M.roof, [0, 1, 0]);
-  box(root, C.x0, C.x1, C.y - 0.08, C.y + 0.08, C.z0, C.z1);                                           // fascia
-  for (const x of [C.x0, C.x1]) box(root, x - 0.08, x + 0.08, C.y, H.y0, C.z0, C.z1);
+  box(root, C.x0, C.x1, C.y - 0.08, C.y + 0.08, C.z0, C.z1 - 0.14);                                    // fascia board
+  for (const x of [C.x0, C.x1]) box(root, x - 0.08, x + 0.08, C.y, H.y0, C.z0, C.z1 - 0.14);
+  // crown moulding: two stepped caps that run past the fascia and its returns, so the ends kick out like the page
+  for (const [o, z0, z1] of [[0.07, C.z1 - 0.14, C.z1 - 0.07], [0.15, C.z1 - 0.07, C.z1]]) {
+    box(root, C.x0 - 0.08 - o, C.x1 + 0.08 + o, C.y - 0.08 - o, C.y + 0.08, z0, z1);
+    for (const s of [-1, 1]) { const x = s < 0 ? C.x0 : C.x1; box(root, x - 0.08 - (s < 0 ? o : 0), x + 0.08 + (s > 0 ? o : 0), C.y, H.y0, z0, z1); }
+  }
   box(root, C.x0, C.x1, C.y, H.y0, C.z0 - 0.04, C.z0);                                                 // soffit
   box(root, D.gable.x0, H.x1, 0, H.y0 + 0.02, top - 0.05, top);                                       // closes the strip between the canopy and the gable wall
-  plane(root, [[H.x1, 0, C.z0], [C.x1, 0, C.z0], [C.x1, 0, C.z1], [C.x1 - a, 0, top], [H.x1, 0, top]], M.white);      // canopy end closed against the wall line
-  plane(root, [[C.x0, 0, C.z0], [H.x0, 0, C.z0], [H.x0, 0, top], [C.x0 + a, 0, top], [C.x0, 0, C.z1]], M.white);
+  // the hip apexes land on the wall corners, so only a small triangle behind each hip closes the end
+  plane(root, [[H.x1, 0, C.z0], [C.x1, 0, C.z0], [C.x1, 0, C.z1], [H.x1, 0, top]], M.white);
+  plane(root, [[C.x0, 0, C.z0], [H.x0, 0, C.z0], [H.x0, 0, top], [C.x0, 0, C.z1]], M.white);
   lines(root, [[[C.x0, C.y - 0.09, C.z0 + 0.25], [C.x1, C.y - 0.09, C.z0 + 0.25]]]);                    // fascia moulding line
   // posts with base and capital, arched spandrels between them (page)
   const pw = 0.24, py = D.postY;
@@ -347,11 +359,18 @@ function pageCard(root, px0, py0, px1, py1, y, out = 0.04) {      // a board who
   for (let i = 0; i < uv.count; i++) { const u = uv.getX(i), v = uv.getY(i); uv.setXY(i, (px0 + (px1 - px0) * u) / W, 1 - (py1 - (py1 - py0) * v) / Hh); }
   const m = new THREE.Mesh(g, M.page); m.position.copy(V((x0 + x1) / 2, y - out - 0.005, (z0 + z1) / 2)); m.userData.noEdge = true; root.add(m);
 }
-function bench(root, x0, x1) {
-  const yb = H.y0 - 0.15, yf = yb - 0.6;
-  box(root, x0, x1, yf, yb - 0.1, 0.72, 0.8);
-  for (const z of [0.95, 1.15, 1.35]) box(root, x0, x1, yb - 0.12, yb - 0.06, z, z + 0.12);
-  for (const x of [x0 + 0.1, x1 - 0.18]) { box(root, x, x + 0.08, yf + 0.05, yf + 0.13, 0, 0.72); box(root, x, x + 0.08, yb - 0.12, yb - 0.04, 0, 1.47); box(root, x - 0.03, x + 0.11, yf - 0.02, yb - 0.04, 0.8, 0.86); }
+function bench(root, x0, x1) {      // park bench: seat at 0.45, slatted back up to 0.9, cast-iron ends (page)
+  const yb = H.y0 - 0.12, yf = yb - 0.5, zs = 0.45;
+  for (const y of [yf, yf + 0.17, yf + 0.34]) box(root, x0, x1, y, y + 0.13, zs - 0.05, zs);               // seat slats
+  for (const z of [0.56, 0.7]) box(root, x0, x1, yb - 0.1, yb - 0.05, z, z + 0.1);                          // back slats
+  box(root, x0, x1, yb - 0.1, yb - 0.05, 0.84, 0.92);                                                       // top rail
+  for (const x of [x0 + 0.08, x1 - 0.14]) {
+    box(root, x, x + 0.06, yf + 0.04, yf + 0.1, 0, zs - 0.05);                                              // front leg
+    box(root, x, x + 0.06, yb - 0.11, yb - 0.04, 0, 0.92);                                                  // back leg + back post
+    box(root, x, x + 0.06, yf + 0.04, yb - 0.04, 0.1, 0.15);                                                // foot stretcher
+    box(root, x - 0.02, x + 0.08, yf - 0.02, yb - 0.04, 0.62, 0.67);                                        // arm
+    box(root, x, x + 0.06, yf + 0.02, yf + 0.08, zs, 0.62);                                                 // arm post
+  }
 }
 function hangLamp(root, x, y) {
   cyl(root, x, y, 4.3, 0.025, 0.74, "z", 6);
@@ -401,7 +420,7 @@ function fence(root) {
   for (const x of [x0, x1 - 0.12]) box(root, x, x + 0.14, y - 0.07, y + 0.07, 0, 1.45);
 }
 
-// ---------- the train (page + photo of a 2-8-0 steam engine): locomotive, tender, two coaches on track 1 ----------
+// ---------- the train (page + photo of a 2-8-0 steam engine): locomotive and two coaches on track 1 ----------
 // wheel with spokes on the outer face; out = +1 / -1 is the side the outer face looks to (plan y)
 function wheel(root, x, y, zr, r, out, spokes = 12) {
   const zc = zr + r;
@@ -525,8 +544,7 @@ function coach(root, yc, zr, hw, x0, x1) {          // passenger coach: cleresto
 function train(root) {
   const yc = D.track[0], zr = D.rail, hw = 0.75;
   locomotive(root, yc, zr, hw);
-  const t1 = PX(186), t0 = t1 - 6.6;            // tender right behind the cab
-  tender(root, yc, zr, hw, t0, t1);
+  const t0 = PX(190) + 0.25;                    // first coach right behind the cab, as on the page
   const L = 14.0, gap = 0.6;                    // two coaches (14 m) running off to the left
   coach(root, yc, zr, hw, t0 - gap - L, t0 - gap);
   coach(root, yc, zr, hw, t0 - 2 * gap - 2 * L, t0 - 2 * gap - L);
