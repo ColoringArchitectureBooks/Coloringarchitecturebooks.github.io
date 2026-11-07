@@ -707,7 +707,7 @@ const SND = (() => {
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
     master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    loops.forEach(l => l.make()); };
+    };
   const near = (x, y, rN, rF) => { if (typeof camera === "undefined") return 0; const d = camera.position.distanceTo(V(x, y, 1));
     const g = clamp((rF - d) / (rF - rN), 0, 1); return g * g; };
   const noise = (t0, dur, type, f, q, g0, att = 0.003) => { const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
@@ -716,6 +716,15 @@ const SND = (() => {
     s.connect(fl); fl.connect(g); g.connect(master); s.start(t0, Math.random()); s.stop(t0 + dur + 0.05); return fl; };
   const tone = (t0, dur, f0, f1, g0, type = "sine") => { const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t0); o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
     const g = ctx.createGain(); g.gain.setValueAtTime(g0, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + dur + 0.05); };
+  // one voice: a buzzy tone through a vowel filter, with a pitch bend, like a shout in a crowd
+  const voice = (t0, dur, f0, bend, g0, formant) => { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(f0, t0); o.frequency.linearRampToValueAtTime(f0 * bend, t0 + dur);
+    const v = ctx.createOscillator(), vg = ctx.createGain(); v.frequency.value = 5 + Math.random() * 2; vg.gain.value = f0 * 0.03; v.connect(vg); vg.connect(o.frequency);
+    const f1 = ctx.createBiquadFilter(); f1.type = "bandpass"; f1.frequency.value = formant; f1.Q.value = 3; const f2 = ctx.createBiquadFilter(); f2.type = "lowpass"; f2.frequency.value = 2600;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(g0, t0 + 0.04); g.gain.setValueAtTime(g0, t0 + dur * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(f1); f1.connect(f2); f2.connect(g); g.connect(master); o.start(t0); v.start(t0); o.stop(t0 + dur + 0.05); v.stop(t0 + dur + 0.05); };
+  // applause: lots of tiny hand claps at random moments, thinning out at the end
+  const clap = (t0, dur, rate, g0) => { const n = Math.floor(dur * rate); for (let i = 0; i < n; i++) { const tt = t0 + Math.pow(Math.random(), 1.3) * dur, a = g0 * (0.4 + Math.random() * 0.6) * (1 - (tt - t0) / dur * 0.7);
+    noise(tt, 0.018 + Math.random() * 0.012, "bandpass", 1300 + Math.random() * 1500, 1.4, a, 0.001); } };
   const KINDS = {
     pock: (t, g) => { tone(t, 0.07, 1100, 600, 0.5 * g); noise(t, 0.035, "bandpass", 2500, 2, 0.35 * g); },     // tennis ball on the strings
     bounce: (t, g) => tone(t, 0.05, 500, 300, 0.2 * g),
@@ -723,7 +732,12 @@ const SND = (() => {
     pop: (t, g) => noise(t, 0.05, "lowpass", 900, 1, 0.6 * g),                                                       // ball into the glove
     kick: (t, g) => { tone(t, 0.12, 140, 60, 0.7 * g); noise(t, 0.03, "lowpass", 1500, 1, 0.3 * g); },
     whistle: (t, g) => { tone(t, 0.45, 2900, 2850, 0.18 * g, "triangle"); tone(t, 0.45, 3150, 3100, 0.1 * g, "triangle"); },
-    cheer: (t, g) => { const f = noise(t, 2.2, "bandpass", 900, 0.6, 0.55 * g, 0.4); f.frequency.linearRampToValueAtTime(1300, t + 0.8); },
+    // a crowd cheer = many voices shouting "hey/yeah" at slightly different pitches and times, plus applause
+    cheer: (t, g) => { for (let i = 0; i < 18; i++) voice(t + Math.random() * 0.35, 0.5 + Math.random() * 0.9, 190 + Math.random() * 260, 1.25, 0.05 * g, Math.random() < 0.5 ? 750 : 1050);
+      clap(t + 0.2, 2.4, 70, 0.32 * g); },
+    hut: (t, g) => { voice(t, 0.16, 135, 0.92, 0.35 * g, 650); voice(t + 0.42, 0.16, 135, 0.92, 0.35 * g, 650); },          // the quarterback's "hut, hut!"
+    slap: (t, g) => { noise(t, 0.05, "bandpass", 700, 1.2, 0.7 * g, 0.002); tone(t, 0.06, 180, 90, 0.25 * g); },           // leather ball into hands
+    snap: (t, g) => noise(t, 0.04, "bandpass", 400, 1, 0.4 * g, 0.002),
     thud: (t, g) => tone(t, 0.18, 110, 50, 0.6 * g),
     whoosh: (t, g) => { const f = noise(t, 0.7, "bandpass", 500, 3, 0.35 * g, 0.25); f.frequency.exponentialRampToValueAtTime(2400, t + 0.6); },
     step: (t, g) => tone(t, 0.04, 160, 90, 0.12 * g),
@@ -734,10 +748,14 @@ const SND = (() => {
     toggle() { on = !on; if (on) start(); if (master) master.gain.setTargetAtTime(on ? 0.9 : 0, ctx.currentTime, 0.05); return on; },
     hit(kind, x, y, rN = 18, rF = 90) { if (!on || !ctx || ctx.state !== "running") return; const g = near(x, y, rN, rF); if (g > 0.01) KINDS[kind](ctx.currentTime + 0.01, g); },
     // steady crowd murmur around a field
-    murmur(x, y, rN, rF, level) { const l = { x, y, rN, rF, level, g: null, make() { const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
-      const fl = ctx.createBiquadFilter(); fl.type = "bandpass"; fl.frequency.value = 650; fl.Q.value = 0.5; this.g = ctx.createGain(); this.g.gain.value = 0;
-      s.connect(fl); fl.connect(this.g); this.g.connect(master); s.start(); } }; loops.push(l); if (ctx) l.make(); },
-    tick() { if (!ctx) return; for (const l of loops) if (l.g) l.g.gain.setTargetAtTime(l.level * near(l.x, l.y, l.rN, l.rF), ctx.currentTime, 0.15); },
+    // crowd chatter around a field: people talking (short random syllables) and a clap here and there,
+    // scheduled a little ahead every frame, louder the closer you are
+    murmur(x, y, rN, rF, level) { loops.push({ x, y, rN, rF, level, next: 0 }); },
+    tick() { if (!on || !ctx || ctx.state !== "running") return; const now = ctx.currentTime;
+      for (const l of loops) { const g = near(l.x, l.y, l.rN, l.rF) * l.level; if (g < 0.01) { l.next = now; continue; }
+        while (l.next < now + 0.2) { l.next = Math.max(l.next, now) + 0.04 + Math.random() * 0.09;
+          if (Math.random() < 0.9) voice(l.next, 0.08 + Math.random() * 0.16, 150 + Math.random() * 230, 0.85 + Math.random() * 0.3, 0.06 * g, 500 + Math.random() * 700);
+          else noise(l.next, 0.02, "bandpass", 1800, 1.4, 0.25 * g, 0.001); } } },
   };
 })();
 // seeded random, so the crowd looks the same every time the page opens
@@ -794,9 +812,9 @@ const forehand = (f, dt) => {   // dt: seconds from this player's hit (negative 
 // the catch, everyone drifts back to the line and the receiver tosses the ball back to the quarterback
 { const TX = 101, TY = 238.5, LOS = TY - 12, T = 11, ball = ballObj(0.17, 1.7), qb = figure(), wr = figure();
   const line = [];
-  for (let j = 0; j < 5; j++) line.push([figure(null, 0.75, 0.7), TX - 4 + 2 * j, LOS - 0.8, 1]);   // offensive line
-  line.push([figure(null, 0.75, 0.6), TX + 6, LOS - 0.9, 1]);                                          // tight end
-  for (let j = 0; j < 4; j++) line.push([figure(null, 0.75, 0.7), TX - 3 + 2 * j, LOS + 0.8, -1]);   // defensive line
+  for (let j = 0; j < 5; j++) line.push([figure(null, 1, 1.05), TX - 4 + 2 * j, LOS - 0.9, 1]);   // offensive line
+  line.push([figure(null, 1, 0.8), TX + 6, LOS - 1.0, 1]);                                          // tight end
+  for (let j = 0; j < 4; j++) line.push([figure(null, 1, 1.05), TX - 3 + 2 * j, LOS + 0.9, -1]);   // defensive line
   const W0 = [TX + 15, LOS - 0.5], W1 = [TX + 15, LOS + 16], W2 = [TX + 7, LOS + 22];
   const wrAt = u => u < 0.1 ? W0 : u < 0.4 ? [W0[0], lerp(W0[1], W1[1], (u - 0.1) / 0.3)] : u < 0.7 ? [lerp(W1[0], W2[0], (u - 0.4) / 0.3), lerp(W1[1], W2[1], (u - 0.4) / 0.3)]
     : u < 0.92 ? [lerp(W2[0], W0[0], smooth((u - 0.7) / 0.22)), lerp(W2[1], W0[1], smooth((u - 0.7) / 0.22))] : W0;
@@ -817,10 +835,10 @@ const forehand = (f, dt) => {   // dt: seconds from this player's hit (negative 
   ].map(([a, b], j) => [figure(), a, b, j < 3 ? 1 : -1]);
   let lastU = 1;
   PLAY.push(t => { const u = (t / T) % 1, q = qbAt(u), r = wrAt(u), rn = wrAt((u + 0.005) % 1);
-    if (lastU > u) SND.hit("whistle", TX, LOS, 25, 140);
-    if (lastU < 0.12 && u >= 0.12) SND.hit("pop", TX, LOS, 15, 80);
-    if (lastU < 0.45 && u >= 0.45) SND.hit("pop", q[0], q[1], 15, 80);
-    if (lastU < 0.68 && u >= 0.68) { SND.hit("pop", r[0], r[1], 15, 80); SND.hit("cheer", TX, TY, 40, 190); }
+    if (lastU < 0.03 && u >= 0.03) SND.hit("hut", TX, LOS - 2, 15, 80);          // QB calls the snap
+    if (lastU < 0.12 && u >= 0.12) SND.hit("snap", TX, LOS, 12, 60);
+    if (lastU < 0.68 && u >= 0.68) { SND.hit("slap", r[0], r[1], 15, 80); SND.hit("cheer", TX, TY, 40, 190); }
+    if (lastU < 0.74 && u >= 0.74) SND.hit("whistle", TX, LOS + 10, 25, 140);  // whistle: play over
     lastU = u;
     put(qb, q[0], q[1], 0, 1, u > 0.12 && u < 0.35 || u > 0.8 ? 0.6 : 0, t * 7, false);
     arm(qb.userData.arms[0], 0, 0, u > 0.4 && u < 0.5 ? lerp(2.6, -0.4, (u - 0.4) / 0.1) : u > 0.3 && u <= 0.4 ? 2.6 : 0.3);
@@ -831,9 +849,14 @@ const forehand = (f, dt) => {   // dt: seconds from this player's hit (negative 
     else if (u < 0.92) bp = [r[0], r[1], 1.2];
     else { const w = (u - 0.92) / 0.08, c = qbAt(0); bp = [lerp(W0[0], c[0], w), lerp(W0[1], c[1], w), 1.3 + 3 * Math.sin(Math.PI * w)]; }
     putBall(ball, ...bp);
-    line.forEach(([f, x, y, d], j) => put(f, x, y + d * 0.15 * Math.sin(t * 2 + j), 0, d, 0.2, t * 4 + j));
+    // three-point stance before the snap (feet apart front/back, hips down, one hand on the ground), then they rise and block
+    line.forEach(([f, x, y, d], j) => { const set = u < 0.12 || u > 0.9, push = set ? 0 : Math.min(1, (u - 0.12) * 8), L = f.userData.legs, A = f.userData.arms;
+      put(f, x, y + d * push * 0.8, 0, d, 0, 0, false);
+      const sp = set ? 0.5 : 0.35 + 0.15 * Math.sin(t * 9 + j); L[0].rotation.z = sp; L[1].rotation.z = -sp; f.position.y -= 0.82 * (1 - Math.cos(sp));
+      f.children[0].rotation.z = -(set ? 1.05 : 0.55);
+      if (set) { arm(A[0], 0, 0, -1.0); arm(A[1], 0, 0, 0.3); } else { arm(A[0], 0, 0, 1.4); arm(A[1], 0, 0, 1.4); } });
     others.forEach(([f, a, b, d]) => { const p = out(u, a, b); move(f, p[0], p[1], 0, d, t); }); });
-  SND.murmur(TX, TY, 40, 190, 0.08);
+  SND.murmur(TX - 55, TY, 30, 160, 1); SND.murmur(TX + 52, TY, 30, 140, 0.6);
 }
 
 // spectators on both football stands: a random crowd (sitting, standing, kids, caps, a few arms up),
@@ -886,7 +909,6 @@ const forehand = (f, dt) => {   // dt: seconds from this player's hit (negative 
     gks.forEach(g => { const gy = g.side ? SY0 + Lf - 1 : SY0 + 1, near = Math.abs(by - gy) < 25;
       move(g.f, SX0 + W / 2 + clamp((bx - SX0 - W / 2) * 0.2, -3, 3), gy, bx - SX0 - W / 2, g.side ? -1 : 1, t);
       const o = near ? 1.3 : 0.25; arm(g.f.userData.arms[0], -o, 0, 0); arm(g.f.userData.arms[1], o, 0, 0); }); });
-  SND.murmur(SX0 + 32, SY0 + 50, 35, 140, 0.03);
 }
 
 // baseball + softball: pitcher winds up and throws, the batter swings, a crouched catcher with an umpire
@@ -894,10 +916,10 @@ const forehand = (f, dt) => {   // dt: seconds from this player's hit (negative 
 function ballgame(hx, hy, rubber, bases, far, T, ph) {
   const rot = (u, v) => [hx + (u + v) / Math.SQRT2, hy + (v - u) / Math.SQRT2];
   const home = rot(0, 0.8), mound = rot(0, rubber), d = [home[0] - mound[0], home[1] - mound[1]], dl = Math.hypot(...d), side = [-d[1] / dl, d[0] / dl];
-  const pitcher = figure("glove"), catcher = figure("glove", 0.62), ump = figure(null, 0.85), batter = figure("bat"), ball = ballObj(0.14);
+  const pitcher = figure("glove"), catcher = figure("glove", 1, 0.35), ump = figure(null, 1, 0.3), batter = figure("bat"), ball = ballObj(0.14);
   const bat = [home[0] + side[0] * 1.0, home[1] + side[1] * 1.0];
   const spots = [rot(bases * 0.6, bases * 0.88), rot(-bases * 0.6, bases * 0.88), rot(bases * 0.3, bases * 1.15), rot(-bases * 0.3, bases * 1.15), rot(0, far), rot(-far * 0.45, far * 0.82), rot(far * 0.45, far * 0.82)];
-  spots.forEach((p, j) => { const f = figure("glove", 0.92), dir = [home[0] - p[0], home[1] - p[1]], L = Math.hypot(...dir), sd = [-dir[1] / L, dir[0] / L];
+  spots.forEach((p, j) => { const f = figure("glove", 1, 0.25), dir = [home[0] - p[0], home[1] - p[1]], L = Math.hypot(...dir), sd = [-dir[1] / L, dir[0] / L];
     PLAY.push(t => { const sw = Math.sin(t * 1.3 + j * 1.7) * 1.4; put(f, p[0] + sd[0] * sw, p[1] + sd[1] * sw, dir[0], dir[1], Math.abs(Math.cos(t * 1.3 + j * 1.7)) * 0.6, t * 7 + j); }); });
   let lastU = 0;
   PLAY.push(t => { const u = ((t + ph) / (2 * T)) % 1, out = u < 0.5, w = out ? u * 2 : (u - 0.5) * 2, [f, g] = out ? [mound, home] : [home, mound];
@@ -908,7 +930,8 @@ function ballgame(hx, hy, rubber, bases, far, T, ph) {
     putBall(ball, lerp(f[0], g[0], w), lerp(f[1], g[1], w), 1.7 + (out ? 0.3 : 2.5) * Math.sin(Math.PI * w));
     put(pitcher, mound[0], mound[1], d[0], d[1], 0, 0, false);
     arm(pitcher.userData.arms[0], 0, 0, out && w < 0.12 ? lerp(-2.8, 1.4, w / 0.12) : !out && w > 0.8 ? lerp(0.3, -2.8, (w - 0.8) / 0.2) : 0.3);
-    put(catcher, home[0] - d[0] / dl * 0.9, home[1] - d[1] / dl * 0.9, -d[0], -d[1], 0, 0, false); arm(catcher.userData.arms[0], 0, 0, out ? 1.4 : !out && w < 0.12 ? 2.4 : 0.8);
+    put(catcher, home[0] - d[0] / dl * 0.9, home[1] - d[1] / dl * 0.9, -d[0], -d[1], 0, 0, false);
+    { const L = catcher.userData.legs; L[0].rotation.z = 1.25; L[1].rotation.z = 1.25; catcher.position.y -= 0.82 * (1 - Math.cos(1.25)); }   // squat arm(catcher.userData.arms[0], 0, 0, out ? 1.4 : !out && w < 0.12 ? 2.4 : 0.8);
     put(ump, home[0] - d[0] / dl * 2.0, home[1] - d[1] / dl * 2.0, -d[0], -d[1], 0, 0);
     put(batter, bat[0], bat[1], -side[0], -side[1], 0, 0, false);
     // swing as the pitch arrives: bat cocked over the shoulder, then a flat sweep across the plate
