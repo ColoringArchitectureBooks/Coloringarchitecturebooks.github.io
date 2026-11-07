@@ -17,7 +17,7 @@ export const D = {
   roof: { x0: -0.3, hx: 3.35, y0: 0, y1: 6.7, ridge: 9.33 },          // main roof covers the whole hall, hipped at the left end
   canopy: { x0: 0, x1: 23.9, y: -3.0, z0: 4.67, z1: 5.17 },          // platform canopy: fascia 4.67..5.17, rises to the wall at 6.5
   posts: [60, 230, 418, 590, 745, 920, 1085, 1240, 1410].map(PX), postY: -2.75,
-  tower: { x0: 8.1, x1: 14.9, h: 9.58 },                              // two-storey block with the bracketed cornice
+  tower: { x0: 8.1, x1: 14.9, h: 9.73 },                              // two-storey block with the bracketed cornice
   gable: { x0: 15.33, x1: 22.5, eave: 7.67, pitch: 0.83 },            // cross gable on the right, ridge front to back
   entry: { x0: 10.9, x1: 17.04, eave: 5.1, peak: 6.8, y0: -3.25 },    // TRAIN STATION gable over the canopy
   track: [-7.0, -11.2], gauge: 1.435, rail: -0.72, ground: -1.0,
@@ -290,10 +290,10 @@ function tower(root) {
   plane(root, Tp.map(p => [...p, zt]), M.white);
   cyl(root, cx, cy, zt + 0.2, 0.14, 0.4); cyl(root, cx, cy, zt + 0.45, 0.24, 0.1); ball(root, cx, cy, zt + 0.6, 0.12);   // vent with cap (page)
   box(root, 13.05, 14.05, 3.0, 4.0, 9.0, 11.83, M.brick); box(root, 12.95, 14.15, 2.9, 4.1, 11.83, 12.0);   // chimney
-  archWindow(root, "-y", y0, PX(572) + 0.06, PX(640) - 0.06, 7.2, 8.7);      // smaller: clear of the roof below and the cornice above
-  archWindow(root, "-y", y0, PX(748) + 0.06, PX(815) - 0.06, 7.2, 8.7);
-  archWindow(root, "+y", y1, PX(572) + 0.06, PX(640) - 0.06, 7.2, 8.7);      // smaller: clear of the roof below and the cornice above
-  archWindow(root, "+y", y1, PX(748) + 0.06, PX(815) - 0.06, 7.2, 8.7);
+  archWindow(root, "-y", y0, PX(572), PX(640), 6.75, PZ(362));      // page size
+  archWindow(root, "-y", y0, PX(748), PX(815), 6.75, PZ(362));
+  archWindow(root, "+y", y1, PX(572), PX(640), 6.75, PZ(362));      // page size
+  archWindow(root, "+y", y1, PX(748), PX(815), 6.75, PZ(362));
 }
 
 // ---------- cross gable on the right (ridge front to back), truss in the front gable ----------
@@ -651,7 +651,7 @@ function seams(root) {
   root.updateMatrixWorld(true);
   const meshes = [];
   root.traverse(o => {
-    if (!o.isMesh || o.userData.noEdge) return;
+    if (!o.isMesh || o.material === M.page) return;      // roof planes count too (they carry their own outline, not EdgesGeometry)
     const g = o.geometry, pos = g.attributes.position, idx = g.index, n = idx ? idx.count : pos.count;
     const t = new Float32Array(n * 3), v = new THREE.Vector3();
     for (let i = 0; i < n; i++) { v.fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(o.matrixWorld); t[i * 3] = v.x; t[i * 3 + 1] = v.y; t[i * 3 + 2] = v.z; }
