@@ -55,6 +55,7 @@ function mats() {
   ballast.repeat.set(0.25, 0.25);
   M.white = L({}); M.ground = L({}); M.siding = L({ map: siding }); M.roof = L({ map: roof }); M.brick = L({ map: brick }); M.ballast = L({ map: ballast });
   M.line = new THREE.LineBasicMaterial({ color: 0x000000 });
+  M.fine = new THREE.LineBasicMaterial({ color: 0x000000 });          // outlines of benches, gates, fences, railings and track: these alone ease to grey when zoomed far out
   const page = new THREE.TextureLoader().load(new URL("./page.jpg", import.meta.url).href); page.colorSpace = THREE.SRGBColorSpace; page.anisotropy = 8;
   M.page = L({ map: page });
 }
@@ -793,10 +794,11 @@ function site(root) {
     lines(root, E); }
   slab(root, [[P.x0, P2y0], [SX1, P2y0], [SX1, P2y1 - 2], [rx0, P2y1 - 2], [rx0, P2y1], [P.x0, P2y1]], g, 0);   // platform 2
   flat(root, [[EX0, P2y1], [EX1, P2y1], [EX1, P.y0], [EX0, P.y0]], g + 0.005, M.ballast);
+  { const TG = fadeGroup(root);                                                                                    // track: eases to grey far out
   for (const yc of D.track) {
-    for (let x = EX0 + 0.2; x < EX1 - 0.3; x += 0.75) box(root, x, x + 0.26, yc - 1.3, yc + 1.3, g, g + 0.14);                     // sleepers
-    for (const s of [-1, 1]) { const yr = yc + s * D.gauge / 2; box(root, EX0, EX1, yr - 0.04, yr + 0.04, g + 0.14, D.rail); box(root, EX0, EX1, yr - 0.08, yr + 0.08, g + 0.14, g + 0.17); }
-  }
+    for (let x = EX0 + 0.2; x < EX1 - 0.3; x += 0.75) box(TG, x, x + 0.26, yc - 1.3, yc + 1.3, g, g + 0.14);                     // sleepers
+    for (const s of [-1, 1]) { const yr = yc + s * D.gauge / 2; box(TG, EX0, EX1, yr - 0.04, yr + 0.04, g + 0.14, D.rail); box(TG, EX0, EX1, yr - 0.08, yr + 0.08, g + 0.14, g + 0.17); }
+  } }
   // ---- foot crossing at the end of both platforms ----
   const zr = D.rail;
   ramp(root, rx0, rx1, P.y0, P.y0 + 2, 0, zr); ramp(root, rx0, rx1, P2y1 - 2, P2y1, 0, zr);
@@ -899,6 +901,16 @@ function site(root) {
   for (const [x, y] of [[-4.0, 14.3], [-7.0, 11.6], [-1.2, 11.4], [27.0, 14.3], [24.4, 11.5], [29.6, 11.8]]) tree(root, x, y, 1.0);   // lawns either side of the entrance
 }
 
+// benches, gates, fences, railings and the track draw their outlines with M.fine, which eases to grey only when zoomed far out;
+// everything else stays black at every distance, and the Front view (about 65 m) and closer are untouched
+function fadeGroup(root) { const g = new THREE.Group(); g.userData.fade = true; root.add(g); return g; }
+const faded = (fn) => (root, ...a) => fn(fadeGroup(root), ...a);
+bench = faded(bench); gate = faded(gate); picket = faded(picket); railFence = faded(railFence); railing = faded(railing); rail = faded(rail);
+export function zoomFade(d) {
+  if (!M.fine) return;
+  const t = Math.min(1, Math.max(0, (d - 80) / 120));
+  M.fine.color.setScalar(0.45 * Math.sqrt(t));                                  // linear value: about #b4b4b4 at full fade
+}
 // builds everything; resolves when the 3D letters are in
 export function buildScene(scene) {
   mats();
@@ -918,7 +930,8 @@ function outline(root) {
   root.traverse(o => {
     if (!o.isMesh || o.userData.noEdge || o.userData.edged) return;
     const t = o.geometry.type, thr = t === "CylinderGeometry" || t === "SphereGeometry" || t === "ConeGeometry" ? 40 : 20;
-    const e = new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, thr), M.line);
+    let fade = false; for (let q = o; q && !fade; q = q.parent) fade = !!q.userData.fade;
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, thr), fade ? M.fine : M.line);
     e.position.copy(o.position); e.rotation.copy(o.rotation); e.scale.copy(o.scale); add.push([o.parent, e]); o.userData.edged = true;
   });
   for (const [p, e] of add) p.add(e);
