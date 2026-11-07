@@ -829,15 +829,16 @@ for (let x = 170; x < 215; x += 3) { seg([x, 298, 0.06], [x, 303.5, 0.06]); seg(
   const nearEdge = (x, y, p, d) => [p.o, ...(p.h || [])].some(r => edgeDist(x, y, r) < d);
   const placed = [];
   const free = (x, y, s) => !TREES.some(([tx, ty]) => Math.hypot(x - tx, y - ty) < 0.9 + s * 0.6) && !placed.some(([px, py, ps]) => Math.hypot(x - px, y - py) < 0.75 * (s + ps));
-  // the planting beds along the entrance forecourt: filled close together with smaller bushes (and a few grass tufts)
+  // the planting beds along the entrance forecourt: smaller bushes and grass tufts, evenly mixed
   const pick = (set) => set[Math.floor(srand() * set.length)];
   for (const p of SITE_LAYERS.G.polys) {
     const xs = p.o.map(q => q[0]), ys = p.o.map(q => q[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
     if (x0 < 150 || x1 > 168.5 || y0 < 40 || y1 > 101) continue; p.bed = true;
-    for (let x = x0 + 0.5; x < x1; x += 1.05) for (let y = y0 + 0.5; y < y1; y += 1.05) {
-      const s = 0.5 + srand() * 0.3, px = x + (srand() - 0.5) * 0.4, py = y + (srand() - 0.5) * 0.4;
+    const SP = 1.7;                                   // a loose, even grid; bush and grass alternate like a checkerboard so both are everywhere
+    for (let ix = 0, x = x0 + 0.7; x < x1 - 0.3; ix++, x += SP) for (let iy = 0, y = y0 + 0.7; y < y1 - 0.3; iy++, y += SP) {
+      const s = 0.5 + srand() * 0.3, px = x + (srand() - 0.5) * 0.3, py = y + (srand() - 0.5) * 0.3;
       if (!inPoly(px, py, p) || nearEdge(px, py, p, 0.45 * s) || !free(px, py, s * 0.6)) continue;
-      placed.push([px, py, s * 0.6]); pick(srand() < 0.2 ? GRASS : VAR).at.push(new THREE.Matrix4().compose(V(px, py, 0.12), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, srand() * 6.28, 0)), new THREE.Vector3(s, s * (0.85 + srand() * 0.3), s))); }
+      placed.push([px, py, s * 0.6]); pick((ix + iy) % 2 ? GRASS : VAR).at.push(new THREE.Matrix4().compose(V(px, py, 0.12), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, srand() * 6.28, 0)), new THREE.Vector3(s, s * (0.85 + srand() * 0.3), s))); }
   }
   for (const K of [...VAR, ...GRASS]) { const n = K.at.length; if (!n) continue;
     if (K.body) { const im = new THREE.InstancedMesh(K.body, W0, n); K.at.forEach((m, i) => im.setMatrixAt(i, m)); root.add(im); }
