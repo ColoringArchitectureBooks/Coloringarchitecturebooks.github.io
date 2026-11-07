@@ -734,13 +734,12 @@ function site(root) {
     L.push([[-10, 22.5, z], [33, 22.5, z]], [[-10, 28.5, z], [-5, 28.5, z]], [[-5, 28.5, z], [28, 28.5, z]], [[28, 28.5, z], [33, 28.5, z]]);
     for (const [a, b] of [[9, 14], [30.5, 33]]) for (let k = 0; k < 5; k++) L.push([[a, 18 + k * 0.9, z], [b, 18.9 + k * 0.9, z]]);   // hatched drop-off + ambulance bays
     for (const x0 of [6, 14]) L.push([[x0 + 0.6, 19.4, z], [x0 + 2.4, 19.4, z]], [[x0 + 1.5, 19.4, z], [x0 + 1.5, 21, z]]);           // accessible bay marks
-    for (const x0 of [-4, 3, 10, 17, 24]) L.push([[x0, 25.5, z], [x0 - 1.4, 25.0, z]], [[x0, 25.5, z], [x0 - 1.4, 26.0, z]], [[x0 - 1.4, 25.5, z], [x0 - 3.2, 25.5, z]]);   // one-way arrows
     lines(root, L); }
   // ---- hedge, sidewalk, street with the bus + taxi lay-by and its shelter ----
   for (const [a, b] of [[-18, -12], [-5, 28], [35, 42]]) box(root, a, b, 32.9, 33.5, LG, LG + 1.0);
   for (const [a, b] of [[-80, -10], [-5, 28], [33, 110]]) slab(root, [[a, 33.5], [b, 33.5], [b, 35.5], [a, 35.5]], LG, LG + 0.15);
-  { const z = LG + 0.005, L = []; for (let x = -78; x < 108; x += 6) if (!(x > 12 && x < 27)) L.push([[x, 40, z], [x + 3, 40, z]]);
-    L.push([[14, 38, z], [26, 38, z]], [[14, 35.5, z], [14, 38, z]], [[26, 35.5, z], [26, 38, z]], [[20, 35.5, z], [20, 38, z]]); lines(root, L); }
+  { const z = LG + 0.005, L = []; for (let x = -78; x < 108; x += 6) L.push([[x, 40, z], [x + 3, 40, z]]);
+    lines(root, L); }
   shelter(root, 15.5, 19.5, 33.9, 35.3, LG + 0.15);
   sign(root, 22, 35.3, LG + 2.6, 0.9, 0.45, textTex(["BUS"], 256, 128), "+y"); cyl(root, 22, 35.35, LG + 1.2, 0.04, 2.4, "z", 8);
   sign(root, 25, 35.3, LG + 2.6, 0.9, 0.45, textTex(["TAXI"], 256, 128), "+y"); cyl(root, 25, 35.35, LG + 1.2, 0.04, 2.4, "z", 8);
