@@ -196,8 +196,12 @@ function hall(root) {
   plane(root, [[R.x0, R.y0, e], [gx, R.y0, e], [gx, ry(D.gable.eave), D.gable.eave], [xv(rr), mid, rr], [R.x0 + hipIn, mid, rr]]);
   plane(root, [[R.x0, R.y1, e], [R.x0 + hipIn, mid, rr], [xv(rr), mid, rr], [gx, R.y1 - ry(D.gable.eave), D.gable.eave], [gx, R.y1, e]]);
   plane(root, [[R.x0, R.y0, e], [R.x0 + hipIn, mid, rr], [R.x0, R.y1, e]], M.roof, [0, 1, 0]);
-  box(root, R.x0, gx, R.y1 - 0.04, R.y1, e - 0.22, e);                                                  // back fascia
-  box(root, R.x0, gx, H.y1, R.y1, e - 0.22, e - 0.18);                                                   // back soffit closes the eave
+  // back eave: one continuous line along the whole back; under the cross gable it carries on as a short skirt roof
+  const xs1 = D.gable.x1 + (D.gable.eave - (e + (R.y1 - H.y1) * rpitch)) / gp;      // where the gable's long right slope comes down to the skirt
+  box(root, R.x0, xs1, R.y1 - 0.04, R.y1, e - 0.22, e);                                                  // back fascia
+  box(root, R.x0, xs1, H.y1, R.y1, e - 0.22, e - 0.18);                                                  // back soffit closes the eave
+  plane(root, [[gx, R.y1, e], [xs1, R.y1, e], [xs1, H.y1, e + (R.y1 - H.y1) * rpitch], [gx, H.y1, e + (R.y1 - H.y1) * rpitch]]);
+  elev(root, [[xs1 - 0.04, e - 0.22], [xs1, e - 0.22], [xs1, e + (R.y1 - H.y1) * rpitch], [xs1 - 0.04, e + (R.y1 - H.y1) * rpitch]], H.y1, R.y1);   // end board, tucked under the long slope
   box(root, R.x0, R.x0 + 0.04, R.y0, R.y1, e - 0.22, e); box(root, R.x0, H.x0, R.y0, R.y1, e - 0.22, e - 0.18);   // left eave
   // canopy roof from the fascia up to the wall line, hipped at both ends (page)
   const a = 0.6, top = H.eave;
@@ -312,8 +316,6 @@ function crossGable(root) {
   }
   for (const y of [y0, y1]) box(root, G.x0 - 0.12, G.x0 + 0.12, y - 0.12, y + 0.12, H.eave, G.eave);   // corner boards (page); the right ones sit under the long slope now
   box(root, D.tower.x1, G.x0, (y0 + y1) / 2, y1, H.eave, e0 - 0.03, M.siding);   // fills the slot between the tower and the gable at the back
-  box(root, D.tower.x1, G.x0 + 0.12, y1, D.roof.y1, H.eave - 0.22, e0 - 0.03, M.siding);   // and boxes in the back eave there, flush with its fascia
-  box(root, D.tower.x1 - 0.02, G.x0 + 0.14, y1, D.roof.y1 + 0.02, H.eave - 0.26, H.eave - 0.18);   // trim band at the bottom of the box
   // truss in the front gable: collar, king post with a drop, X braces (page)
   const yt = y0 - 0.12, zc = 9.32;           // collar just above the window hood (page)
   const wAt = (z) => (pk + 0.12 - 0.46 - z) / G.pitch - 0.05;      // half-width inside the bargeboards at height z
