@@ -628,7 +628,7 @@ export function buildScene(scene) {
   scene.add(new THREE.HemisphereLight(0xffffff, 0xdddddd, 2.3));
   const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(-50, 80, 90); scene.add(sun);
   const signRoot = new THREE.Group(); root.add(signRoot);
-  const finish = (font) => { entryGable(signRoot, font); wallUV(root); outline(root); };
+  const finish = (font) => { entryGable(signRoot, font); wallUV(root); outline(root); seams(root); };
   return new Promise((res) => new FontLoader().load(new URL("./helvetiker_bold.typeface.json", import.meta.url).href,
     (font) => { finish(font); res(root); }, undefined, () => { finish(null); res(root); }));
 }
@@ -642,4 +642,58 @@ function outline(root) {
     e.position.copy(o.position); e.rotation.copy(o.rotation); e.scale.copy(o.scale); add.push([o.parent, e]); o.userData.edged = true;
   });
   for (const [p, e] of add) p.add(e);
+}
+
+// ---------- seam lines: wherever two masses run into each other, draw the line where they meet ----------
+// For every pair of meshes whose boxes overlap, intersect their triangles and keep the segments where one
+// surface really passes through the other (faces that only touch or lie flat on each other are skipped).
+function seams(root) {
+  root.updateMatrixWorld(true);
+  const meshes = [];
+  root.traverse(o => {
+    if (!o.isMesh || o.userData.noEdge) return;
+    const g = o.geometry, pos = g.attributes.position, idx = g.index, n = idx ? idx.count : pos.count;
+    const t = new Float32Array(n * 3), v = new THREE.Vector3();
+    for (let i = 0; i < n; i++) { v.fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(o.matrixWorld); t[i * 3] = v.x; t[i * 3 + 1] = v.y; t[i * 3 + 2] = v.z; }
+    const bb = new THREE.Box3().setFromBufferAttribute(new THREE.BufferAttribute(t, 3));
+    meshes.push({ t, bb, n: n / 3 });
+  });
+  const out = [], E = 1e-4;
+  const P = (t, i, k) => [t[i * 9 + k * 3], t[i * 9 + k * 3 + 1], t[i * 9 + k * 3 + 2]];
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const tri = (t, i) => { const a = P(t, i, 0), b = P(t, i, 1), c = P(t, i, 2), nn = cross(sub(b, a), sub(c, a)), l = Math.hypot(...nn);
+    return l < 1e-9 ? null : { p: [a, b, c], n: [nn[0] / l, nn[1] / l, nn[2] / l], d: dot(nn, a) / l,
+      lo: [Math.min(a[0], b[0], c[0]), Math.min(a[1], b[1], c[1]), Math.min(a[2], b[2], c[2])], hi: [Math.max(a[0], b[0], c[0]), Math.max(a[1], b[1], c[1]), Math.max(a[2], b[2], c[2])] }; };
+  const cut = (T, N, D) => {        // where triangle T crosses plane (N, D); null unless it strictly passes through
+    const ds = T.p.map(q => dot(N, q) - D);
+    if (!(ds.some(x => x > E) && ds.some(x => x < -E))) return null;
+    const pts = [];
+    for (let k = 0; k < 3; k++) { const a = T.p[k], b = T.p[(k + 1) % 3], da = ds[k], db = ds[(k + 1) % 3];
+      if (Math.abs(da) <= E) pts.push(a); else if ((da > E && db < -E) || (da < -E && db > E)) { const f = da / (da - db); pts.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]); } }
+    return pts.length >= 2 ? [pts[0], pts[1]] : null;
+  };
+  const cache = new Map();
+  const tris = (m) => { if (!cache.has(m)) { const a = []; for (let i = 0; i < m.n; i++) { const T = tri(m.t, i); if (T) a.push(T); } cache.set(m, a); } return cache.get(m); };
+  for (let i = 0; i < meshes.length; i++) for (let j = i + 1; j < meshes.length; j++) {
+    const A = meshes[i], B = meshes[j];
+    if (!A.bb.intersectsBox(B.bb)) continue;
+    const ov = A.bb.clone().intersect(B.bb).expandByScalar(E);
+    const inBox = (T) => T.hi[0] >= ov.min.x && T.lo[0] <= ov.max.x && T.hi[1] >= ov.min.y && T.lo[1] <= ov.max.y && T.hi[2] >= ov.min.z && T.lo[2] <= ov.max.z;
+    const ta = tris(A).filter(inBox), tb = tris(B).filter(inBox);
+    for (const S of ta) for (const T of tb) {
+      if (S.hi[0] < T.lo[0] || S.lo[0] > T.hi[0] || S.hi[1] < T.lo[1] || S.lo[1] > T.hi[1] || S.hi[2] < T.lo[2] || S.lo[2] > T.hi[2]) continue;
+      const s1 = cut(S, T.n, T.d); if (!s1) continue;
+      const s2 = cut(T, S.n, S.d); if (!s2) continue;
+      const dir = cross(S.n, T.n), dl = Math.hypot(...dir); if (dl < 1e-6) continue;
+      const pr = (q) => dot(q, dir);
+      const a0 = Math.min(pr(s1[0]), pr(s1[1])), a1 = Math.max(pr(s1[0]), pr(s1[1])), b0 = Math.min(pr(s2[0]), pr(s2[1])), b1 = Math.max(pr(s2[0]), pr(s2[1]));
+      const lo = Math.max(a0, b0), hi = Math.min(a1, b1); if (hi - lo < 1e-3 * dl) continue;
+      const at = (x) => { const [p0, p1] = s1, q0 = pr(p0), q1 = pr(p1), f = (x - q0) / (q1 - q0 || 1); return [p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f, p0[2] + (p1[2] - p0[2]) * f]; };
+      out.push(...at(lo), ...at(hi));
+    }
+  }
+  if (!out.length) return;
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(out, 3));
+  const L = new THREE.LineSegments(g, M.line); L.matrixAutoUpdate = false; L.matrix.copy(root.matrixWorld).invert(); root.add(L);
 }
