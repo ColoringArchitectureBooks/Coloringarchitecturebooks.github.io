@@ -678,7 +678,7 @@ function site(root) {
   slab(root, [[EX0, 33.5], [SX0, 33.5], [SX0, SY1], [EX0, SY1]], g, LG); slab(root, [[SX1, 33.5], [EX1, 33.5], [EX1, SY1], [SX1, SY1]], g, LG);   // street beyond the site
   // platform 1 (the station floor runs on to y 9) with a notch at the far end for the crossing ramp
   const P2y0 = -16.9, P2y1 = -12.9, rx0 = 30.4, rx1 = P.x1;            // crossing ramps run 8.6 m (0.72 m drop at 1:12)
-  slab(root, [[P.x0, P.y0], [rx0, P.y0], [rx0, P.y0 + 2], [P.x1, P.y0 + 2], [P.x1, P.y1], [P.x0, P.y1]], g, 0);
+  slab(root, [[P.x0, P.y0], [rx0, P.y0], [rx0, P.y0 + 2], [P.x1, P.y0 + 2], [P.x1, P.y1], [35, P.y1], [35, 0.3], [33, 0.3], [33, P.y1], [-10, P.y1], [-10, 0.3], [-12, 0.3], [-12, P.y1], [P.x0, P.y1]], g, 0);   // walks cut through to the gates
   slab(root, [[P.x0, P2y0], [P.x1, P2y0], [P.x1, P2y1 - 2], [rx0, P2y1 - 2], [rx0, P2y1], [P.x0, P2y1]], g, 0);   // platform 2
   const j = [];
   for (let x = P.x0 + 3.33; x < rx0; x += 3.33) j.push([[x, P.y0 - 0.01, g], [x, P.y0 - 0.01, 0]], [[x, P2y1 + 0.01, g], [x, P2y1 + 0.01, 0]]);
@@ -733,20 +733,35 @@ function site(root) {
     rail(root, [[X(7.2), 12.55, LG], [X(3.6), 12.55, -0.3], [X(2.15), 12.55, -0.3], [X(2.15), 9.05, -0.3], [X(3.6), 9.05, -0.3], [X(7.2), 9.05, 0]]);
   }
   // ---- front walk, side walks to the street, pick-up shelter ----
-  slab(root, [[-12, 15.8], [35, 15.8], [35, 18], [-12, 18]], LG, LG + 0.15);
+  // walks, front walk and sidewalk read as one paved surface: no outline where two of them meet, only their outer kerbs
+  const W = LG + 0.15, K = [];
+  slab(root, [[-10, 15.8], [33, 15.8], [33, 18], [-10, 18]], LG, W).userData.noEdge = true;
+  for (const y of [15.8, 18]) K.push([[-10, y, W], [33, y, W]], [[-10, y, LG], [33, y, LG]]);
   for (const xw of [-12, 33]) {
-    side(root, [[0.3, g], [33.5, g], [33.5, LG + 0.15], [18, LG + 0.15], [9, 0], [0.3, 0]], xw, xw + 2);          // walk: level by the station, gentle slope, then flat
+    side(root, [[0.3, g], [33.5, g], [33.5, W], [15.8, W], [9, 0], [0.3, 0]], xw, xw + 2).userData.noEdge = true;   // level by the station, gentle slope, then flat
+    for (const xs of [xw, xw + 2]) {
+      const inner = (xw < 0) === (xs === xw + 2);
+      const top = [[xs, 9, 0], [xs, 15.8, W]]; if (!inner) top.push([xs, 18, W]);
+      for (let i = 0; i < top.length - 1; i++) K.push([top[i], top[i + 1]]);
+      K.push([[xs, 18, W], [xs, 33.5, W]], [[xs, 9, LG], [xs, inner ? 15.8 : 18, LG]], [[xs, 18, LG], [xs, 33.5, LG]]);
+    }
   }
   // ---- car park: one rectangle, one-way aisle; drop-off and accessible bays opposite the steps ----
-  slab(root, [[-10, 18], [33, 18], [33, 33], [-10, 33]], LG, LG + 0.02);
-  slab(root, [[-10, 33], [-5, 33], [-5, 35.5], [-10, 35.5]], LG, LG + 0.02); slab(root, [[28, 33], [33, 33], [33, 35.5], [28, 35.5]], LG, LG + 0.02);
+  slab(root, [[-10, 18], [33, 18], [33, 35.5], [28, 35.5], [28, 33], [-5, 33], [-5, 35.5], [-10, 35.5]], LG, LG + 0.02);   // lot and its two lanes in one piece
   { const z = LG + 0.025, L = [];
     for (let x = -10; x <= 33.01; x += 2.5) { L.push([[x, 18, z], [x, 22.5, z]]); if (!(x > -10 && x < -5) && !(x > 28 && x < 33)) L.push([[x, 28.5, z], [x, 33, z]]); }
     L.push([[-10, 22.5, z], [33, 22.5, z]], [[-10, 28.5, z], [-5, 28.5, z]], [[-5, 28.5, z], [28, 28.5, z]], [[28, 28.5, z], [33, 28.5, z]]);
     lines(root, L); }
   // ---- hedge, sidewalk, street with the bus + taxi lay-by and its shelter ----
   for (const [a, b] of [[-18, -12], [-5, 28], [35, 42]]) box(root, a, b, 32.9, 33.5, LG, LG + 1.0);
-  for (const [a, b] of [[EX0, -10], [-5, 28], [33, EX1]]) slab(root, [[a, 33.5], [b, 33.5], [b, 35.5], [a, 35.5]], LG, LG + 0.15);
+  for (const [a, b] of [[EX0, -10], [-5, 28], [33, EX1]]) {
+    slab(root, [[a, 33.5], [b, 33.5], [b, 35.5], [a, 35.5]], LG, W).userData.noEdge = true;
+    K.push([[a, 35.5, W], [b, 35.5, W]], [[a, 35.5, LG], [b, 35.5, LG]]);
+    const ia = a === EX0 ? EX0 : a === 33 ? 35 : a, ib = b === -10 ? -12 : b;            // inner edge, open where a walk joins
+    K.push([[ia, 33.5, W], [ib, 33.5, W]]);
+    for (const e of [a, b]) K.push([[e, 33.5, W], [e, 35.5, W]], [[e, 33.5, LG], [e, 35.5, LG]], [[e, 35.5, LG], [e, 35.5, W]], [[e, 33.5, LG], [e, 33.5, W]]);
+  }
+  lines(root, K);
   { const z = LG + 0.005, L = []; for (let x = EX0 + 1; x < EX1 - 1; x += 6) L.push([[x, 40, z], [x + 3, 40, z]]);
     lines(root, L); }
   shelter(root, 15.5, 19.5, 33.9, 35.3, LG + 0.15);
