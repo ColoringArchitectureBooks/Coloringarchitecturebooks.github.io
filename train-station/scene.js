@@ -729,7 +729,6 @@ function site(root) {
     rail(root, [[X(7.2), 11.15, LG], [X(3.6), 11.15, -0.3]]); rail(root, [[X(3.6), 10.45, -0.3], [X(7.2), 10.45, 0]]);
     rail(root, [[X(7.2), 12.55, LG], [X(3.6), 12.55, -0.3], [X(2.15), 12.55, -0.3], [X(2.15), 9.05, -0.3], [X(3.6), 9.05, -0.3], [X(7.2), 9.05, 0]]);
   }
-  for (const x of [8.0, 15.0]) lampPost(lvl(root, LG), x, 14.6);
   // ---- front walk, side walks to the street, pick-up shelter ----
   slab(root, [[-12, 15.8], [35, 15.8], [35, 18], [-12, 18]], LG, LG + 0.15);
   for (const xw of [-12, 33]) {
@@ -741,8 +740,6 @@ function site(root) {
   { const z = LG + 0.025, L = [];
     for (let x = -10; x <= 33.01; x += 2.5) { L.push([[x, 18, z], [x, 22.5, z]]); if (!(x > -10 && x < -5) && !(x > 28 && x < 33)) L.push([[x, 28.5, z], [x, 33, z]]); }
     L.push([[-10, 22.5, z], [33, 22.5, z]], [[-10, 28.5, z], [-5, 28.5, z]], [[-5, 28.5, z], [28, 28.5, z]], [[28, 28.5, z], [33, 28.5, z]]);
-    for (const [a, b] of [[9, 14], [30.5, 33]]) for (let k = 0; k < 5; k++) L.push([[a, 18 + k * 0.9, z], [b, 18.9 + k * 0.9, z]]);   // hatched drop-off + ambulance bays
-    for (const x0 of [6, 14]) L.push([[x0 + 0.6, 19.4, z], [x0 + 2.4, 19.4, z]], [[x0 + 1.5, 19.4, z], [x0 + 1.5, 21, z]]);           // accessible bay marks
     lines(root, L); }
   // ---- hedge, sidewalk, street with the bus + taxi lay-by and its shelter ----
   for (const [a, b] of [[-18, -12], [-5, 28], [35, 42]]) box(root, a, b, 32.9, 33.5, LG, LG + 1.0);
@@ -761,7 +758,7 @@ function site(root) {
 export function buildScene(scene) {
   mats();
   const root = new THREE.Group();
-  hall(root); tower(root); crossGable(root); dormer(root); front(root); lampPost(root, 24.6, -2.2); train(root); site(root);
+  hall(root); tower(root); crossGable(root); dormer(root); front(root); train(root); site(root);
   scene.add(root);
   scene.add(new THREE.HemisphereLight(0xffffff, 0xdddddd, 2.3));
   const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(-50, 80, 90); scene.add(sun);
