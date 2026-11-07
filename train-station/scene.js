@@ -734,8 +734,7 @@ function site(root) {
     box(root, ta, tb, 9.0, 12.6, g, -0.3);                                                                          // turning landing
     ramp(root, X(3.6), X(7.2), 9.0, 10.5, -0.3, 0);                                                                 // run 2: back toward the steps
     box(root, la, lb, 9.0, 10.5, g, 0);                                                                             // level landing beside the top step
-    box(root, Math.min(X(3.6), X(8.7)), Math.max(X(3.6), X(8.7)), 10.5, 11.1, g, 0);                                // kerb between the runs
-    rail(root, [[X(7.2), 11.15, LG], [X(3.6), 11.15, -0.3]]); rail(root, [[X(3.6), 10.45, -0.3], [X(7.2), 10.45, 0]]);
+    rail(root, [[X(7.2), 11.15, LG], [X(3.6), 11.15, -0.3]]); rail(root, [[X(3.6), 10.45, -0.3], [X(7.2), 10.45, 0], [X(8.65), 10.45, 0], [X(8.65), 9.05, 0]]);   // on round the top landing, down its side by the steps
     rail(root, [[X(7.2), 12.55, LG], [X(3.6), 12.55, -0.3], [X(2.15), 12.55, -0.3], [X(2.15), 9.05, -0.3], [X(3.6), 9.05, -0.3], [X(7.2), 9.05, 0]]);
   }
   // ---- front walk, side walks to the street, pick-up shelter ----
