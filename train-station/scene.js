@@ -674,11 +674,17 @@ function site(root) {
   const SX0 = -18, SX1 = 42, SY1 = 44.5, EX0 = -58, EX1 = 82;   // track and street run 40 m past the site each way (where marked)
   flat(root, [[EX0, -13.4], [EX1, -13.4], [EX1, -4.8], [EX0, -4.8]], g - 0.02);   // track bed beyond the site
   flat(root, [[SX0, -17.9], [SX1, -17.9], [SX1, SY1], [SX0, SY1]], g - 0.02);
-  slab(root, [[SX0, 0.3], [SX1, 0.3], [SX1, SY1], [SX0, SY1]], g, LG);
-  slab(root, [[EX0, 33.5], [SX0, 33.5], [SX0, SY1], [EX0, SY1]], g, LG); slab(root, [[SX1, 33.5], [EX1, 33.5], [EX1, SY1], [SX1, SY1]], g, LG);   // street beyond the site
+  slab(root, [[SX0, 0.3], [SX1, 0.3], [SX1, 33.5], [EX1, 33.5], [EX1, SY1], [EX0, SY1], [EX0, 33.5], [SX0, 33.5]], g, LG);   // site + the street running on, one piece
   // platform 1 (the station floor runs on to y 9) with a notch at the far end for the crossing ramp
   const P2y0 = -16.9, P2y1 = -12.9, rx0 = 30.4, rx1 = P.x1;            // crossing ramps run 8.6 m (0.72 m drop at 1:12)
-  slab(root, [[P.x0, P.y0], [rx0, P.y0], [rx0, P.y0 + 2], [P.x1, P.y0 + 2], [P.x1, P.y1], [35, P.y1], [35, 0.3], [33, 0.3], [33, P.y1], [-10, P.y1], [-10, 0.3], [-12, 0.3], [-12, P.y1], [P.x0, P.y1]], g, 0);   // walks cut through to the gates
+  { const pp = [[P.x0, P.y0], [rx0, P.y0], [rx0, P.y0 + 2], [P.x1, P.y0 + 2], [P.x1, P.y1], [P.x0, P.y1]];
+    slab(root, pp, g, 0).userData.noEdge = true;                       // own outline: the back edge stays open where the two walks leave it
+    const E = [];
+    for (let i = 0; i < pp.length; i++) { const a = pp[i], b = pp[(i + 1) % pp.length];
+      if (a[1] === P.y1 && b[1] === P.y1) { for (const [u, v] of [[P.x1, 35], [33, -10], [-12, P.x0]]) E.push([[u, P.y1, 0], [v, P.y1, 0]], [[u, P.y1, LG], [v, P.y1, LG]]); }
+      else E.push([[...a, 0], [...b, 0]], [[...a, g], [...b, g]]);
+      E.push([[...a, g], [...a, 0]]); }
+    lines(root, E); }
   slab(root, [[P.x0, P2y0], [P.x1, P2y0], [P.x1, P2y1 - 2], [rx0, P2y1 - 2], [rx0, P2y1], [P.x0, P2y1]], g, 0);   // platform 2
   const j = [];
   for (let x = P.x0 + 3.33; x < rx0; x += 3.33) j.push([[x, P.y0 - 0.01, g], [x, P.y0 - 0.01, 0]], [[x, P2y1 + 0.01, g], [x, P2y1 + 0.01, 0]]);
@@ -738,7 +744,7 @@ function site(root) {
   slab(root, [[-10, 15.8], [33, 15.8], [33, 18], [-10, 18]], LG, W).userData.noEdge = true;
   for (const y of [15.8, 18]) K.push([[-10, y, W], [33, y, W]], [[-10, y, LG], [33, y, LG]]);
   for (const xw of [-12, 33]) {
-    side(root, [[0.3, g], [33.5, g], [33.5, W], [15.8, W], [9, 0], [0.3, 0]], xw, xw + 2).userData.noEdge = true;   // level by the station, gentle slope, then flat
+    side(root, [[8.95, g], [33.5, g], [33.5, W], [15.8, W], [9, 0], [8.95, 0]], xw, xw + 2).userData.noEdge = true;   // level by the station, gentle slope, then flat
     for (const xs of [xw, xw + 2]) {
       const inner = (xw < 0) === (xs === xw + 2);
       const top = [[xs, 9, 0], [xs, 15.8, W]]; if (!inner) top.push([xs, 18, W]);
@@ -747,8 +753,8 @@ function site(root) {
     }
   }
   // ---- car park: one rectangle, one-way aisle; drop-off and accessible bays opposite the steps ----
-  slab(root, [[-10, 18], [33, 18], [33, 35.5], [28, 35.5], [28, 33], [-5, 33], [-5, 35.5], [-10, 35.5]], LG, LG + 0.02);   // lot and its two lanes in one piece
-  { const z = LG + 0.025, L = [];
+  slab(root, [[-10, 18], [33, 18], [33, 35.5], [28, 35.5], [28, 33], [-5, 33], [-5, 35.5], [-10, 35.5]], LG, LG + 0.004).userData.noEdge = true;   // flush with the street   // lot and its two lanes in one piece
+  { const z = LG + 0.008, L = [];
     for (let x = -10; x <= 33.01; x += 2.5) { L.push([[x, 18, z], [x, 22.5, z]]); if (!(x > -10 && x < -5) && !(x > 28 && x < 33)) L.push([[x, 28.5, z], [x, 33, z]]); }
     L.push([[-10, 22.5, z], [33, 22.5, z]], [[-10, 28.5, z], [-5, 28.5, z]], [[-5, 28.5, z], [28, 28.5, z]], [[28, 28.5, z], [33, 28.5, z]]);
     lines(root, L); }
