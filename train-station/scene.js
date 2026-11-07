@@ -650,6 +650,16 @@ function railFence(root, pts, z = 0) {              // simple post-and-two-rail 
     for (let k = 0; k <= n; k++) { const t = k / n; box(G, a[0] + (b[0] - a[0]) * t - 0.06, a[0] + (b[0] - a[0]) * t + 0.06, a[1] + (b[1] - a[1]) * t - 0.06, a[1] + (b[1] - a[1]) * t + 0.06, 0, 1.15); }
   }
 }
+function gate(root, x0, x1, y, open = 0.6) {        // a pair of picket gate leaves hung on the fence posts, swung toward the landside
+  const w = (x1 - x0) / 2 - 0.04;
+  for (const [hx, dir] of [[x0 + 0.02, 1], [x1 - 0.02, -1]]) {
+    const G = new THREE.Group(); G.position.copy(V(hx, y, 0)); G.rotation.y = dir * open; root.add(G);
+    const X = (u) => dir * u;
+    const bx = (u0, u1, z0, z1) => box(G, Math.min(X(u0), X(u1)), Math.max(X(u0), X(u1)), -0.04, 0.04, z0, z1);
+    bx(0.04, w, 0.3, 0.4); bx(0.04, w, 0.9, 1.0); bx(0, 0.07, 0, 1.25); bx(w - 0.07, w, 0, 1.25);       // rails and stiles
+    for (let u = 0.14; u < w - 0.1; u += 0.2) elev(G, [[X(u), 0.08], [X(u + 0.1), 0.08], [X(u + 0.1), 1.12], [X(u + 0.05), 1.24], [X(u), 1.12]], -0.03, 0.03);
+  }
+}
 function railing(root, pts, z = 0, h = 1.0) {      // thin see-through metal railing: slim posts every 2 m, three round bars
   const G = lvl(root, z);
   for (let i = 0; i < pts.length - 1; i++) {
@@ -715,14 +725,16 @@ function site(root) {
   railFence(root, [[26, P.y0 + 0.15], [rx0, P.y0 + 0.15]]); railFence(root, [[26, P2y1 - 0.15], [rx0, P2y1 - 0.15]]);   // edge fences near the end
   railing(root, [[P.x0 + 0.1, P2y1 - 0.4], [P.x0 + 0.1, P2y0 + 0.1], [SX1 - 0.1, P2y0 + 0.1], [SX1 - 0.1, P2y1 - 2.05], [P.x1, P2y1 - 2.05]]);   // back, both ends, and the drop to the walkway
   railing(root, [[P.x1, P.y0 + 2.05], [SX1 - 0.1, P.y0 + 2.05], [SX1 - 0.1, H.y0 + 0.05]]);   // platform 1: drop to the walkway, then the site edge up to the fence
-  for (const x of [0, 6, 12, 18, 24]) { box(root, x + 0.8, x + 2.8, P2y0 + 0.6, P2y0 + 1.1, 0.42, 0.47); for (const xl of [x + 0.9, x + 2.64]) box(root, xl, xl + 0.06, P2y0 + 0.6, P2y0 + 1.1, 0, 0.42); }   // benches on platform 2
+  for (const x of [-18, -12, -6, 0, 6, 12, 18, 24]) { box(root, x + 0.8, x + 2.8, P2y0 + 0.6, P2y0 + 1.1, 0.42, 0.47); for (const xl of [x + 0.9, x + 2.64]) box(root, xl, xl + 0.06, P2y0 + 0.6, P2y0 + 1.1, 0, 0.42); }   // benches on platform 2
   // ---- platform fence (page picket) with the two walk gates ----
   for (const [a, b] of [[P.x0, -12], [-10, H.x0 - 0.1], [H.x1 + 0.1, 33], [35, SX1]]) picket(root, a, b, H.y0 + 0.05);
+  for (const xg of [-12, 33]) gate(root, xg, xg + 2, H.y0 + 0.05, 0.6);                                           // picket gates on the two walks, standing a little open
   // ---- entrance: 4 steps down to the court, folded ramps either side ----
   const sx0 = 8.7, sx1 = 14.3;
   for (let k = 1; k <= 3; k++) box(root, sx0, sx1, 9 + (k - 1) * 0.6, 9 + k * 0.6, g, -0.15 * k);
-  slab(root, [[1.5, 10.8], [21.5, 10.8], [21.5, 15.8], [1.5, 15.8]], LG, LG + 0.03);                                // court paving
-  { const L = []; for (let x = 2.5; x < 21.5; x += 1) L.push([[x, 10.8, LG + 0.035], [x, 15.8, LG + 0.035]]); for (let y = 11.8; y < 15.8; y += 1) L.push([[1.5, y, LG + 0.035], [21.5, y, LG + 0.035]]); lines(root, L); }
+  slab(root, [[1.6, 9], [21.4, 9], [21.4, 15.8], [1.6, 15.8]], LG, LG + 0.03);                                    // court paving: runs past the ramp ends and back to the platform edge
+  { const pts = []; for (let y = 10; y < 15.8; y += 1) pts.push(V(1.6, y, LG + 0.035), V(21.4, y, LG + 0.035));      // light grey courses, one direction only
+    root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xa8a8a8 }))); }
   for (const sd of [1, -1]) {
     const X = (x) => sd > 0 ? x : 2 * 11.5 - x, Bx = (a, b) => [Math.min(X(a), X(b)), Math.max(X(a), X(b))];
     const [a1, b1] = Bx(3.6, 7.2), [ta, tb] = Bx(2.1, 3.6), [la, lb] = Bx(7.2, 8.7);
@@ -737,20 +749,20 @@ function site(root) {
   // walks, front walk and sidewalk read as one paved surface: no outline where two of them meet, only their outer kerbs
   const W = LG + 0.15, K = [];
   slab(root, [[-10, 15.8], [33, 15.8], [33, 18], [-10, 18]], LG, W).userData.noEdge = true;
-  for (const y of [15.8, 18]) K.push([[-10, y, W], [33, y, W]], [[-10, y, LG], [33, y, LG]]);
+  for (const y of [15.8, 18]) K.push([[-10, y, W], [33, y, W]]);                                   // one line per kerb
   for (const xw of [-12, 33]) {
     side(root, [[8.95, g], [33.5, g], [33.5, W], [15.8, W], [9, 0], [8.95, 0]], xw, xw + 2).userData.noEdge = true;   // level by the station, gentle slope, then flat
     for (const xs of [xw, xw + 2]) {
       const inner = (xw < 0) === (xs === xw + 2);
       const top = [[xs, 9, 0], [xs, 15.8, W]]; if (!inner) top.push([xs, 18, W]);
       for (let i = 0; i < top.length - 1; i++) K.push([top[i], top[i + 1]]);
-      K.push([[xs, 18, W], [xs, 33.5, W]], [[xs, 9, LG], [xs, inner ? 15.8 : 18, LG]], [[xs, 18, LG], [xs, 33.5, LG]]);
+      K.push([[xs, 18, W], [xs, 33.5, W]]);
     }
   }
   // ---- car park: one rectangle, one-way aisle; drop-off and accessible bays opposite the steps ----
   slab(root, [[-10, 18], [33, 18], [33, 35.5], [28, 35.5], [28, 33], [-5, 33], [-5, 35.5], [-10, 35.5]], LG, LG + 0.004).userData.noEdge = true;   // flush with the street   // lot and its two lanes in one piece
   { const z = LG + 0.008, L = [];
-    for (let x = -10; x <= 33.01; x += 2.5) { L.push([[x, 18, z], [x, 22.5, z]]); if (!(x > -10 && x < -5) && !(x > 28 && x < 33)) L.push([[x, 28.5, z], [x, 33, z]]); }
+    for (let x = -7.5; x <= 30.51; x += 2.5) { L.push([[x, 18, z], [x, 22.5, z]]); if (!(x > -10 && x < -5) && !(x > 28 && x < 33)) L.push([[x, 28.5, z], [x, 33, z]]); }
     L.push([[-10, 22.5, z], [33, 22.5, z]], [[-10, 28.5, z], [-5, 28.5, z]], [[-5, 28.5, z], [28, 28.5, z]], [[28, 28.5, z], [33, 28.5, z]]);
     lines(root, L); }
   // ---- hedge, sidewalk, street with the bus + taxi lay-by and its shelter ----
@@ -770,7 +782,7 @@ function site(root) {
   sign(root, 25, 35.3, LG + 2.6, 0.9, 0.45, textTex(["TAXI"], 256, 128), "+y"); cyl(root, 25, 35.35, LG + 1.2, 0.04, 2.4, "z", 8);
   // ---- trees: an orchard either side, two by the court ----
   for (const x of [-17.0, -15.1, -13.2, 36.5, 38.6, 40.7]) for (const y of [11.0, 16.6, 22.2, 27.8]) tree(root, x, y, 0.95);
-  for (const x of [27.0, -4.0]) tree(root, x, 14.3, 1.0);
+  for (const [x, y] of [[-4.0, 14.3], [-7.0, 11.6], [-1.2, 11.4], [27.0, 14.3], [24.4, 11.5], [29.6, 11.8]]) tree(root, x, y, 1.0);   // lawns either side of the entrance
 }
 
 // builds everything; resolves when the 3D letters are in
