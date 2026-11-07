@@ -859,8 +859,8 @@ const forehand = (f, dt) => {   // dt: seconds from this player's hit (negative 
     const x = xf + dx * (k + 0.55) + (rng() - 0.5) * 0.15, z = 0.7 * (k + 1);
     if (k < n && rng() < 0.03 && fans.length < 16) { fans.push([x, y + (rng() - 0.5) * 0.2, z, face]); continue; }
     seat(x, y + (rng() - 0.5) * 0.2, z, face); } };
-  fill(TX - 50, -1.85, 7, TY - 40, TY + 40, 1, 0.5);
-  fill(TX + 50, 1.5, 4, TY - 25, TY + 25, -1, 0.35);
+  fill(TX - 50, -1.85, 7, TY - 40, TY + 40, 1, 0.26);
+  fill(TX + 50, 1.5, 4, TY - 25, TY + 25, -1, 0.2);
   const crowd = mergeGeometries(parts); root.add(new THREE.Mesh(crowd, M.wall)); root.add(new THREE.LineSegments(new THREE.EdgesGeometry(crowd, 30), M.line));
   // the few animated fans: jump with both arms up for a moment after each catch
   const T = 11; fans.forEach(([x, y, z, face], j) => { const f = figure(null, 0.8 + 0.25 * rng()), dl = rng() * 0.05;
