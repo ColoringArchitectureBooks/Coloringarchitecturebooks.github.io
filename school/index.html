@@ -369,6 +369,24 @@ function entranceFacade() {
     furn.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.05), 40, 0.045, 6).toNonIndexed()); };
   bench(EY0 + 27.9);
   for (let i = 0; i < 8; i++) hoop(EY0 + 30.6 + i * 0.85);   // eight hoops in one even row
+  // bikes parked along five of the hoops, leaning on the near side: a line drawing (wheels, spokes, frame, bars, cranks) with a solid saddle
+  const bikeL = [];
+  const bike = (hy, dir) => { const cx = EX + 1.15, side = hy + 0.14;
+    const P = (lx, ly, lz) => new THREE.Vector3(cx - dir * lx, G0 + ly, -(side + lz));
+    const seg = (a, b) => bikeL.push(P(...a), P(...b));
+    const circ = (x, y, z, r, n) => { for (let k = 0; k < n; k++) { const a0 = k / n * 6.2832, a1 = (k + 1) / n * 6.2832; seg([x + r * Math.cos(a0), y + r * Math.sin(a0), z], [x + r * Math.cos(a1), y + r * Math.sin(a1), z]); } };
+    const R = 0.34, RA = [-0.52, R], FA = [0.53, R], BB = [-0.05, 0.3], ST = [-0.2, 0.84], HT = [0.38, 0.86], HB = [0.42, 0.7];
+    for (const [x, y] of [RA, FA]) { circ(x, y, 0, R, 28); circ(x, y, 0, R - 0.035, 28); circ(x, y, 0, 0.03, 8);
+      for (let k = 0; k < 12; k++) { const a = k / 12 * 6.2832 + (x > 0 ? 0.13 : 0); seg([x, y, (k % 2 ? 0.025 : -0.025)], [x + (R - 0.035) * Math.cos(a), y + (R - 0.035) * Math.sin(a), 0]); } }
+    seg([...ST, 0], [...HT, 0]); seg([...BB, 0], [...HB, 0]); seg([...BB, 0], [...ST, 0]); seg([...HB, 0], [...HT, 0]);   // the frame
+    for (const z of [-0.05, 0.05]) { seg([...BB, 0], [...RA, z]); seg([...ST, 0], [...RA, z]); seg([...HB, 0], [...FA, z]); }   // stays and fork
+    seg([...HT, 0], [0.36, 0.98, 0]); seg([0.36, 0.98, -0.28], [0.36, 0.98, 0.28]); seg([0.36, 0.98, -0.28], [0.3, 0.96, -0.3]); seg([0.36, 0.98, 0.28], [0.3, 0.96, 0.3]);   // stem and bars
+    seg([...ST, 0], [-0.23, 0.95, 0]);                                                    // seat post
+    circ(BB[0], BB[1], 0.06, 0.09, 12); seg([BB[0], BB[1], 0.06], [BB[0] - 0.16, BB[1] - 0.06, 0.08]); seg([BB[0], BB[1], -0.06], [BB[0] + 0.16, BB[1] + 0.06, -0.08]);   // chainring, cranks
+    seg([BB[0] - 0.16, BB[1] - 0.06, 0.08], [BB[0] - 0.16, BB[1] - 0.06, 0.17]); seg([BB[0] + 0.16, BB[1] + 0.06, -0.08], [BB[0] + 0.16, BB[1] + 0.06, -0.17]);   // pedals
+    { const c = P(-0.23, 0.985, 0); fb(c.x - 0.13, c.x + 0.13, -c.z - 0.065, -c.z + 0.065, c.y - 0.03, c.y + 0.03); } };   // saddle
+  [[0, 1], [1, -1], [3, 1], [4, 1], [6, -1]].forEach(([i, d]) => bike(EY0 + 30.6 + i * 0.85, d));
+  root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(bikeL), M.line));
   bench(EY0 + 40.0);
   { const fg = mergeGeometries(furn), fm = new THREE.Mesh(fg, M.wall); root.add(fm); root.add(new THREE.LineSegments(new THREE.EdgesGeometry(fg, 35), M.line)); }
   // SCHOOL in raised 3D letters on the siding panel
