@@ -625,42 +625,57 @@ function tree(root, x, y, r = 1.0) {               // trunk + round crown, stand
   const g = lvl(root, LG); cyl(g, x, y, 0.9, 0.13, 1.8, "z", 10, M.white, 0.1);
   ball(g, x, y, 2.6, r * 1.15); ball(g, x - r * 0.55, y + r * 0.2, 2.2, r * 0.75); ball(g, x + r * 0.5, y - r * 0.25, 2.25, r * 0.7);
 }
-function car(root, cx, cy, d = 1) {                 // parked sedan, nose toward +y when d = 1: wheel arches, glasshouse, doors, lights, bumpers
-  const G = new THREE.Group(); G.position.copy(V(cx, cy, LG)); G.rotation.y = d > 0 ? 0 : Math.PI; G.scale.z = 0.92; root.add(G);
+// parked cars at US sizes: sedan ~ Camry 4.85 x 1.84 x 1.44, hatchback ~ Civic hatch 4.45 x 1.80 x 1.45, SUV ~ RAV4 4.65 x 1.86 x 1.72
+const CARS = {
+  sedan: { hl: 2.33, wf: 1.45, wr: -1.42, r: 0.33, sill: 0.28, belt: 0.9, roof: 1.44, cf: 0.92, rf: 0.05, rr: -0.95, cb: -1.72, deck: true, w: 0.92 },
+  hatch: { hl: 2.13, wf: 1.33, wr: -1.33, r: 0.32, sill: 0.28, belt: 0.9, roof: 1.45, cf: 0.85, rf: 0.02, rr: -1.55, cb: -2.02, deck: false, w: 0.9 },
+  suv:   { hl: 2.25, wf: 1.38, wr: -1.38, r: 0.37, sill: 0.42, belt: 1.08, roof: 1.72, cf: 1.0, rf: 0.3, rr: -1.85, cb: -2.12, deck: false, w: 0.93 },
+};
+function car(root, cx, cy, d = 1, kind = "sedan") {   // nose toward +y when d = 1: wheel arches, glasshouse, doors, lamps, bumpers, wheels with rims
+  const C = CARS[kind], { hl, wf, wr, r, sill, belt, roof, cf, rf, rr, cb, w } = C, ra = r + 0.07;
+  const G = new THREE.Group(); G.position.copy(V(cx, cy, LG)); G.rotation.y = d > 0 ? 0 : Math.PI; root.add(G);
   const S = (f) => { const s = new THREE.Shape(); f(s); return s; };
-  // lower body in side view (o forward, h up), with the two wheel arches cut into the sill
-  sideShape(G, S((s) => { s.moveTo(-2.2, 0.28); s.lineTo(-1.8, 0.28); s.absarc(-1.4, 0.32, 0.4, Math.PI, 0, true); s.lineTo(0.95, 0.28);
-    s.absarc(1.35, 0.32, 0.4, Math.PI, 0, true); s.lineTo(2.15, 0.28); s.quadraticCurveTo(2.3, 0.3, 2.28, 0.55); s.quadraticCurveTo(2.26, 0.78, 2.0, 0.8);
-    s.lineTo(0.85, 0.9); s.lineTo(-1.6, 0.92); s.lineTo(-2.1, 0.9); s.quadraticCurveTo(-2.3, 0.85, -2.28, 0.55); s.quadraticCurveTo(-2.27, 0.3, -2.2, 0.28); }), -0.88, 0.88);
-  // cabin, a little narrower than the body
-  sideShape(G, S((s) => { s.moveTo(-1.65, 0.88); s.lineTo(0.9, 0.88); s.quadraticCurveTo(0.35, 1.3, 0.05, 1.38); s.lineTo(-0.85, 1.4); s.quadraticCurveTo(-1.25, 1.35, -1.65, 0.88); }), -0.74, 0.74);
-  for (const xs of [-0.755, 0.745]) {                                                         // side glass, front and rear, either side of the B-pillar
-    side(G, [[0.66, 0.96], [0.1, 1.31], [-0.3, 1.33], [-0.3, 0.96]], xs, xs + 0.01);
-    side(G, [[-0.42, 0.96], [-0.42, 1.33], [-0.82, 1.33], [-1.4, 0.97]], xs, xs + 0.01);
+  sideShape(G, S((s) => {                                                         // lower body in side view, the two wheel arches cut into the sill
+    s.moveTo(-hl + 0.12, sill); s.lineTo(wr - ra, sill); s.absarc(wr, r, ra, Math.PI, 0, true); s.lineTo(wf - ra, sill); s.absarc(wf, r, ra, Math.PI, 0, true);
+    s.lineTo(hl - 0.12, sill); s.quadraticCurveTo(hl + 0.02, sill + 0.02, hl, sill + 0.27); s.quadraticCurveTo(hl - 0.02, belt - 0.12, hl - 0.28, belt - 0.1);
+    s.lineTo(cf - 0.05, belt); s.lineTo(cb, belt + 0.02);
+    if (C.deck) { s.lineTo(-hl + 0.18, belt); s.quadraticCurveTo(-hl - 0.02, belt - 0.05, -hl, sill + 0.27); }
+    else s.quadraticCurveTo(-hl + 0.02, belt - 0.02, -hl, sill + 0.27);
+    s.quadraticCurveTo(-hl + 0.01, sill + 0.02, -hl + 0.12, sill); }), -w, w);
+  const cw = w - 0.15, cc0 = [cf - (cf - rf) * 0.75, belt + (roof - belt) * 0.85], cc1 = C.deck ? [rr - (rr - cb) * 0.5, roof - 0.05] : [cb + 0.06, roof - 0.12];
+  sideShape(G, S((s) => { s.moveTo(cb, belt - 0.02); s.lineTo(cf, belt - 0.02); s.quadraticCurveTo(...cc0, rf, roof); s.lineTo(rr, roof); s.quadraticCurveTo(...cc1, cb, belt - 0.02); }), -cw, cw);
+  const bp = (rf + rr) / 2 + 0.12, gb = belt + 0.07, gt = roof - 0.08;
+  for (const xs of [-cw - 0.012, cw + 0.002]) {                                    // side glass: front and rear doors, and the quarter light on the longer roofs
+    side(G, [[cf - 0.22, gb], [rf + 0.06, gt], [bp, gt], [bp, gb]], xs, xs + 0.01);
+    if (C.deck) side(G, [[bp - 0.12, gb], [bp - 0.12, gt], [rr + 0.02, gt], [cb + 0.3, gb]], xs, xs + 0.01);
+    else { const bc = wr + 0.1; side(G, [[bp - 0.12, gb], [bp - 0.12, gt], [bc, gt], [bc, gb]], xs, xs + 0.01);
+      side(G, [[bc - 0.1, gb], [bc - 0.1, gt], [rr + 0.04, gt], [cb + 0.16, gb]], xs, xs + 0.01); }
   }
-  const Ln = [];
-  for (const xs of [-0.885, 0.885]) {
-    Ln.push([[xs, 0.85, 0.42], [xs, 0.85, 0.89]], [[xs, -0.36, 0.3], [xs, -0.36, 0.91]], [[xs, -1.5, 0.48], [xs, -1.5, 0.92]], [[xs, 2.0, 0.6], [xs, 0.86, 0.6]], [[xs, -1.6, 0.6], [xs, -2.2, 0.6]]);   // door shuts, crease
-    box(G, xs - 0.01, xs + 0.01, 0.02, 0.2, 0.77, 0.81); box(G, xs - 0.01, xs + 0.01, -1.08, -0.9, 0.77, 0.81);   // door handles
-    box(G, Math.sign(xs) * 0.74, Math.sign(xs) * 0.96, 0.58, 0.74, 0.92, 1.03);                                      // mirrors
-    for (const o of [-1.4, 1.35]) { const xw = Math.sign(xs) * 0.79;
-      cyl(G, xw, o, 0.32, 0.32, 0.2, "x", 24); cyl(G, Math.sign(xs) * 0.81, o, 0.32, 0.2, 0.2, "x", 20); cyl(G, Math.sign(xs) * 0.82, o, 0.32, 0.06, 0.2, "x", 10); }   // tyre, rim, hub
+  const Ln = [], dR = C.deck ? cb + 0.22 : wr + 0.12, at = r + ra + 0.04;
+  for (const xs of [-w - 0.005, w + 0.005]) {
+    const sg = Math.sign(xs);
+    Ln.push([[xs, cf - 0.05, at], [xs, cf - 0.05, belt - 0.01]], [[xs, bp - 0.06, sill], [xs, bp - 0.06, belt + 0.01]], [[xs, dR, at], [xs, dR, belt + 0.01]],   // door shuts
+      [[xs, hl - 0.3, belt - 0.28], [xs, -hl + 0.25, belt - 0.28]]);                                                                                               // shoulder crease
+    box(G, xs - 0.01, xs + 0.01, cf - 0.75, cf - 0.57, belt - 0.12, belt - 0.08); box(G, xs - 0.01, xs + 0.01, bp - 0.65, bp - 0.47, belt - 0.12, belt - 0.08);   // handles
+    box(G, sg * (cw - 0.02), sg * (w + 0.1), cf - 0.3, cf - 0.14, belt + 0.02, belt + 0.13);                                                                     // mirror
+    for (const o of [wr, wf]) { cyl(G, sg * (w - 0.1), o, r, r, 0.22, "x", 24); cyl(G, sg * (w - 0.08), o, r, r * 0.6, 0.22, "x", 20); cyl(G, sg * (w - 0.07), o, r, 0.06, 0.22, "x", 10); }   // tyre, rim, hub
   }
-  for (const [p0, c, p1, sg] of [[[0.9, 0.88], [0.35, 1.3], [0.05, 1.38], 1], [[-1.65, 0.88], [-1.25, 1.35], [-0.85, 1.4], -1]]) {   // windscreen and back light, on the curved cabin
+  for (const [p0, c, p1, sg] of [[[cf, belt - 0.02], cc0, [rf, roof], 1], [[cb, belt - 0.02], cc1, [rr, roof], -1]]) {   // windscreen and back light on the curved cabin
     const Q = (t) => { const u = 1 - t, o = u * u * p0[0] + 2 * u * t * c[0] + t * t * p1[0], h = u * u * p0[1] + 2 * u * t * c[1] + t * t * p1[1];
       const to = 2 * u * (c[0] - p0[0]) + 2 * t * (p1[0] - c[0]), th = 2 * u * (c[1] - p0[1]) + 2 * t * (p1[1] - c[1]), n = Math.hypot(to, th) || 1;
-      return [o - sg * Math.abs(th) / n * 0.012 + 0, h + Math.abs(to) / n * 0.012]; };
-    const ts = [0.12, 0.3, 0.5, 0.7, 0.9];
-    for (const xs of [-0.6, 0.6]) for (let i = 0; i < ts.length - 1; i++) { const a = Q(ts[i]), b = Q(ts[i + 1]); Ln.push([[xs, a[0], a[1]], [xs, b[0], b[1]]]); }
-    for (const t of [ts[0], ts[ts.length - 1]]) { const a = Q(t); Ln.push([[-0.6, a[0], a[1]], [0.6, a[0], a[1]]]); }
+      return [o + sg * Math.abs(th) / n * 0.012, h + Math.abs(to) / n * 0.012]; };
+    const ts = [0.12, 0.3, 0.5, 0.7, 0.9], xw = cw - 0.13;
+    for (const xs of [-xw, xw]) for (let i = 0; i < ts.length - 1; i++) { const a = Q(ts[i]), b = Q(ts[i + 1]); Ln.push([[xs, a[0], a[1]], [xs, b[0], b[1]]]); }
+    for (const t of [ts[0], ts[ts.length - 1]]) { const a = Q(t); Ln.push([[-xw, a[0], a[1]], [xw, a[0], a[1]]]); }
   }
-  lines(G, Ln);
-  box(G, -0.92, 0.92, 2.2, 2.36, 0.27, 0.42); box(G, -0.92, 0.92, -2.36, -2.2, 0.27, 0.42);                       // bumpers
-  box(G, -0.42, 0.42, 2.22, 2.29, 0.45, 0.64);                                                                   // grille
-  lines(G, [0.5, 0.55, 0.6].map((h) => [[-0.42, 2.295, h], [0.42, 2.295, h]]));
-  for (const xh of [-0.62, 0.62]) { cyl(G, xh, 2.26, 0.6, 0.11, 0.05, "y", 18); box(G, xh - 0.17, xh + 0.17, -2.3, -2.24, 0.62, 0.74); }   // headlamps, tail lamps
-  box(G, -0.26, 0.26, -2.31, -2.27, 0.46, 0.6);                                                                  // number plate
-  box(G, -0.26, 0.26, 2.36, 2.38, 0.3, 0.4);
+  const hb = sill - 0.01;
+  box(G, -w - 0.03, w + 0.03, hl - 0.1, hl + 0.06, hb, hb + 0.15); box(G, -w - 0.03, w + 0.03, -hl - 0.06, -hl + 0.1, hb, hb + 0.15);   // bumpers
+  box(G, -0.42, 0.42, hl - 0.06, hl + 0.01, sill + 0.18, sill + 0.36);                                                                 // grille
+  lines(G, [0.23, 0.28, 0.33].map((h) => [[-0.42, hl + 0.015, sill + h], [0.42, hl + 0.015, sill + h]]));
+  for (const xh of [-(w - 0.3), w - 0.3]) { cyl(G, xh, hl - 0.03, sill + 0.3, 0.11, 0.06, "y", 18); box(G, xh - 0.17, xh + 0.17, -hl - 0.03, -hl + 0.04, belt - 0.28, belt - 0.15); }   // head and tail lamps
+  box(G, -0.26, 0.26, -hl - 0.08, -hl - 0.04, sill + 0.17, sill + 0.31); box(G, -0.26, 0.26, hl + 0.06, hl + 0.08, sill + 0.01, sill + 0.12);   // number plates
+  if (kind === "suv") for (const xr of [-(cw - 0.12), cw - 0.12]) { box(G, xr - 0.03, xr + 0.03, rr + 0.1, rf - 0.1, roof + 0.05, roof + 0.09);   // roof rails
+    for (const o of [rr + 0.15, rf - 0.15]) box(G, xr - 0.03, xr + 0.03, o - 0.04, o + 0.04, roof - 0.01, roof + 0.05); }
 }
 function rail(root, pts, h = 0.9, step = 1.5) {     // handrail: posts and a top bar following the walking surface
   for (let i = 0; i < pts.length - 1; i++) {
@@ -716,10 +731,10 @@ function shelter(root, x0, x1, y0, y1, z, faceSt = true) {   // small open shelt
 function site(root) {
   const g = D.ground, P = D.platform, T1 = D.track[0], T2 = D.track[1];
   // the model ends at the site boundary (x -18..42, out to the far kerb of the street); only the track bed runs on
-  const SX0 = -18, SX1 = 42, SY1 = 44.5, EX0 = -58, EX1 = 82;   // track and street run 40 m past the site each way (where marked)
+  const SX0 = -18, SX1 = 42, SY1 = 45.5, EX0 = -58, EX1 = 82;   // track and street run 40 m past the site each way (where marked)
   flat(root, [[EX0, -13.4], [EX1, -13.4], [EX1, -4.8], [EX0, -4.8]], g - 0.02);   // track bed beyond the site
   flat(root, [[SX0, -17.9], [SX1, -17.9], [SX1, SY1], [SX0, SY1]], g - 0.02);
-  slab(root, [[SX0, 0.3], [SX1, 0.3], [SX1, 33.5], [EX1, 33.5], [EX1, SY1], [EX0, SY1], [EX0, 33.5], [SX0, 33.5]], g, LG);   // site + the street running on, one piece
+  slab(root, [[SX0, 0.3], [SX1, 0.3], [SX1, 34.5], [EX1, 34.5], [EX1, SY1], [EX0, SY1], [EX0, 34.5], [SX0, 34.5]], g, LG);   // site + the street running on, one piece
   // platform 1 (the station floor runs on to y 9) with a notch at the far end for the crossing ramp
   const P2y0 = -16.9, P2y1 = -12.9, rx0 = 30.4, rx1 = P.x1;            // crossing ramps run 8.6 m (0.72 m drop at 1:12)
   { const pp = [[P.x0, P.y0], [rx0, P.y0], [rx0, P.y0 + 2], [SX1, P.y0 + 2], [SX1, P.y1], [P.x0, P.y1]];
@@ -795,37 +810,37 @@ function site(root) {
     K.push([[e, 15.8, W], [e, 18, W]]);
   }
   for (const xw of [-12, 33]) {
-    side(root, [[8.95, g], [33.5, g], [33.5, W], [15.8, W], [9, 0], [8.95, 0]], xw, xw + 2).userData.noEdge = true;   // level by the station, gentle slope, then flat
+    side(root, [[8.95, g], [34.5, g], [34.5, W], [15.8, W], [9, 0], [8.95, 0]], xw, xw + 2).userData.noEdge = true;   // level by the station, gentle slope, then flat
     for (const xs of [xw, xw + 2]) {
       const inner = (xw < 0) === (xs === xw + 2);
       const top = [[xs, 9, 0], [xs, 15.8, W]]; if (!inner) top.push([xs, 18, W]);
       for (let i = 0; i < top.length - 1; i++) K.push([top[i], top[i + 1]]);
-      K.push([[xs, 18, W], [xs, 33.5, W]]);
+      K.push([[xs, 18, W], [xs, 34.5, W]]);
     }
   }
   // ---- car park: one rectangle, one-way aisle; drop-off and accessible bays opposite the steps ----
-  slab(root, [[-10, 18], [33, 18], [33, 35.5], [28, 35.5], [28, 33], [-5, 33], [-5, 35.5], [-10, 35.5]], LG, LG + 0.004).userData.noEdge = true;   // flush with the street   // lot and its two lanes in one piece
+  slab(root, [[-10, 18], [33, 18], [33, 36.5], [28, 36.5], [28, 34], [-5, 34], [-5, 36.5], [-10, 36.5]], LG, LG + 0.004).userData.noEdge = true;   // flush with the street   // lot and its two lanes in one piece
   { const z = LG + 0.008, L = [];
-    for (let x = -7.5; x <= 30.51; x += 2.5) { L.push([[x, 18, z], [x, 22.5, z]]); if (!(x > -10 && x < -5) && !(x > 28 && x < 33)) L.push([[x, 28.5, z], [x, 33, z]]); }
-    L.push([[-10, 22.5, z], [33, 22.5, z]], [[-5, 28.5, z], [28, 28.5, z]]);     // nothing across the two entry lanes
+    for (let x = -7.5; x <= 30.51; x += 2.5) { L.push([[x, 18, z], [x, 23, z]]); if (!(x > -10 && x < -5) && !(x > 28 && x < 33)) L.push([[x, 29, z], [x, 34, z]]); }   // 2.5 x 5 m bays, 6 m aisle
+    L.push([[-10, 23, z], [33, 23, z]], [[-5, 29, z], [28, 29, z]]);     // nothing across the two entry lanes
     lines(root, L); }
   // ---- hedge, sidewalk, street with the bus + taxi lay-by and its shelter ----
-  for (const [a, b] of [[-18, -12], [-5, 28], [35, 42]]) box(root, a, b, 32.9, 33.5, LG, LG + 1.0);
+  for (const [a, b] of [[-18, -12], [-5, 28], [35, 42]]) box(root, a, b, 33.9, 34.5, LG, LG + 1.0);
   for (const [a, b] of [[EX0, -10], [-5, 28], [33, EX1]]) {
-    slab(root, [[a, 33.5], [b, 33.5], [b, 35.5], [a, 35.5]], LG, W).userData.noEdge = true;
-    K.push([[a, 35.5, W], [b, 35.5, W]], [[a, 35.5, LG], [b, 35.5, LG]]);
+    slab(root, [[a, 34.5], [b, 34.5], [b, 36.5], [a, 36.5]], LG, W).userData.noEdge = true;
+    K.push([[a, 36.5, W], [b, 36.5, W]], [[a, 36.5, LG], [b, 36.5, LG]]);
     const ia = a === EX0 ? EX0 : a === 33 ? 35 : a, ib = b === -10 ? -12 : b;            // inner edge, open where a walk joins
-    K.push([[ia, 33.5, W], [ib, 33.5, W]]);
-    for (const e of [a, b]) K.push([[e, 33.5, W], [e, 35.5, W]], [[e, 33.5, LG], [e, 35.5, LG]], [[e, 35.5, LG], [e, 35.5, W]], [[e, 33.5, LG], [e, 33.5, W]]);
+    K.push([[ia, 34.5, W], [ib, 34.5, W]]);
+    for (const e of [a, b]) K.push([[e, 34.5, W], [e, 36.5, W]], [[e, 34.5, LG], [e, 36.5, LG]], [[e, 36.5, LG], [e, 36.5, W]], [[e, 34.5, LG], [e, 34.5, W]]);
   }
   lines(root, K);
-  { const z = LG + 0.005, L = []; for (let x = EX0 + 1; x < EX1 - 1; x += 6) L.push([[x, 40, z], [x + 3, 40, z]]);
+  { const z = LG + 0.005, L = []; for (let x = EX0 + 1; x < EX1 - 1; x += 6) L.push([[x, 41, z], [x + 3, 41, z]]);
     lines(root, L); }
-  shelter(root, 15.5, 19.5, 33.9, 35.3, LG + 0.15);
-  sign(root, 20.7, 35.3, LG + 2.6, 0.9, 0.45, textTex(["BUS"], 256, 128), "+y"); cyl(root, 20.7, 35.35, LG + 1.2, 0.04, 2.4, "z", 8);   // the two stop signs side by side, just past the shelter
-  sign(root, 22.0, 35.3, LG + 2.6, 0.9, 0.45, textTex(["TAXI"], 256, 128), "+y"); cyl(root, 22.0, 35.35, LG + 1.2, 0.04, 2.4, "z", 8);
-  for (const k of [0, 1, 4, 9, 13]) car(root, -6.25 + 2.5 * k, 20.4, -1);                   // a few cars nosed in toward the walk
-  for (const k of [2, 6, 7, 11]) car(root, -6.25 + 2.5 * k, 30.6, 1);                       // and toward the hedge
+  shelter(root, 15.5, 19.5, 34.9, 36.3, LG + 0.15);
+  sign(root, 20.7, 36.3, LG + 2.6, 0.9, 0.45, textTex(["BUS"], 256, 128), "+y"); cyl(root, 20.7, 36.35, LG + 1.2, 0.04, 2.4, "z", 8);   // the two stop signs side by side, just past the shelter
+  sign(root, 22.0, 36.3, LG + 2.6, 0.9, 0.45, textTex(["TAXI"], 256, 128), "+y"); cyl(root, 22.0, 36.35, LG + 1.2, 0.04, 2.4, "z", 8);
+  for (const [k, t] of [[0, "suv"], [1, "sedan"], [4, "hatch"], [9, "sedan"], [13, "suv"]]) car(root, -6.25 + 2.5 * k, 20.5, -1, t);                   // a few cars nosed in toward the walk
+  for (const [k, t] of [[2, "hatch"], [6, "sedan"], [7, "suv"], [11, "sedan"]]) car(root, -6.25 + 2.5 * k, 31.5, 1, t);                       // and toward the hedge
   // ---- trees: an orchard either side, two by the court ----
   for (const x of [-17.0, -15.1, -13.2, 36.5, 38.6, 40.7]) for (const y of [11.0, 16.6, 22.2, 27.8]) tree(root, x, y, 0.95);
   for (const [x, y] of [[-4.0, 14.3], [-7.0, 11.6], [-1.2, 11.4], [27.0, 14.3], [24.4, 11.5], [29.6, 11.8]]) tree(root, x, y, 1.0);   // lawns either side of the entrance
