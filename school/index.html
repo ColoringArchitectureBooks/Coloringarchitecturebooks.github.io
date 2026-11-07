@@ -1289,7 +1289,38 @@ ballgame(54, 360, 13.11, 18.29, 50, 1.3, 0.8);
 {
   // the south door stands open (a pale opening over its painted leaves, both glass leaves swung out onto the walk); the north door stays shut
   const DXF = EX - FRD - 1.5 + 0.02, Y0 = EY0 + 20.0, Y1 = EY0 + 25.8, YM = EY0 + 22.9, H = 2.85;
-  const op = new THREE.Mesh(new THREE.PlaneGeometry(YM - 0.05 - Y0, H).rotateY(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xdcdcdc })); op.position.copy(V(DXF, (Y0 + YM - 0.05) / 2, H / 2 + 0.05)); root.add(op);
+  // the doorway is a window into a corridor behind it: drawn after everything else, it resets the depth there so the corridor (drawn next) shows through the solid block
+  // (two passes: the first marks the visible part of the doorway in the stencil, the second pushes the depth there back to the far plane)
+  const pg = new THREE.PlaneGeometry(YM - 0.05 - Y0, H).rotateY(Math.PI / 2), pp = V(DXF, (Y0 + YM - 0.05) / 2, H / 2 + 0.05);
+  const mark = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp }));
+  const clear = new THREE.Mesh(pg, new THREE.ShaderMaterial({ colorWrite: false, depthFunc: THREE.AlwaysDepth, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.EqualStencilFunc,
+    vertexShader: "void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }", fragmentShader: "void main() { gl_FragColor = vec4(1.0); gl_FragDepth = 1.0; }" }));
+  for (const [m, o] of [[mark, 1], [clear, 1.5]]) { m.position.copy(pp); m.renderOrder = o; root.add(m); }
+  { // the corridor: two walls running in from the jambs, floor, ceiling, lockers, a classroom door, and an open doorway at the far end
+    const XE = DXF - 14, YA = Y0, YB = YM - 0.05, Z0 = 0.05, Z1 = 3.1, pos = [], ln = [];
+    const quad = (a, b, c, d) => { const p = [a, b, c, a, c, d].map(q => V(...q)); for (const v of p) pos.push(v.x, v.y, v.z); };
+    const L = (a, b) => ln.push(V(...a), V(...b));
+    const rect = (x0, x1, y, z0, z1) => { L([x0, y, z0], [x1, y, z0]); L([x1, y, z0], [x1, y, z1]); L([x1, y, z1], [x0, y, z1]); L([x0, y, z1], [x0, y, z0]); };
+    quad([DXF, YA, Z0], [XE, YA, Z0], [XE, YB, Z0], [DXF, YB, Z0]); quad([DXF, YA, Z1], [XE, YA, Z1], [XE, YB, Z1], [DXF, YB, Z1]);
+    quad([DXF, YA, Z0], [XE, YA, Z0], [XE, YA, Z1], [DXF, YA, Z1]); quad([DXF, YB, Z0], [XE, YB, Z0], [XE, YB, Z1], [DXF, YB, Z1]);
+    const EW = 0.75, YC = (YA + YB) / 2, ZD = 2.3;   // far wall around an open doorway
+    quad([XE, YA, Z0], [XE, YC - EW, Z0], [XE, YC - EW, Z1], [XE, YA, Z1]); quad([XE, YC + EW, Z0], [XE, YB, Z0], [XE, YB, Z1], [XE, YC + EW, Z1]); quad([XE, YC - EW, ZD], [XE, YC + EW, ZD], [XE, YC + EW, Z1], [XE, YC - EW, Z1]);
+    const cg = new THREE.BufferGeometry(); cg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); cg.computeVertexNormals();
+    const cm = new THREE.Mesh(cg, new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 })); cm.renderOrder = 2; root.add(cm);
+    const dark = new THREE.Mesh(new THREE.PlaneGeometry(2 * EW, ZD - Z0).rotateY(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xdcdcdc })); dark.position.copy(V(XE, YC, (Z0 + ZD) / 2)); dark.renderOrder = 2; root.add(dark);
+    for (const y of [YA, YB]) for (const z of [Z0, Z1]) L([DXF, y, z], [XE, y, z]);                       // the long corner lines
+    for (const y of [YA, YB]) L([XE, y, Z0], [XE, y, Z1]); L([XE, YA, Z0], [XE, YB, Z0]); L([XE, YA, Z1], [XE, YB, Z1]);
+    L([XE, YC - EW, Z0], [XE, YC - EW, ZD]); L([XE, YC - EW, ZD], [XE, YC + EW, ZD]); L([XE, YC + EW, ZD], [XE, YC + EW, Z0]);
+    for (let x = DXF - 1.2; x > XE; x -= 1.2) L([x, YA, Z0], [x, YB, Z0]);                               // floor tiles
+    L([DXF, YC, Z0], [XE, YC, Z0]);
+    for (let x = DXF - 2; x > XE + 1; x -= 3) { const a = x, b = x - 1.2, c0 = YC - 0.3, c1 = YC + 0.3;  // ceiling lights
+      L([a, c0, Z1], [b, c0, Z1]); L([b, c0, Z1], [b, c1, Z1]); L([b, c1, Z1], [a, c1, Z1]); L([a, c1, Z1], [a, c0, Z1]); }
+    for (const [y, x0, x1] of [[YA + 0.005, DXF - 2, DXF - 8.4], [YB - 0.005, DXF - 2, DXF - 6.8], [YB - 0.005, DXF - 9.6, DXF - 12.8]]) {   // locker banks
+      for (let x = x0; x > x1 + 0.01; x -= 0.4) { rect(x, x - 0.4, y, Z0 + 0.1, Z0 + 1.85);
+        for (let k = 0; k < 3; k++) L([x - 0.12, y, Z0 + 1.55 + k * 0.07], [x - 0.28, y, Z0 + 1.55 + k * 0.07]); L([x - 0.33, y, Z0 + 0.95], [x - 0.33, y, Z0 + 1.1]); } }
+    rect(DXF - 7.6, DXF - 8.6, YB - 0.005, Z0, Z0 + 2.2); rect(DXF - 7.75, DXF - 8.45, YB - 0.005, Z0 + 1.2, Z0 + 2.0); L([DXF - 8.45, YB - 0.005, Z0 + 1.0], [DXF - 8.3, YB - 0.005, Z0 + 1.0]);   // a classroom door
+    rect(DXF - 9.6, DXF - 12.4, YA + 0.005, Z0 + 1.0, Z0 + 2.2); rect(DXF - 9.8, DXF - 12.2, YA + 0.005, Z0 + 1.2, Z0 + 2.0);   // notice board
+    const lm = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(ln), M.line); lm.renderOrder = 3; root.add(lm); }
   const lp = []; const L3 = (a, b) => lp.push(V(...a), V(...b));
   const YO = YM - 0.05; L3([DXF + 0.01, Y0, 0.05], [DXF + 0.01, YO, 0.05]); L3([DXF + 0.01, Y0, H + 0.05], [DXF + 0.01, YO, H + 0.05]); L3([DXF + 0.01, Y0, 0.05], [DXF + 0.01, Y0, H + 0.05]);
   { const g = new THREE.BoxGeometry(0.08, H, 0.1).translate(0, H / 2, 0); const m = new THREE.Mesh(g, M.wall); m.position.copy(V(DXF + 0.04, YM, 0.05)); root.add(m);   // middle mullion
@@ -1303,16 +1334,16 @@ ballgame(54, 360, 13.11, 18.29, 50, 1.3, 0.8);
     G.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(q), M.line)); }
   root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(lp), M.line));
   // students: each one gets a backpack, a pace and a place in the line; the path runs from inside the bus door to inside the school
-  const PATH = [[169.0, 65.5, 0.35], [168.0, 65.5, 0], [166.2, 65.45, 0], [160.8, 65.45, 0], [152.4, 65.45, 0], [149.6, 65.45, 0]];
+  const PATH = [[169.0, 65.5, 0.35], [168.0, 65.5, 0], [166.2, 65.45, 0], [160.8, 65.45, 0], [152.4, 65.45, 0], [149.6, 65.45, 0], [DXF - 15.5, 65.45, 0]];
   const seg = PATH.slice(1).map((p, i) => Math.hypot(p[0] - PATH[i][0], p[1] - PATH[i][1])), LEN = seg.reduce((a, b) => a + b, 0);
   const at = (d, off) => { let i = 0; while (i < seg.length - 1 && d > seg[i]) { d -= seg[i]; i++; } const a = PATH[i], b = PATH[i + 1], u = clamp(d / seg[i], 0, 1);
     const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, o = i < 2 ? 0 : i === 2 ? off * smooth(u) : off;   // through the bollards in single file, then spread a little through the open door
     return [a[0] + dx * u - dy / L * o, a[1] + dy * u + dx / L * o, lerp(a[2], b[2], u), dx, dy]; };
   const packG = mk([[new THREE.BoxGeometry(0.16, 0.42, 0.32), -0.23, 1.15, 0], [new THREE.BoxGeometry(0.07, 0.18, 0.24), -0.33, 1.02, 0]]);
-  const N = 10, T = 42, rs = (k) => { const v = Math.sin(k * 91.7) * 43758.5; return v - Math.floor(v); };
+  const N = 10, T = 54, rs = (k) => { const v = Math.sin(k * 91.7) * 43758.5; return v - Math.floor(v); };
   for (let i = 0; i < N; i++) {
     const f = figure(null), s = 0.88 + rs(i) * 0.14, v = 1.15 + rs(i + 20) * 0.3, t0 = i * 2.1 + rs(i + 40) * 0.8, off = (i % 2 ? 1 : -1) * (0.2 + rs(i + 60) * 0.55);
-    f.add(solid(packG)); f.scale.setScalar(s);
+    f.add(solid(packG)); f.scale.setScalar(s); f.traverse(o => o.renderOrder = 3);   // drawn after the corridor, so they show inside it
     PLAY.push(t => { const d = ((t - t0) % T + T) % T * v; f.visible = d < LEN; if (!f.visible) return;
       const [x, y, z, dx, dy] = at(d, off); put(f, x, y, dx, dy, d < seg[0] ? 0.3 : 1, d * 2.6); f.position.y = z; });
   }
