@@ -670,9 +670,11 @@ function shelter(root, x0, x1, y0, y1, z, faceSt = true) {   // small open shelt
 }
 function site(root) {
   const g = D.ground, P = D.platform, T1 = D.track[0], T2 = D.track[1];
-  flat(root, [[-80, -60], [110, -60], [110, 70], [-80, 70]], g - 0.02);
-  // landside grade from the platform fence to beyond the street
-  slab(root, [[-80, 0.3], [110, 0.3], [110, 70], [-80, 70]], g, LG);
+  // the model ends at the site boundary (x -18..42, out to the far kerb of the street); only the track bed runs on
+  const SX0 = -18, SX1 = 42, SY1 = 44.5;
+  flat(root, [[-80, -13.4], [110, -13.4], [110, -4.8], [-80, -4.8]], g - 0.02);   // track bed beyond the site
+  flat(root, [[SX0, -17.9], [SX1, -17.9], [SX1, SY1], [SX0, SY1]], g - 0.02);
+  slab(root, [[SX0, 0.3], [SX1, 0.3], [SX1, SY1], [SX0, SY1]], g, LG);
   // platform 1 (the station floor runs on to y 9) with a notch at the far end for the crossing ramp
   const P2y0 = -16.9, P2y1 = -12.9, rx0 = 30.4, rx1 = P.x1;            // crossing ramps run 8.6 m (0.72 m drop at 1:12)
   slab(root, [[P.x0, P.y0], [rx0, P.y0], [rx0, P.y0 + 2], [P.x1, P.y0 + 2], [P.x1, P.y1], [P.x0, P.y1]], g, 0);
@@ -682,7 +684,7 @@ function site(root) {
   j.push([[P.x0, P.y0 + 0.5, 0.01], [rx0, P.y0 + 0.5, 0.01]], [[P.x0, P2y1 - 0.5, 0.01], [rx0, P2y1 - 0.5, 0.01]]); lines(root, j);   // slab joints, edge strips
   flat(root, [[-80, P2y1], [110, P2y1], [110, P.y0], [-80, P.y0]], g + 0.005, M.ballast);
   for (const yc of D.track) {
-    for (let x = -40; x < 70; x += 0.75) box(root, x, x + 0.26, yc - 1.3, yc + 1.3, g, g + 0.14);                     // sleepers
+    for (let x = -80; x < 110; x += 0.75) box(root, x, x + 0.26, yc - 1.3, yc + 1.3, g, g + 0.14);                     // sleepers
     for (const s of [-1, 1]) { const yr = yc + s * D.gauge / 2; box(root, -80, 110, yr - 0.04, yr + 0.04, g + 0.14, D.rail); box(root, -80, 110, yr - 0.08, yr + 0.08, g + 0.14, g + 0.17); }
   }
   // ---- foot crossing at the end of both platforms ----
@@ -743,8 +745,8 @@ function site(root) {
     lines(root, L); }
   // ---- hedge, sidewalk, street with the bus + taxi lay-by and its shelter ----
   for (const [a, b] of [[-18, -12], [-5, 28], [35, 42]]) box(root, a, b, 32.9, 33.5, LG, LG + 1.0);
-  for (const [a, b] of [[-80, -10], [-5, 28], [33, 110]]) slab(root, [[a, 33.5], [b, 33.5], [b, 35.5], [a, 35.5]], LG, LG + 0.15);
-  { const z = LG + 0.005, L = []; for (let x = -78; x < 108; x += 6) L.push([[x, 40, z], [x + 3, 40, z]]);
+  for (const [a, b] of [[SX0, -10], [-5, 28], [33, SX1]]) slab(root, [[a, 33.5], [b, 33.5], [b, 35.5], [a, 35.5]], LG, LG + 0.15);
+  { const z = LG + 0.005, L = []; for (let x = SX0 + 1; x < SX1 - 1; x += 6) L.push([[x, 40, z], [x + 3, 40, z]]);
     lines(root, L); }
   shelter(root, 15.5, 19.5, 33.9, 35.3, LG + 0.15);
   sign(root, 22, 35.3, LG + 2.6, 0.9, 0.45, textTex(["BUS"], 256, 128), "+y"); cyl(root, 22, 35.35, LG + 1.2, 0.04, 2.4, "z", 8);
