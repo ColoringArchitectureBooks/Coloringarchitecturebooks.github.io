@@ -25,7 +25,7 @@
   #sound .on { display:none; } #sound[aria-pressed="true"] .on { display:inline; } #sound[aria-pressed="true"] .off { display:none; }
   .hint { position:fixed; left:0; right:0; bottom:calc(max(16px, env(safe-area-inset-bottom, 0px)) + 52px);
     text-align:center; font-size:13px; color:var(--muted); pointer-events:none; transition:opacity .6s; }
-  .hint span { display:inline-block; background:rgba(255,255,255,0.85); border-radius:6px; padding:1px 7px; line-height:1.3; }   /* a paper patch so it reads over the drawing */
+  .hint > span { display:inline-block; background:rgba(255,255,255,0.85); border-radius:6px; padding:1px 7px; line-height:1.3; }   /* a paper patch so it reads over the drawing */
   #status { position:fixed; inset:0; display:grid; place-items:center; font-size:15px; color:var(--muted); }
 </style>
 
@@ -34,7 +34,7 @@
   <h1>Train Station 3D Model</h1>
 </header>
 <div id="status">Loading the building…</div>
-<div class="hint" id="hint"><span>Drag to turn the train station, pinch to zoom<br>Tap the train to blow the whistle</span></div>
+<div class="hint" id="hint"><span><span id="hint-drag">Drag to turn the train station, pinch to zoom<br></span>Tap the train to blow the whistle</span></div>
 <div class="bar">
   <button id="v-front">Front</button>
   <button id="v-obl">Aerial</button>
@@ -93,10 +93,11 @@ canvas.addEventListener("pointerup", (e) => {
   const r = canvas.getBoundingClientRect();
   tap.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(tap, camera);
   const hit = ray.intersectObjects(scene.children, true).find((h) => h.object.isMesh && h.object.visible);
-  for (let o = hit && hit.object; o; o = o.parent) if (o === TRAIN.group) { if (!isSoundOn()) sound(true); whistle(); break; }
+  for (let o = hit && hit.object; o; o = o.parent) if (o === TRAIN.group) { if (!isSoundOn()) sound(true); whistle(); hint.style.opacity = 0; break; }
 });
 const hint = document.getElementById("hint");
-controls.addEventListener("start", () => { hint.style.opacity = 0; }, { once: true });
+// the drag line goes once the reader starts turning; the whistle line stays until they blow the whistle
+controls.addEventListener("start", () => { document.getElementById("hint-drag").hidden = true; }, { once: true });
 renderer.setAnimationLoop(() => {
   controls.update();
   // keep the depth range tight to the view: zoomed far out, a near plane of 0.5 m left too little depth precision and touching faces flickered as stray lines
