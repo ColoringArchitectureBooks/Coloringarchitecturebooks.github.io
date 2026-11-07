@@ -321,9 +321,11 @@ function entranceFacade() {
   const RB = FRB, RD = FRD;
   const mat = new THREE.MeshBasicMaterial({ map: facadeTexture(W, H, outline), side: THREE.DoubleSide });
   const roofPts = [[EREC, roofZ(EREC)], [EAPX, EZR], [ESTEP, EGL], [ESTEP, ESH1], [0, ESH0]];
-  const seg = (a, b, x) => {
+  const seg = (a, b, x, hole) => {
     const pts = [[a, 0], [b, 0], [b, roofZ(b)], ...roofPts.filter(p => p[0] > a + 0.01 && p[0] < b - 0.01), [a, roofZ(a)]];
-    const geo = new THREE.ShapeGeometry(new THREE.Shape(pts.map(([p, q]) => new THREE.Vector2(p, q))));
+    const shp = new THREE.Shape(pts.map(([p, q]) => new THREE.Vector2(p, q)));
+    if (hole) { const [h0, h1, z0, z1] = hole; shp.holes.push(new THREE.Path([new THREE.Vector2(h0, z0), new THREE.Vector2(h0, z1), new THREE.Vector2(h1, z1), new THREE.Vector2(h1, z0)])); }
+    const geo = new THREE.ShapeGeometry(shp);
     const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / W, uv.getY(i) / H);
     const m = new THREE.Mesh(geo, mat); m.rotation.y = Math.PI / 2; m.position.copy(V(x, EY0, 0)); root.add(m);
     const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), M.line); e.rotation.copy(m.rotation); e.position.copy(m.position); root.add(e);
@@ -332,7 +334,7 @@ function entranceFacade() {
   // everything left of the SCHOOL pier line (glass, doors and the whole low wing) sits back RD m in one plane
   // planes: white wall | wood bay -0.6 | glass + doors -1.5 more (deep) | white divider | SCHOOL face
   const GB1 = 25.8, GD = 1.5;
-  seg(0, WB0, EX - RD); seg(WB0, WB1, EX - RD - WD); seg(WB1, GB1, EX - RD - GD); seg(GB1, RB, EX + PP); seg(RB, W, EX);
+  seg(0, WB0, EX - RD); seg(WB0, WB1, EX - RD - WD); seg(WB1, GB1, EX - RD - GD, [20.0, 22.85, 0.03, 2.9]);   // the open south door seg(GB1, RB, EX + PP); seg(RB, W, EX);
   wall("N", EX - RD, EY0 + WB0, rectO(WD, roofZ(WB0)), {});              // wood-bay step
   wall("N", EX - RD - WD, EY0 + WB1, rectO(GD - WD, roofZ(WB1)), { kind: "plain" });    // glass bay: left return
   wall("S", EX - RD - GD, EY0 + GB1, rectO(RD + GD + PP, roofZ(GB1)), { kind: "plain" });   // white pier side, full depth
@@ -1294,13 +1296,7 @@ ballgame(54, 360, 13.11, 18.29, 50, 1.3, 0.8);
 {
   // the south door stands open (a pale opening over its painted leaves, both glass leaves swung out onto the walk); the north door stays shut
   const DXF = EX - FRD - 1.5 + 0.02, Y0 = EY0 + 20.0, Y1 = EY0 + 25.8, YM = EY0 + 22.9, H = 2.85;
-  // the doorway is a window into a corridor behind it: drawn after everything else, it resets the depth there so the corridor (drawn next) shows through the solid block
-  // (two passes: the first marks the visible part of the doorway in the stencil, the second pushes the depth there back to the far plane)
-  const pg = new THREE.PlaneGeometry(YM - 0.05 - Y0, H).rotateY(Math.PI / 2), pp = V(DXF, (Y0 + YM - 0.05) / 2, H / 2 + 0.05);
-  const mark = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp }));
-  const clear = new THREE.Mesh(pg, new THREE.ShaderMaterial({ colorWrite: false, depthFunc: THREE.AlwaysDepth, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.EqualStencilFunc,
-    vertexShader: "void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }", fragmentShader: "void main() { gl_FragColor = vec4(1.0); gl_FragDepth = 1.0; }" }));
-  for (const [m, o] of [[mark, 1], [clear, 1.5]]) { m.position.copy(pp); m.renderOrder = o; root.add(m); }
+  // the open doorway is a real hole in the facade (see seg), looking into the corridor behind it
   { // the corridor: two walls running in from the jambs, floor, ceiling, lockers, a classroom door, and an open doorway at the far end
     const XE = DXF - 14, YA = Y0, YB = YM - 0.05, Z0 = 0.05, Z1 = 3.1, pos = [], ln = [];
     const quad = (a, b, c, d) => { const p = [a, b, c, a, c, d].map(q => V(...q)); for (const v of p) pos.push(v.x, v.y, v.z); };
