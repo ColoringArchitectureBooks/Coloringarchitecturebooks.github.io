@@ -624,14 +624,7 @@ for (let x = 170; x < 215; x += 3) { seg([x, 298, 0.06], [x, 303.5, 0.06]); seg(
 // ---- parked cars (random, in the marked stalls) + a school bus at the drop-off curb
 {
   const crand = (s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; })(4242);
-  // side profiles (length along x from the rear, height z), belt line for the side windows, wheel radius and axles
-  const TYPES = {
-    sedan:  { w: 1.8,  p: [[0, 0.32], [4.6, 0.32], [4.6, 0.78], [3.55, 0.92], [2.85, 1.42], [1.35, 1.45], [0.55, 1.0], [0, 0.92]], belt: 0.97, r: 0.32, ax: [0.95, 3.7], pil: [2.15] },
-    hatch:  { w: 1.75, p: [[0, 0.32], [4.0, 0.32], [4.0, 0.76], [3.15, 0.92], [2.5, 1.45], [0.35, 1.48], [0.05, 1.12], [0, 0.85]], belt: 0.98, r: 0.31, ax: [0.75, 3.25], pil: [1.5] },
-    suv:    { w: 1.9,  p: [[0, 0.42], [4.8, 0.42], [4.8, 0.96], [3.9, 1.1], [3.3, 1.75], [0.2, 1.78], [0, 1.6]], belt: 1.14, r: 0.38, ax: [1.0, 3.85], pil: [2.35, 0.9] },
-    pickup: { w: 1.95, p: [[0, 0.45], [5.3, 0.45], [5.3, 1.0], [4.4, 1.12], [3.9, 1.8], [2.5, 1.8], [2.45, 1.18], [0, 1.18]], belt: 1.2, r: 0.4, ax: [1.05, 4.35], pil: [] },
-    van:    { w: 1.95, p: [[0, 0.36], [5.0, 0.36], [5.0, 0.9], [4.3, 1.1], [3.55, 1.76], [0.15, 1.8], [0, 1.55]], belt: 1.12, r: 0.34, ax: [0.95, 4.0], pil: [2.7, 1.3] },
-  };
+  // the bus: side profile (length along x from the rear, height z), wheel radius and axles
   const geos = [], lines = [];
   const wheelG = new THREE.CylinderGeometry(1, 1, 1, 12).rotateX(Math.PI / 2).toNonIndexed(), wheelE = new THREE.EdgesGeometry(wheelG, 30);
   // polygon above a height (the glass part of the profile), shrunk a little so it sits inside the side face
@@ -653,14 +646,97 @@ for (let x = 170; x < 215; x += 3) { seg([x, 298, 0.06], [x, 303.5, 0.06]); seg(
     lines.push(new THREE.BufferGeometry().setFromPoints(pts).applyMatrix4(m));
   }
   const place = (x, y, h) => new THREE.Matrix4().makeTranslation(...V(x, y, 0).toArray()).multiply(new THREE.Matrix4().makeRotationY(h));
-  const pick = () => { const r = crand(); return r < 0.34 ? "sedan" : r < 0.5 ? "hatch" : r < 0.8 ? "suv" : r < 0.9 ? "pickup" : "van"; };
-  // a car in a stall: (x0..x1) is the stall depth along x (or y when along = "y"), c its centre across; face = +1/-1 toward the aisle
-  function park(d0, d1, c, face, along) { if (crand() > 0.6) return;
-    let T = TYPES[pick()], L = Math.max(...T.p.map(q => q[0])); const f = crand() < 0.85 ? face : -face;   // most drive in nose first
-    if (L > d1 - d0 - 0.2) { T = TYPES.suv; L = 4.8; }                     // a long pickup or van would stick out of a short stall into the next one
+  // detailed cars, built exactly like the train station's car park (body with wheel arches, glass, door shuts, handles, mirrors,
+  // lamps, bumpers, grille, plates, tyres with rims); one copy of each kind is baked, then repeated as instances
+  const TCAR = (() => { const LG = 0;
+    function box(root, x0, x1, y0, y1, z0, z1, mat = W0) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1 - x0), Math.abs(z1 - z0), Math.abs(y1 - y0)), mat);
+      m.position.copy(V((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)); root.add(m); return m;
+    }
+    const shapeOf = (pts) => new THREE.Shape(pts.map(([a, b]) => new THREE.Vector2(a, b)));
+    function sideShape(root, shape, x0, x1, mat = W0) {
+      const g = new THREE.ExtrudeGeometry(shape, { depth: x1 - x0, bevelEnabled: false, curveSegments: 24 });
+      g.rotateY(Math.PI / 2); const m = new THREE.Mesh(g, mat); m.position.x = x0; root.add(m); return m;
+    }
+    const side = (root, pts, x0, x1, mat) => sideShape(root, shapeOf(pts), x0, x1, mat);
+    function lines(root, segs) {
+      const pts = []; for (const [a, b] of segs) pts.push(V(...a), V(...b));
+      root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), M.line));
+    }
+    // cylinder along plan 'z' (up), 'x' or 'y', centred at (x, y, z)
+    function cyl(root, x, y, z, r, len, axis = "z", seg = 20, mat = W0, rTop = r) {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, r, len, seg), mat);
+      if (axis === "x") m.rotation.z = -Math.PI / 2; else if (axis === "y") m.rotation.x = -Math.PI / 2;
+      m.position.copy(V(x, y, z)); root.add(m); return m;
+    }
+    // parked cars at US sizes: sedan ~ Camry 4.85 x 1.84 x 1.44, hatchback ~ Civic hatch 4.45 x 1.80 x 1.45, SUV ~ RAV4 4.65 x 1.86 x 1.72
+    const CARS = {
+      sedan: { hl: 2.33, wf: 1.45, wr: -1.42, r: 0.33, sill: 0.28, belt: 0.9, roof: 1.44, cf: 0.92, rf: 0.05, rr: -0.95, cb: -1.72, deck: true, w: 0.92 },
+      hatch: { hl: 2.13, wf: 1.33, wr: -1.33, r: 0.32, sill: 0.28, belt: 0.9, roof: 1.45, cf: 0.85, rf: 0.02, rr: -1.55, cb: -2.02, deck: false, w: 0.9 },
+      suv:   { hl: 2.25, wf: 1.38, wr: -1.38, r: 0.37, sill: 0.42, belt: 1.08, roof: 1.72, cf: 1.0, rf: 0.3, rr: -1.85, cb: -2.12, deck: false, w: 0.93 },
+    };
+    function car(root, cx, cy, d = 1, kind = "sedan") {   // nose toward +y when d = 1: wheel arches, glasshouse, doors, lamps, bumpers, wheels with rims
+      const C = CARS[kind], { hl, wf, wr, r, sill, belt, roof, cf, rf, rr, cb, w } = C, ra = r + 0.07;
+      const G = new THREE.Group(); G.position.copy(V(cx, cy, LG)); G.rotation.y = d > 0 ? 0 : Math.PI; root.add(G);
+      const S = (f) => { const s = new THREE.Shape(); f(s); return s; };
+      sideShape(G, S((s) => {                                                         // lower body in side view, the two wheel arches cut into the sill
+        s.moveTo(-hl + 0.12, sill); s.lineTo(wr - ra, sill); s.absarc(wr, r, ra, Math.PI, 0, true); s.lineTo(wf - ra, sill); s.absarc(wf, r, ra, Math.PI, 0, true);
+        s.lineTo(hl - 0.12, sill); s.quadraticCurveTo(hl + 0.02, sill + 0.02, hl, sill + 0.27); s.quadraticCurveTo(hl - 0.02, belt - 0.12, hl - 0.28, belt - 0.1);
+        s.lineTo(cf - 0.05, belt); s.lineTo(cb, belt + 0.02);
+        if (C.deck) { s.lineTo(-hl + 0.18, belt); s.quadraticCurveTo(-hl - 0.02, belt - 0.05, -hl, sill + 0.27); }
+        else s.quadraticCurveTo(-hl + 0.02, belt - 0.02, -hl, sill + 0.27);
+        s.quadraticCurveTo(-hl + 0.01, sill + 0.02, -hl + 0.12, sill); }), -w, w);
+      const cw = w - 0.15, cc0 = [cf - (cf - rf) * 0.75, belt + (roof - belt) * 0.85], cc1 = C.deck ? [rr - (rr - cb) * 0.5, roof - 0.05] : [cb + 0.06, roof - 0.12];
+      sideShape(G, S((s) => { s.moveTo(cb, belt - 0.02); s.lineTo(cf, belt - 0.02); s.quadraticCurveTo(...cc0, rf, roof); s.lineTo(rr, roof); s.quadraticCurveTo(...cc1, cb, belt - 0.02); }), -cw, cw);
+      const bp = (rf + rr) / 2 + 0.12, gb = belt + 0.07, gt = roof - 0.08;
+      for (const xs of [-cw - 0.012, cw + 0.002]) {                                    // side glass: front and rear doors, and the quarter light on the longer roofs
+        side(G, [[cf - 0.22, gb], [rf + 0.06, gt], [bp, gt], [bp, gb]], xs, xs + 0.01);
+        if (C.deck) side(G, [[bp - 0.12, gb], [bp - 0.12, gt], [rr + 0.02, gt], [cb + 0.3, gb]], xs, xs + 0.01);
+        else { const bc = wr + 0.1; side(G, [[bp - 0.12, gb], [bp - 0.12, gt], [bc, gt], [bc, gb]], xs, xs + 0.01);
+          side(G, [[bc - 0.1, gb], [bc - 0.1, gt], [rr + 0.04, gt], [cb + 0.16, gb]], xs, xs + 0.01); }
+      }
+      const Ln = [], dR = C.deck ? cb + 0.22 : wr + 0.12, at = r + ra + 0.04;
+      for (const xs of [-w - 0.005, w + 0.005]) {
+        const sg = Math.sign(xs);
+        Ln.push([[xs, cf - 0.05, at], [xs, cf - 0.05, belt - 0.01]], [[xs, bp - 0.06, sill], [xs, bp - 0.06, belt + 0.01]], [[xs, dR, at], [xs, dR, belt + 0.01]],   // door shuts
+          [[xs, hl - 0.3, belt - 0.28], [xs, -hl + 0.25, belt - 0.28]]);                                                                                               // shoulder crease
+        box(G, xs - 0.01, xs + 0.01, cf - 0.75, cf - 0.57, belt - 0.12, belt - 0.08); box(G, xs - 0.01, xs + 0.01, bp - 0.65, bp - 0.47, belt - 0.12, belt - 0.08);   // handles
+        box(G, sg * (cw - 0.02), sg * (w + 0.05), cf - 0.28, cf - 0.17, belt + 0.03, belt + 0.11);                                                                     // mirror
+        for (const o of [wr, wf]) { cyl(G, sg * (w - 0.1), o, r, r, 0.22, "x", 24); cyl(G, sg * (w - 0.08), o, r, r * 0.6, 0.22, "x", 20); cyl(G, sg * (w - 0.07), o, r, 0.06, 0.22, "x", 10); }   // tyre, rim, hub
+      }
+      for (const [p0, c, p1, sg] of [[[cf, belt - 0.02], cc0, [rf, roof], 1], [[cb, belt - 0.02], cc1, [rr, roof], -1]]) {   // windscreen and back light on the curved cabin
+        const Q = (t) => { const u = 1 - t, o = u * u * p0[0] + 2 * u * t * c[0] + t * t * p1[0], h = u * u * p0[1] + 2 * u * t * c[1] + t * t * p1[1];
+          const to = 2 * u * (c[0] - p0[0]) + 2 * t * (p1[0] - c[0]), th = 2 * u * (c[1] - p0[1]) + 2 * t * (p1[1] - c[1]), n = Math.hypot(to, th) || 1;
+          return [o + sg * Math.abs(th) / n * 0.012, h + Math.abs(to) / n * 0.012]; };
+        const ts = [0.12, 0.3, 0.5, 0.7, 0.9], xw = cw - 0.13;
+        for (const xs of [-xw, xw]) for (let i = 0; i < ts.length - 1; i++) { const a = Q(ts[i]), b = Q(ts[i + 1]); Ln.push([[xs, a[0], a[1]], [xs, b[0], b[1]]]); }
+        for (const t of [ts[0], ts[ts.length - 1]]) { const a = Q(t); Ln.push([[-xw, a[0], a[1]], [xw, a[0], a[1]]]); }
+      }
+      const hb = sill - 0.01;
+      box(G, -w - 0.03, w + 0.03, hl - 0.1, hl + 0.06, hb, hb + 0.15); box(G, -w - 0.03, w + 0.03, -hl - 0.06, -hl + 0.1, hb, hb + 0.15);   // bumpers
+      box(G, -0.42, 0.42, hl - 0.06, hl + 0.01, sill + 0.18, sill + 0.36);                                                                 // grille
+      lines(G, [0.23, 0.28, 0.33].map((h) => [[-0.42, hl + 0.015, sill + h], [0.42, hl + 0.015, sill + h]]));
+      for (const xh of [-(w - 0.3), w - 0.3]) { cyl(G, xh, hl - 0.03, sill + 0.3, 0.11, 0.06, "y", 18); box(G, xh - 0.17, xh + 0.17, -hl - 0.03, -hl + 0.04, belt - 0.28, belt - 0.15); }   // head and tail lamps
+      box(G, -0.26, 0.26, -hl - 0.08, -hl - 0.04, sill + 0.17, sill + 0.31); box(G, -0.26, 0.26, hl + 0.06, hl + 0.08, sill + 0.01, sill + 0.12);   // number plates
+      if (kind === "suv") for (const xr of [-(cw - 0.12), cw - 0.12]) { box(G, xr - 0.03, xr + 0.03, rr + 0.1, rf - 0.1, roof + 0.05, roof + 0.09);   // roof rails
+        for (const o of [rr + 0.15, rf - 0.15]) box(G, xr - 0.03, xr + 0.03, o - 0.04, o + 0.04, roof - 0.01, roof + 0.05); }
+    }
+    return { CARS, car }; })();
+  const KIND = {};
+  for (const kind of ["sedan", "hatch", "suv"]) { const g = new THREE.Group(); TCAR.car(g, 0, 0, 1, kind); g.updateMatrixWorld(true);
+    const ms = [], ls = [];
+    g.traverse(o => { if (o.isMesh) { const t = o.geometry.type, thr = t === "CylinderGeometry" ? 40 : 20;
+        ls.push(new THREE.EdgesGeometry(o.geometry, thr).applyMatrix4(o.matrixWorld)); const q = o.geometry.clone().applyMatrix4(o.matrixWorld); q.deleteAttribute("uv"); ms.push(q.index ? q.toNonIndexed() : q); }
+      else if (o.isLineSegments) ls.push(o.geometry.clone().applyMatrix4(o.matrixWorld)); });
+    const C = TCAR.CARS[kind];
+    KIND[kind] = { body: mergeGeometries(ms), line: mergeGeometries(ls).getAttribute("position").array, len: 2 * C.hl + 0.12, at: [] }; }
+  const pick = () => { const r = crand(); return r < 0.4 ? "sedan" : r < 0.65 ? "hatch" : "suv"; };
+  // a car in a stall: (d0..d1) is the stall depth along x (or y when along = "y"), c its centre across; face = +1/-1 toward the aisle
+  function park(d0, d1, c, face, along) { if (crand() > 0.3) return;
+    const K = KIND[pick()], L = K.len, f = crand() < 0.85 ? face : -face;   // most drive in nose first
     const gap = Math.min(0.35, d1 - d0 - L - 0.1), mid = face > 0 ? d1 - gap - L / 2 : d0 + gap + L / 2, cc = c + (crand() - 0.5) * 0.25, h = (crand() - 0.5) * 0.06;
-    if (along === "y") vehicle(T, place(cc, mid, (f > 0 ? Math.PI / 2 : -Math.PI / 2) + h));
-    else vehicle(T, place(mid, cc, (f > 0 ? 0 : Math.PI) + h)); }
+    const hd = along === "y" ? (f > 0 ? Math.PI / 2 : -Math.PI / 2) : (f > 0 ? 0 : Math.PI);   // heading in plan; the car model's nose points north (+y)
+    K.at.push(along === "y" ? place(cc, mid, hd + h - Math.PI / 2) : place(mid, cc, hd + h - Math.PI / 2)); }
   // south lots: rows run north-south, stalls 2.7 m wide, each pair of rows faces the 7 m aisle between them
   for (const px of [-40, 42, 124]) for (let k = 0; k < 4; k++) { const bx = px + 18 * k;
     for (let j = 0; j < 25; j++) { const c = LY0 + 3 + 2.7 * j + 1.35; park(bx, bx + 5.5, c, 1); park(bx + 12.5, bx + 18, c, -1); } }
@@ -685,6 +761,11 @@ for (let x = 170; x < 215; x += 3) { seg([x, 298, 0.06], [x, 303.5, 0.06]); seg(
     for (const zz of [-0.85, 0.85]) for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5, b = (k + 1) * Math.PI / 5; pts.push(X(L + 0.01, 1.05 + 0.14 * Math.sin(a), zz + 0.14 * Math.cos(a)), X(L + 0.01, 1.05 + 0.14 * Math.sin(b), zz + 0.14 * Math.cos(b))); }
     rq(-0.01, 0.65, 2.75, -0.55, 0.55); rq(-0.01, 1.85, 2.6, -0.45, 0.45);                     // rear emergency door + its window
     lines.push(new THREE.BufferGeometry().setFromPoints(pts).applyMatrix4(m)); }
+  for (const k in KIND) { const K = KIND[k], n = K.at.length; if (!n) continue;
+    const im = new THREE.InstancedMesh(K.body, W0, n); K.at.forEach((m, i) => im.setMatrixAt(i, m)); root.add(im);
+    const src = K.line, out = new Float32Array(src.length * n), v = new THREE.Vector3();
+    K.at.forEach((m, i) => { for (let j = 0; j < src.length; j += 3) { v.set(src[j], src[j + 1], src[j + 2]).applyMatrix4(m); out.set([v.x, v.y, v.z], i * src.length + j); } });
+    const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.BufferAttribute(out, 3)); root.add(new THREE.LineSegments(lg, M.line)); }
   const body = new THREE.Mesh(mergeGeometries(geos.map(g => { g.deleteAttribute("uv"); return g.index ? g.toNonIndexed() : g; })), W0); root.add(body);
   root.add(new THREE.LineSegments(mergeGeometries(lines.map(g => { const n = new THREE.BufferGeometry(); n.setAttribute("position", g.getAttribute("position")); return n; })), M.line));
 }
