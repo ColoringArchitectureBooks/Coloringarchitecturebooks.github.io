@@ -624,27 +624,6 @@ for (let x = 170; x < 215; x += 3) { seg([x, 298, 0.06], [x, 303.5, 0.06]); seg(
 // ---- parked cars (random, in the marked stalls) + a school bus at the drop-off curb
 {
   const crand = (s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; })(4242);
-  // the bus: side profile (length along x from the rear, height z), wheel radius and axles
-  const geos = [], lines = [];
-  const wheelG = new THREE.CylinderGeometry(1, 1, 1, 12).rotateX(Math.PI / 2).toNonIndexed(), wheelE = new THREE.EdgesGeometry(wheelG, 30);
-  // polygon above a height (the glass part of the profile), shrunk a little so it sits inside the side face
-  function above(p, zc) { const o = []; for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length], ia = a[1] >= zc, ib = b[1] >= zc;
-      if (ia) o.push(a); if (ia !== ib) { const t = (zc - a[1]) / (b[1] - a[1]); o.push([a[0] + t * (b[0] - a[0]), zc]); } }
-    const cx = o.reduce((s, q) => s + q[0], 0) / o.length, cz = o.reduce((s, q) => s + q[1], 0) / o.length; return o.map(([x, z]) => [cx + (x - cx) * 0.9, cz + (z - cz) * 0.72]); }
-  // one vehicle: profile extruded across its width, wheels, outlines + side detail lines; m places it (local x = forward)
-  function vehicle(T, m, extra) {
-    const L = Math.max(...T.p.map(q => q[0])), w = T.w;
-    const g = new THREE.ExtrudeGeometry(new THREE.Shape(T.p.map(([x, z]) => new THREE.Vector2(x - L / 2, z))), { depth: w, bevelEnabled: false }).translate(0, 0, -w / 2);
-    const e = new THREE.EdgesGeometry(g, 25); geos.push(g.applyMatrix4(m)); lines.push(e.applyMatrix4(m));
-    for (const ax of T.ax) for (const s of [-1, 1]) { const wm = new THREE.Matrix4().makeTranslation(ax - L / 2, T.r, s * (w / 2 - 0.13 + 0.02)).multiply(new THREE.Matrix4().makeScale(T.r, T.r, 0.26)), mm = m.clone().multiply(wm);
-      geos.push(wheelG.clone().applyMatrix4(mm)); lines.push(wheelE.clone().applyMatrix4(mm)); }
-    const pts = [], loop = (q, s) => { for (let i = 0; i < q.length; i++) { const a = q[i], b = q[(i + 1) % q.length]; pts.push(new THREE.Vector3(a[0] - L / 2, a[1], s), new THREE.Vector3(b[0] - L / 2, b[1], s)); } };
-    for (const s of [-1, 1]) { const z = s * (w / 2 + 0.01);
-      if (T.belt) { const win = above(T.p, T.belt); loop(win, z);
-        for (const px of T.pil) { const zs = win.map(q => q[1]); pts.push(new THREE.Vector3(px - L / 2, Math.min(...zs), z), new THREE.Vector3(px - L / 2, Math.max(...zs) - 0.04, z)); } }
-      if (extra) extra(pts, s, z, L, w); }
-    lines.push(new THREE.BufferGeometry().setFromPoints(pts).applyMatrix4(m));
-  }
   const place = (x, y, h) => new THREE.Matrix4().makeTranslation(...V(x, y, 0).toArray()).multiply(new THREE.Matrix4().makeRotationY(h));
   // detailed cars, built exactly like the train station's car park (body with wheel arches, glass, door shuts, handles, mirrors,
   // lamps, bumpers, grille, plates, tyres with rims); one copy of each kind is baked, then repeated as instances
@@ -745,29 +724,81 @@ for (let x = 170; x < 215; x += 3) { seg([x, 298, 0.06], [x, 303.5, 0.06]); seg(
     park(182, 187, y + 1.35, 1); park(193, 198, y + 1.35, -1); park(198, 203, y + 1.35, 1); park(209, 214, y + 1.35, -1); }
   // field parking off SE 15th St: stalls 3 m wide, noses toward the aisle between the two rows
   for (let x = 170; x + 3 < 215; x += 3) { park(298, 303.5, x + 1.5, 1, "y"); park(326.5, 332, x + 1.5, -1, "y"); }
-  // yellow school bus (conventional, long nose) at the drop-off curb, door side to the curb, heading south just past the crosswalk
-  const BUS = { w: 2.45, p: [[0, 0.5], [11.4, 0.5], [11.4, 1.5], [10.2, 1.72], [9.85, 3.0], [0.1, 3.05], [0, 2.9]], belt: 0, r: 0.5, ax: [2.9, 9.6], pil: [] };
-  vehicle(BUS, place(169.5, 81.9, -Math.PI / 2), (pts, s, z, L) => {
-    const P = (x, y) => new THREE.Vector3(x - L / 2, y, z), rect = (x0, x1, y0, y1) => pts.push(P(x0, y0), P(x1, y0), P(x1, y0), P(x1, y1), P(x1, y1), P(x0, y1), P(x0, y1), P(x0, y0));
-    for (let i = 0; i < 9; i++) rect(0.9 + i * 0.86, 0.9 + i * 0.86 + 0.74, 1.85, 2.62);        // passenger windows
-    for (const zz of [1.05, 1.42]) pts.push(P(0.05, zz), P(9.95, zz));                          // the black rub rails along the sides
-    if (s > 0) { rect(8.85, 9.7, 0.6, 2.75); pts.push(P(9.275, 0.6), P(9.275, 2.75)); }          // folding door on the curb side
-    else { const cx = 9.3, cy = 2.2, r = 0.24; for (let k = 0; k < 8; k++) { const a = (k + 0.5) * Math.PI / 4, b = (k + 1.5) * Math.PI / 4; pts.push(P(cx + r * Math.cos(a), cy + r * Math.sin(a)), P(cx + r * Math.cos(b), cy + r * Math.sin(b))); } }   // stop arm
-  });
-  // bus front (grille, headlights) and rear (emergency door) as lines on its end faces
-  { const m = place(169.5, 81.9, -Math.PI / 2), pts = [], L = 11.4, X = (x, y, z) => new THREE.Vector3(x - L / 2, y, z);
-    const rq = (x, y0, y1, z0, z1) => pts.push(X(x, y0, z0), X(x, y0, z1), X(x, y0, z1), X(x, y1, z1), X(x, y1, z1), X(x, y1, z0), X(x, y1, z0), X(x, y0, z0));
-    rq(L + 0.01, 0.7, 1.35, -0.55, 0.55);                                                       // grille
-    for (const zz of [-0.85, 0.85]) for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5, b = (k + 1) * Math.PI / 5; pts.push(X(L + 0.01, 1.05 + 0.14 * Math.sin(a), zz + 0.14 * Math.cos(a)), X(L + 0.01, 1.05 + 0.14 * Math.sin(b), zz + 0.14 * Math.cos(b))); }
-    rq(-0.01, 0.65, 2.75, -0.55, 0.55); rq(-0.01, 1.85, 2.6, -0.45, 0.45);                     // rear emergency door + its window
-    lines.push(new THREE.BufferGeometry().setFromPoints(pts).applyMatrix4(m)); }
+  // school bus at the drop-off curb (flat front, like Ahmed's photo), door side to the curb, heading south just past the crosswalk.
+  // Local frame: x forward (front face at +6.1), y up, z to the right (door side)
+  {
+    const G = new THREE.Group(), LN = [], P = (x, y, z) => new THREE.Vector3(x, y, z);
+    const add = (geo, thr = 25) => { G.add(new THREE.Mesh(geo, W0)); G.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, thr), M.line)); return geo; };
+    const B = (x0, x1, y0, y1, z0, z1) => add(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0).translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2));
+    const Cy = (x, y, z, r, len, axis, seg = 20) => { const g = new THREE.CylinderGeometry(r, r, len, seg); if (axis === "z") g.rotateX(Math.PI / 2); else if (axis === "x") g.rotateZ(Math.PI / 2); return add(g.translate(x, y, z), 40); };
+    const rod = (a, b, r = 0.025) => { const A = P(...a), Bv = P(...b), g = new THREE.CylinderGeometry(r, r, A.distanceTo(Bv), 6);
+      g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(P(0, 1, 0), Bv.clone().sub(A).normalize())).translate(...A.clone().add(Bv).multiplyScalar(0.5).toArray()); add(g, 40); };
+    const poly = (pts, closed) => { for (let i = 0; i < pts.length - (closed ? 0 : 1); i++) LN.push(pts[i], pts[(i + 1) % pts.length]); };
+    const W = 1.22, ZS = W + 0.006, XF = 6.1, XFF = XF + 0.006;
+    const sRect = (z, x0, x1, y0, y1) => poly([P(x0, y0, z), P(x1, y0, z), P(x1, y1, z), P(x0, y1, z)], true);        // on a side face
+    const fRect = (x, z0, z1, y0, y1) => poly([P(x, y0, z0), P(x, y0, z1), P(x, y1, z1), P(x, y1, z0)], true);         // on the front or rear face
+    const ring = (c, r, n, u, v, ry = r) => { const q = []; for (let k = 0; k < n; k++) { const a = 2 * Math.PI * k / n; q.push(c.clone().addScaledVector(u, r * Math.cos(a)).addScaledVector(v, ry * Math.sin(a))); } poly(q, true); };
+    // stroke letters for the "SCHOOL BUS" signs (unit box 0.6 wide, 1 high)
+    const GL = { S: [[[0.6, 0.85], [0.45, 1], [0.15, 1], [0, 0.85], [0, 0.62], [0.15, 0.5], [0.45, 0.5], [0.6, 0.38], [0.6, 0.15], [0.45, 0], [0.15, 0], [0, 0.15]]],
+      C: [[[0.6, 0.85], [0.45, 1], [0.15, 1], [0, 0.85], [0, 0.15], [0.15, 0], [0.45, 0], [0.6, 0.15]]], H: [[[0, 0], [0, 1]], [[0.6, 0], [0.6, 1]], [[0, 0.5], [0.6, 0.5]]],
+      O: [[[0.15, 0], [0.45, 0], [0.6, 0.15], [0.6, 0.85], [0.45, 1], [0.15, 1], [0, 0.85], [0, 0.15], [0.15, 0]]], L: [[[0, 1], [0, 0], [0.6, 0]]],
+      B: [[[0, 0], [0, 1], [0.42, 1], [0.56, 0.88], [0.56, 0.62], [0.42, 0.5], [0, 0.5]], [[0.42, 0.5], [0.6, 0.38], [0.6, 0.12], [0.47, 0], [0, 0]]], U: [[[0, 1], [0, 0.15], [0.15, 0], [0.45, 0], [0.6, 0.15], [0.6, 1]]] };
+    const text = (str, h, o, u) => { let a = -(str.length * 0.85 - 0.25) * h / 2;          // centred on o, running along u
+      for (const ch of str) { for (const st of GL[ch] || []) poly(st.map(([x, y]) => o.clone().addScaledVector(u, a + x * h).add(P(0, y * h, 0)))); a += 0.85 * h; } };
+    // body: side profile with the two wheel arches and the rounded roof edges, across the full width
+    const xf = 3.95, xr = -2.9, ar = 0.62;
+    const sh = new THREE.Shape(); sh.moveTo(-XF, 0.45); sh.lineTo(xr - ar, 0.45); sh.absarc(xr, 0.52, ar, Math.PI, 0, true); sh.lineTo(xf - ar, 0.45); sh.absarc(xf, 0.52, ar, Math.PI, 0, true);
+    sh.lineTo(XF, 0.45); sh.lineTo(XF, 3.12); sh.quadraticCurveTo(XF, 3.35, XF - 0.25, 3.35); sh.lineTo(-XF + 0.2, 3.35); sh.quadraticCurveTo(-XF, 3.35, -XF, 3.15); sh.closePath();
+    add(new THREE.ExtrudeGeometry(sh, { depth: 2 * W, bevelEnabled: false, curveSegments: 16 }).translate(0, 0, -W));
+    // wheels: tyre, rim, hub; twin tyres at the back
+    for (const s of [-1, 1]) { for (const [x, tw] of [[xf, 0.32], [xr, 0.55]]) { const z = s * (W - tw / 2 + 0.02); Cy(x, 0.52, z, 0.52, tw, "z", 24); Cy(x, 0.52, z + s * 0.01, 0.3, tw, "z", 16); Cy(x, 0.52, z + s * 0.02, 0.1, tw, "z", 10); } }
+    // black rub rails along both sides (stopping at the wheel arches and at the door)
+    const rail = (z, s, y, h, x0, x1) => { if (x1 > x0) B(x0, x1, y, y + h, s > 0 ? z : -z - 0.03, s > 0 ? z + 0.03 : -z); };
+    for (const s of [-1, 1]) { const dEnd = s > 0 ? 4.62 : XF - 0.02;
+      rail(W, s, 1.7, 0.09, -XF + 0.02, dEnd); rail(W, s, 1.3, 0.08, -XF + 0.02, dEnd);
+      for (const y of [1.0, 0.5]) { rail(W, s, y, 0.07, -XF + 0.02, xr - ar - 0.05); rail(W, s, y, 0.07, xr + ar + 0.05, xf - ar - 0.05); rail(W, s, y, 0.07, xf + ar + 0.05, s > 0 ? 4.62 : XF - 0.02); }
+      // passenger windows with the split sash, from the back to the door (right) or to the driver's window (left)
+      const z = s * ZS, x1 = s > 0 ? 4.5 : 4.2, n = s > 0 ? 11 : 10, pw = (x1 + 5.7 - 0.08 * (n - 1)) / n;
+      for (let i = 0; i < n; i++) { const a = -5.7 + i * (pw + 0.08); sRect(z, a, a + pw, 1.88, 2.8); LN.push(P(a, 2.48, z), P(a + pw, 2.48, z)); }
+      text("SCHOOL BUS", 0.2, P(-2.2, 1.45, z), P(s > 0 ? 1 : -1, 0, 0)); }
+    // driver's window and the STOP arm on the left
+    sRect(-ZS, 4.45, 5.9, 1.65, 2.86); LN.push(P(5.2, 1.65, -ZS), P(5.2, 2.86, -ZS));
+    B(4.05, 4.15, 1.9, 2.4, -W - 0.06, -W); Cy(4.32, 2.15, -W - 0.06, 0.24, 0.025, "z", 8); ring(P(4.32, 2.15, -W - 0.08), 0.19, 8, P(1, 0, 0), P(0, 1, 0));
+    // the folding glass entrance door on the right
+    sRect(ZS, 4.68, 5.82, 0.48, 2.9); LN.push(P(5.25, 0.48, ZS), P(5.25, 2.9, ZS));
+    for (const [a, b] of [[4.74, 5.2], [5.3, 5.76]]) { sRect(ZS + 0.002, a, b, 0.58, 1.55); sRect(ZS + 0.002, a, b, 1.65, 2.8); }
+    B(4.68, 5.82, 0.3, 0.45, W - 0.4, W);                                                                          // step under the door
+    // front: two-pane windscreen, the "SCHOOL BUS" header with its red/amber warning lamps, lower panel, lamp housings, bumper
+    fRect(XFF, -1.12, 1.12, 1.62, 2.9); fRect(XFF + 0.002, -1.07, 1.07, 1.67, 2.85); LN.push(P(XFF, 1.62, 0.12), P(XFF, 2.9, 0.12));
+    for (const zc of [-0.55, 0.55]) LN.push(P(XFF + 0.004, 1.72, zc + 0.3), P(XFF + 0.004, 2.45, zc - 0.2));      // wipers
+    text("SCHOOL BUS", 0.16, P(XFF, 2.97, 0), P(0, 0, -1));
+    for (const s of [-1, 1]) { B(XF, XF + 0.05, 2.93, 3.16, s > 0 ? 0.76 : -1.16, s > 0 ? 1.16 : -0.76);
+      for (const zc of [0.88, 1.06]) Cy(XF + 0.06, 3.045, s * zc, 0.075, 0.03, "x", 16);
+      B(XF, XF + 0.05, 0.72, 1.56, s > 0 ? 0.8 : -1.14, s > 0 ? 1.14 : -0.8);                                    // black lamp housing: amber turn signal over the headlight
+      Cy(XF + 0.06, 1.38, s * 0.97, 0.09, 0.03, "x", 16); Cy(XF + 0.06, 0.98, s * 0.97, 0.11, 0.03, "x", 16);
+      // big mirrors on arms by the windscreen, and the round cross-view mirror at the roof corner
+      rod([XF - 0.1, 2.55, s * W], [XF + 0.15, 2.45, s * 1.42]); rod([XF - 0.1, 1.75, s * W], [XF + 0.15, 1.85, s * 1.42]);
+      B(XF + 0.1, XF + 0.2, 1.8, 2.5, s > 0 ? 1.38 : -1.52, s > 0 ? 1.52 : -1.38);
+      rod([XF - 0.05, 3.1, s * W], [XF + 0.35, 2.85, s * 1.45]); Cy(XF + 0.38, 2.75, s * 1.47, 0.11, 0.06, "x", 16); }
+    fRect(XFF, -0.72, 0.72, 0.72, 1.48); ring(P(XFF + 0.002, 1.3, 0), 0.16, 20, P(0, 0, 1), P(0, 1, 0), 0.08);   // access panel + badge
+    B(XF, XF + 0.22, 0.3, 0.68, -1.25, 1.25); for (const zc of [-0.65, 0, 0.65]) fRect(XF + 0.226, zc - 0.15, zc + 0.15, 0.42, 0.56);
+    // back: emergency door with its window, tail lamps, warning lamps
+    fRect(-XFF, -0.55, 0.55, 0.55, 3.0); fRect(-XFF, -0.45, 0.45, 1.9, 2.8); LN.push(P(-XFF, 1.2, -0.38), P(-XFF, 1.2, -0.12));
+    for (const s of [-1, 1]) { Cy(-XF - 0.02, 0.95, s * 0.95, 0.1, 0.04, "x", 16); Cy(-XF - 0.02, 1.25, s * 0.95, 0.1, 0.04, "x", 16);
+      B(-XF - 0.05, -XF, 2.93, 3.16, s > 0 ? 0.7 : -1.1, s > 0 ? 1.1 : -0.7); for (const zc of [0.8, 1.0]) Cy(-XF - 0.06, 3.045, s * zc, 0.075, 0.03, "x", 16); }
+    B(-XF - 0.15, -XF, 0.32, 0.62, -1.2, 1.2);                                                                     // rear bumper
+    // roof: the long rooftop unit and two escape hatches
+    const pod = new THREE.Shape(); pod.moveTo(-1.8, 3.35); pod.lineTo(3.2, 3.35); pod.lineTo(2.95, 3.62); pod.lineTo(-1.55, 3.62); pod.closePath();
+    add(new THREE.ExtrudeGeometry(pod, { depth: 1.7, bevelEnabled: false }).translate(0, 0, -0.85)); B(0.3, 1.6, 3.62, 3.66, -0.5, 0.5);
+    for (const x of [-4.2, 3.9]) B(x - 0.35, x + 0.35, 3.35, 3.41, -0.38, 0.38);
+    const lg = new THREE.BufferGeometry().setFromPoints(LN); G.add(new THREE.LineSegments(lg, M.line));
+    G.position.copy(V(169.6, 82.4, 0)); G.rotation.y = -Math.PI / 2; root.add(G);
+  }
   for (const k in KIND) { const K = KIND[k], n = K.at.length; if (!n) continue;
     const im = new THREE.InstancedMesh(K.body, W0, n); K.at.forEach((m, i) => im.setMatrixAt(i, m)); root.add(im);
     const src = K.line, out = new Float32Array(src.length * n), v = new THREE.Vector3();
     K.at.forEach((m, i) => { for (let j = 0; j < src.length; j += 3) { v.set(src[j], src[j + 1], src[j + 2]).applyMatrix4(m); out.set([v.x, v.y, v.z], i * src.length + j); } });
     const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.BufferAttribute(out, 3)); root.add(new THREE.LineSegments(lg, M.line)); }
-  const body = new THREE.Mesh(mergeGeometries(geos.map(g => { g.deleteAttribute("uv"); return g.index ? g.toNonIndexed() : g; })), W0); root.add(body);
-  root.add(new THREE.LineSegments(mergeGeometries(lines.map(g => { const n = new THREE.BufferGeometry(); n.setAttribute("position", g.getAttribute("position")); return n; })), M.line));
 }
 
 // ---- baseball + softball (home SW, toward NE): outfield fence, foul lines, infield, mound, bases, backstop, dugouts
