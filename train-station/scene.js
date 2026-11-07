@@ -915,7 +915,7 @@ export function zoomFade(d) {
 // ---------- smoke from the engine's stack (page): billowing white puffs with a black outline, rising and rolling back over the coaches ----------
 // Each puff is a little cluster of balls with a black back-face shell a few cm larger, so it keeps a clean outline from any side.
 // The puffs travel a fixed path from the stack, growing as they go, and shrink away at the end while a new one starts at the stack.
-const SMOKE = { n: 30, period: 26, puffs: [] };
+const SMOKE = { n: 24, period: 20, puffs: [] };
 function buildSmoke(scene) {
   const yc = D.track[0], sx = PX(575), sz = 4.15;
   const white = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x9a9a9a }), ink = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
@@ -932,7 +932,7 @@ function buildSmoke(scene) {
   }
   SMOKE.path = (u) => {                                                  // up out of the stack, then rolling back (toward -x) and up over the coaches
     const a = Math.min(1, u * 5);
-    return [sx - 26 * Math.pow(u, 1.1) + 0.4 * a, yc - 0.8 * u, sz + 0.2 + 0.9 * a + 1.5 * Math.pow(u, 0.7)];   // stays low and trails back over all three coaches
+    return [sx - 22 * Math.pow(u, 1.1) + 0.4 * a, yc - 0.8 * u, sz + 0.2 + 0.9 * a + 1.5 * Math.pow(u, 0.7)];   // stays low and trails back over the coaches
   };
   tickSmoke(0);
 }
@@ -941,7 +941,7 @@ export function tickSmoke(t) {
   for (let i = 0; i < SMOKE.n; i++) {
     const q = SMOKE.puffs[i], u = ((i / SMOKE.n) + t / SMOKE.period) % 1;
     const [x, y, z] = SMOKE.path(u), w = Math.sin(t * 0.6 + q.ph);
-    let R = 0.32 + 1.15 * Math.pow(u, 0.5); if (u > 0.88) R *= Math.max(0, 1 - (u - 0.88) / 0.12);   // grow, then thin away at the end
+    let R = 0.32 + 1.15 * Math.pow(u, 0.5); if (u > 0.4) R *= Math.pow(1 - (u - 0.4) / 0.6, 0.6);   // thins away gradually over the back half   // grow, then thin away at the end
     q.P.position.copy(V(x + 0.15 * w, y + 0.2 * Math.cos(t * 0.5 + q.ph), z + 0.12 * w)); q.P.visible = R > 0.02;
     for (const { b, h, r, off } of q.parts) {
       const rr = R * r, o = V(off[0] * R, off[1] * R, off[2] * R);
