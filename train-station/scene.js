@@ -909,7 +909,7 @@ bench = faded(bench); gate = faded(gate); picket = faded(picket); railFence = fa
 export function zoomFade(d) {
   if (!M.fine) return;
   const t = Math.min(1, Math.max(0, (d - 80) / 120));
-  M.fine.color.setScalar(0.45 * Math.sqrt(t));                                  // linear value: about #b4b4b4 at full fade
+  M.fine.color.setScalar(0.2 * Math.sqrt(t));                                   // linear value: a mid grey, about #7c7c7c, at full fade
 }
 // builds everything; resolves when the 3D letters are in
 export function buildScene(scene) {
