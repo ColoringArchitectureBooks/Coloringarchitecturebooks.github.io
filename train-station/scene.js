@@ -366,28 +366,37 @@ function entryGable(root, font) {
   elev(root, [[E.x0 - k, E.eave - fz], [E.x0, E.eave - fz], [mid, E.peak - fz], [E.x1, E.eave - fz], [E.x1 + k, E.eave - fz], [E.x1 + k, E.eave], [E.x1, E.eave], [mid, E.peak], [E.x0, E.eave], [E.x0 - k, E.eave]], yf - 0.2 - t, yf - 0.2);
   const f2 = 0.12, d2 = 0.3;
   elev(root, [[E.x0 + d2, E.eave - fz - f2 + d2 * pitch], [mid, E.peak - fz - f2], [E.x1 - d2, E.eave - fz - f2 + d2 * pitch], [E.x1 - d2, E.eave - fz + d2 * pitch], [mid, E.peak - fz], [E.x0 + d2, E.eave - fz + d2 * pitch]], yf - 0.2 - t + 0.06, yf - 0.2);
-  // truss: king post, two raking braces, short X under the peak (page)
-  const yt = yf - 0.08;
-  const zk = 5.42, under = (d) => E.peak - d * pitch - fz - f2 + 0.02;      // collar height; rafter underside d metres from the middle
-  box(root, mid - 0.08, mid + 0.08, yt - 0.06, yt + 0.06, zk - 0.12, E.peak - 0.3);                          // king post
-  const kd = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.16, 4), M.white); kd.rotation.x = Math.PI; kd.position.copy(V(mid, yt, zk - 0.2)); root.add(kd);
-  const strut = (ax, az, bx, bz) => { const A = V(ax, yt, az), B = V(bx, yt, bz), m = new THREE.Mesh(new THREE.BoxGeometry(0.09, A.distanceTo(B), 0.09), M.white);
+  // truss as on the page: flat boards. A tie on the sign's top edge, a wide king post from the peak ending in a pointed pendant just
+  // above the sign, and on each side an X of two flat braces running out to the rafters
+  const yt = yf - 0.08, sx0 = PX(735), sx1 = PX(965), sz0 = PZ(625) + 0.03, sz1 = PZ(585);
+  const rU = (d) => E.peak - d * pitch - fz - f2 + 0.02;                                          // rafter underside d metres from the middle
+  const board = (ax, az, bx, bz, w = 0.13, dz = 0.07) => { const A = V(ax, yt, az), B = V(bx, yt, bz), m = new THREE.Mesh(new THREE.BoxGeometry(w, A.distanceTo(B), dz), M.white);
     m.position.copy(A).add(B).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize()); root.add(m); };
-  for (const s of [-1, 1]) { strut(mid + s * 0.1, zk + 0.05, mid + s * 0.8, under(0.8) - 0.04); strut(mid + s * 0.1, under(0.1) - 0.1, mid + s * 0.8, zk + 0.05); }
-  const cw = (E.peak - fz - f2 - zk - 0.05) / pitch;
-  box(root, mid - cw, mid + cw, yt - 0.05, yt + 0.05, zk - 0.05, zk + 0.05);                                // collar
-  // finial at the peak
-  cyl(root, mid, yf - 0.15, E.peak + 0.12, 0.08, 0.25); ball(root, mid, yf - 0.15, E.peak + 0.33, 0.12);
-  const sp = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 8), M.white); sp.position.copy(V(mid, yf - 0.15, E.peak + 0.58)); root.add(sp);
-  // sign board with raised letters
-  const sx0 = PX(735), sx1 = PX(965), sz0 = PZ(625) + 0.03, sz1 = PZ(585);
-  box(root, sx0, sx1, yf - 0.14, yf, sz0, sz1);
-  lines(root, [[[sx0 + 0.08, yf - 0.15, sz0 + 0.08], [sx1 - 0.08, yf - 0.15, sz0 + 0.08]], [[sx1 - 0.08, yf - 0.15, sz0 + 0.08], [sx1 - 0.08, yf - 0.15, sz1 - 0.08]],
-    [[sx1 - 0.08, yf - 0.15, sz1 - 0.08], [sx0 + 0.08, yf - 0.15, sz1 - 0.08]], [[sx0 + 0.08, yf - 0.15, sz1 - 0.08], [sx0 + 0.08, yf - 0.15, sz0 + 0.08]]]);
-  if (!font) return;
-  const tg = new TextGeometry("TRAIN STATION", { font, size: 0.34, height: 0.05, curveSegments: 6 });
-  tg.computeBoundingBox(); const bb = tg.boundingBox;
-  const m = new THREE.Mesh(tg, M.white); m.position.copy(V((sx0 + sx1) / 2 - (bb.max.x - bb.min.x) / 2, yf - 0.14, (sz0 + sz1) / 2 - 0.17)); root.add(m);
+  const zt0 = sz1, zt1 = sz1 + 0.12, cwT = (E.peak - fz - f2 - zt1) / pitch;
+  box(root, mid - cwT, mid + cwT, yt - 0.04, yt + 0.04, zt0, zt1);                                  // tie on the sign
+  box(root, mid - 0.1, mid + 0.1, yt - 0.05, yt + 0.05, zt1 + 0.12, E.peak - 0.25);                 // king post
+  elev(root, [[mid - 0.1, zt1 + 0.16], [mid + 0.1, zt1 + 0.16], [mid + 0.1, zt1 + 0.06], [mid, zt1 - 0.02], [mid - 0.1, zt1 + 0.06]], yt - 0.06, yt + 0.06);   // pointed pendant at the foot
+  for (const sg of [-1, 1]) {
+    const dO = 0.8, zO = rU(dO) + 0.1, zI = zO;                                       // upper ends run in behind the bargeboard
+    board(mid + sg * 0.1, zt1 - 0.06, mid + sg * dO, zO, 0.16);                                      // brace up from the king post foot to the rafter
+    board(mid + sg * 0.1, zI, mid + sg * dO, zt1 - 0.06, 0.16);                                      // and its partner down to the tie: the X
+  }
+  // king post through the peak with a small square cap (calmer than a spike)
+  box(root, mid - 0.08, mid + 0.08, yf - 0.24, yf - 0.08, E.peak - 0.1, E.peak + 0.2);
+  cyl(root, mid, yf - 0.16, E.peak + 0.27, 0.13, 0.14, "z", 4, M.white, 0.02).rotation.y = Math.PI / 4;
+  // battens on the gable boarding either side of the sign (page)
+  { const L = [], yl = yf - 0.006;
+    for (const [a0, a1] of [[xin0 + 0.05, sx0 - 0.08], [sx1 + 0.08, xin1 - 0.05]]) for (let x = a0; x <= a1 + 1e-3; x += 0.2) L.push([[x, yl, C.z0 + 0.02], [x, yl, Math.min(zIn(x) - 0.3, sz1 + 0.6)]]);
+    lines(root, L); }
+  // the sign: a plain board with four screws and the name painted on in a serif face, no frame and no raised letters (page)
+  box(root, sx0, sx1, yf - 0.1, yf, sz0, sz1);
+  const tex = canvasTex(1536, 256, (g, w, h) => { g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.fillStyle = "#000";
+    g.font = 'bold 150px Georgia, "Times New Roman", "DejaVu Serif", serif'; g.textAlign = "center"; g.textBaseline = "middle";
+    const txt = "TRAIN STATION", sp = 14; let tw = 0; for (const ch of txt) tw += g.measureText(ch).width + sp; tw -= sp;
+    let x = w / 2 - tw / 2; g.textAlign = "left"; for (const ch of txt) { g.fillText(ch, x, h / 2 + 6); x += g.measureText(ch).width + sp; }
+    for (const [cx, cy] of [[22, 22], [w - 22, 22], [22, h - 22], [w - 22, h - 22]]) { g.beginPath(); g.arc(cx, cy, 7, 0, Math.PI * 2); g.fill(); } });
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+  sign(root, (sx0 + sx1) / 2, yf - 0.105, (sz0 + sz1) / 2, sx1 - sx0 - 0.02, sz1 - sz0 - 0.02, tex);
 }
 
 // ---------- the platform front: windows, door, posters, clock, timetable, benches, lamps ----------
@@ -461,8 +470,8 @@ function front(root) {
     const kd = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.15, 4), M.white); kd.rotation.x = Math.PI; kd.position.copy(V(xm, yt, zk - 0.2)); root.add(kd);
     for (const sg of [-1, 1]) { strut(xm + sg * 0.09, zk + 0.05, xm + sg * 0.7, under(0.7) - 0.04); strut(xm + sg * 0.09, under(0.1) - 0.1, xm + sg * 0.7, zk + 0.05); }
     const cw = (pz - fz - f2 - zk - 0.05) / pitch; box(root, xm - cw, xm + cw, yt - 0.045, yt + 0.045, zk - 0.045, zk + 0.045);   // collar
-    cyl(root, xm, yo + 0.1, pz + 0.12, 0.08, 0.25); ball(root, xm, yo + 0.1, pz + 0.33, 0.12);                     // finial
-    { const sp = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 8), M.white); sp.position.copy(V(xm, yo + 0.1, pz + 0.58)); root.add(sp); }
+    box(root, xm - 0.07, xm + 0.07, yo + 0.04, yo + 0.18, pz - 0.1, pz + 0.17);                                  // king post through the peak with a small square cap, as on the platform gable
+    cyl(root, xm, yo + 0.11, pz + 0.235, 0.115, 0.13, "z", 4, M.white, 0.02).rotation.y = Math.PI / 4;
     const pw = 0.24, py = ye - 0.12, P0 = x0 + 0.12, P1 = x1 - 0.12, zs = 2.6, crown = 2.92, th = 0.1;
     for (const x of [P0, P1]) {
       box(root, x - pw / 2, x + pw / 2, py - pw / 2, py + pw / 2, 0, tb0);                                        // post
