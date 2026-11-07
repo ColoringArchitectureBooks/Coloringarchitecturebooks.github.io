@@ -652,12 +652,13 @@ function railFence(root, pts, z = 0) {              // simple post-and-two-rail 
     for (let k = 0; k <= n; k++) { const t = k / n; box(G, a[0] + (b[0] - a[0]) * t - 0.06, a[0] + (b[0] - a[0]) * t + 0.06, a[1] + (b[1] - a[1]) * t - 0.06, a[1] + (b[1] - a[1]) * t + 0.06, 0, 1.15); }
   }
 }
-function shelter(root, x0, x1, y0, y1, z) {         // small open shelter: four posts, flat roof, back screen, bench
+function shelter(root, x0, x1, y0, y1, z, faceSt = true) {   // small open shelter: four posts, flat roof, back screen, bench facing the street (+y)
   const G = lvl(root, z), h = 2.5;
   for (const x of [x0 + 0.08, x1 - 0.08]) for (const y of [y0 + 0.08, y1 - 0.08]) box(G, x - 0.06, x + 0.06, y - 0.06, y + 0.06, 0, h);
   box(G, x0 - 0.15, x1 + 0.15, y0 - 0.15, y1 + 0.15, h, h + 0.15); box(G, x0 - 0.05, x1 + 0.05, y0 - 0.05, y1 + 0.05, h + 0.15, h + 0.22);
-  box(G, x0 + 0.15, x1 - 0.15, y1 - 0.1, y1 - 0.06, 0.4, 2.1, M.siding);
-  box(G, x0 + 0.3, x1 - 0.3, y1 - 0.55, y1 - 0.12, 0.42, 0.47); for (const x of [x0 + 0.4, x1 - 0.46]) box(G, x, x + 0.06, y1 - 0.5, y1 - 0.15, 0, 0.42);
+  const yb = faceSt ? y0 : y1, d = faceSt ? 1 : -1;                 // screen on the back, bench in front of it
+  box(G, x0 + 0.15, x1 - 0.15, yb + d * 0.06, yb + d * 0.1, 0.4, 2.1, M.siding);
+  box(G, x0 + 0.3, x1 - 0.3, yb + d * 0.12, yb + d * 0.55, 0.42, 0.47); for (const x of [x0 + 0.4, x1 - 0.46]) box(G, x, x + 0.06, yb + d * 0.15, yb + d * 0.5, 0, 0.42);
 }
 function site(root) {
   const g = D.ground, P = D.platform, T1 = D.track[0], T2 = D.track[1];
