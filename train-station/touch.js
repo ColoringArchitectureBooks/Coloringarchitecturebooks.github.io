@@ -1,9 +1,10 @@
-// Two-finger touch like a maps app. One finger still turns the model (OrbitControls).
-// With two fingers, one gesture does all of these together, around the point between the fingers:
-//   pinch          zoom toward that point
-//   twist          turn the model all the way round (360°) about that point
-//   move together  slide the view in any direction (up, down, left, right); the point stays under the fingers
-// Letting go while moving keeps the view gliding for a moment and slowing down, so it feels smooth.
+// Two-finger touch. One finger turns the model (OrbitControls); two fingers do the same and more:
+//   move both fingers together (keeping their spacing)  turn the model exactly like one finger does:
+//                     sideways turns it round (360°), down rises to a bird's view from above, up sinks to an ant's view at the ground
+//   pinch (change the spacing)  zoom in toward the point between the fingers, or back out
+//   twist             turn the model round about that point
+// All of these work in one gesture, around the point between the fingers. Letting go while moving
+// keeps the view gliding for a moment and slowing down, so it feels smooth.
 import * as THREE from "three";
 
 export function mapTouch(controls, camera, canvas, scene) {
@@ -28,18 +29,29 @@ export function mapTouch(controls, camera, canvas, scene) {
     return R.at(camera.position.distanceTo(controls.target), new THREE.Vector3());
   }
 
-  // move the whole view: zoom by k and turn by th about P, then slide so P sits under screen point m
-  function step(P, k, th, m) {
-    const cam = camera.position, tgt = controls.target, d0 = cam.distanceTo(tgt);
+  // move the whole view about P: zoom by k, twist by th, and turn like one finger by a drag of (dx, dy) pixels
+  function step(P, k, th, dx, dy) {
+    const cam = camera.position, tgt = controls.target, d0 = cam.distanceTo(tgt), h = canvas.clientHeight || 1;
     k = THREE.MathUtils.clamp(k, controls.minDistance / d0, controls.maxDistance / d0);
     cam.sub(P).multiplyScalar(k).add(P); tgt.sub(P).multiplyScalar(k).add(P);
-    const q = new THREE.Quaternion().setFromAxisAngle(up, th);
+    // round about the upright line through P: the twist, plus a sideways drag at one-finger speed
+    const q = new THREE.Quaternion().setFromAxisAngle(up, th - 2 * Math.PI * dx / h * controls.rotateSpeed);
     cam.sub(P).applyQuaternion(q).add(P); tgt.sub(P).applyQuaternion(q).add(P);
-    camera.lookAt(tgt); camera.updateMatrixWorld();
-    const n = camera.getWorldDirection(new THREE.Vector3()), plane = new THREE.Plane().setFromNormalAndCoplanarPoint(n, P);
-    const Q = rayAt(m).intersectPlane(plane, new THREE.Vector3());
-    if (Q) { const t = P.clone().sub(Q); cam.add(t); tgt.add(t); }
-    controls.update();
+    // over the top: a drag down rises to look from above, a drag up sinks toward the ground (as with one finger)
+    const off = cam.clone().sub(tgt), phi = Math.acos(THREE.MathUtils.clamp(off.y / off.length(), -1, 1));
+    const nphi = THREE.MathUtils.clamp(phi - 2 * Math.PI * dy / h * controls.rotateSpeed, 0.03, controls.maxPolarAngle);
+    if (Math.abs(nphi - phi) > 1e-5) {
+      const axis = new THREE.Vector3().crossVectors(up, off).normalize(), qt = new THREE.Quaternion().setFromAxisAngle(axis, phi - nphi);
+      const o2 = off.clone().applyQuaternion(qt);
+      if (Math.abs(Math.acos(THREE.MathUtils.clamp(o2.y / o2.length(), -1, 1)) - nphi) > 1e-3) qt.setFromAxisAngle(axis, nphi - phi);
+      cam.sub(P).applyQuaternion(qt).add(P); tgt.sub(P).applyQuaternion(qt).add(P);
+      if (cam.y < 0.3) { const lift = 0.3 - cam.y; cam.y += lift; tgt.y += lift; }   // never below the ground
+    }
+    if (tgt.y < -3) {                                        // the aim point (what one finger turns about) sank well under the ground: bring it up to the ground
+      const d = cam.distanceTo(tgt), R = new THREE.Ray(cam.clone(), tgt.clone().sub(cam).normalize()), G = R.intersectPlane(new THREE.Plane(up, 0.6), new THREE.Vector3());
+      if (G && G.distanceTo(cam) > 0.5 * d) tgt.copy(G);
+    }
+    camera.lookAt(tgt); controls.update();
   }
 
   function start() {
@@ -74,25 +86,23 @@ export function mapTouch(controls, camera, canvas, scene) {
     const [a, b] = two(), pa = g.a, pb = g.b; g.a = { ...a }; g.b = { ...b };
     const m = mid(a, b), pm = mid(pa, pb);
     const k = dist(pa, pb) / Math.max(1, dist(a, b)), th = wrap(ang(a, b) - ang(pa, pb));
-    step(g.P, k, th, m);
+    step(g.P, k, th, m.x - pm.x, m.y - pm.y);
     const now = performance.now(), f = Math.min(1, (now - g.t) / 50); g.t = now;   // remember how fast it was going (smoothed)
     const v = g.v, s = 0.5 + 0.5 * f;
     v.k = Math.pow(v.k, 1 - s) * Math.pow(k, s); v.th = v.th * (1 - s) + th * s;
     v.x = v.x * (1 - s) + (m.x - pm.x) * s; v.y = v.y * (1 - s) + (m.y - pm.y) * s;
-    g.m = m;
   }
 
   function coast(G) {                                        // keep gliding after the fingers lift, slowing down each frame
-    const v = { ...G.v }, P = G.P; let m = G.m || mid(G.a, G.b);
+    const v = { ...G.v }, P = G.P;
     const tick = () => {
       v.k = Math.pow(v.k, 0.9); v.th *= 0.9; v.x *= 0.9; v.y *= 0.9;
       if (Math.abs(Math.log(v.k)) < 0.0005 && Math.abs(v.th) < 0.0005 && Math.hypot(v.x, v.y) < 0.3) { glide = 0; return; }
-      // carry the anchor along with the slide so the glide keeps the same feel
-      const m2 = { x: m.x + v.x, y: m.y + v.y }; step(P, v.k, v.th, m2); m = m2;
+      step(P, v.k, v.th, v.x, v.y);
       glide = requestAnimationFrame(tick);
     };
     glide = requestAnimationFrame(tick);
   }
 
-  return { active: () => multi, stop: () => { cancelAnimationFrame(glide); glide = 0; } };   // stop: a view button was pressed                            // true until all fingers lift after a two-finger touch (so it is not a tap)
+  return { active: () => multi, stop: () => { cancelAnimationFrame(glide); glide = 0; } };   // active: a two-finger touch (so not a tap); stop: a view button was pressed
 }
