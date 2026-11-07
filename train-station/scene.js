@@ -652,6 +652,14 @@ function railFence(root, pts, z = 0) {              // simple post-and-two-rail 
     for (let k = 0; k <= n; k++) { const t = k / n; box(G, a[0] + (b[0] - a[0]) * t - 0.06, a[0] + (b[0] - a[0]) * t + 0.06, a[1] + (b[1] - a[1]) * t - 0.06, a[1] + (b[1] - a[1]) * t + 0.06, 0, 1.15); }
   }
 }
+function railing(root, pts, z = 0, h = 1.0) {      // thin see-through metal railing: slim posts every 2 m, three round bars
+  const G = lvl(root, z);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [a, b] = [pts[i], pts[i + 1]], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(L / 2));
+    for (const hh of [0.35, 0.68, h]) rod(G, [a[0], a[1], hh], [b[0], b[1], hh], 0.022, 6);
+    for (let k = 0; k <= n; k++) { const t = k / n, x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t; box(G, x - 0.025, x + 0.025, y - 0.025, y + 0.025, 0, h + 0.03); }
+  }
+}
 function shelter(root, x0, x1, y0, y1, z, faceSt = true) {   // small open shelter: four posts, flat roof, back screen, bench facing the street (+y)
   const G = lvl(root, z), h = 2.5;
   for (const x of [x0 + 0.08, x1 - 0.08]) for (const y of [y0 + 0.08, y1 - 0.08]) box(G, x - 0.06, x + 0.06, y - 0.06, y + 0.06, 0, h);
@@ -701,6 +709,7 @@ function site(root) {
     sign(root, xs, yb - 0.04, g + 1.95, 0.6, 0.6, textTex(["STOP"], 256, 256)); sign(root, xs, yb + 0.04, g + 1.95, 0.6, 0.6, textTex(["STOP"], 256, 256), "+y");
   }
   railFence(root, [[26, P.y0 + 0.15], [rx0, P.y0 + 0.15]]); railFence(root, [[26, P2y1 - 0.15], [rx0, P2y1 - 0.15]]);   // edge fences near the end
+  railing(root, [[P.x0 + 0.1, P2y1 - 0.4], [P.x0 + 0.1, P2y0 + 0.1], [P.x1 - 0.1, P2y0 + 0.1], [P.x1 - 0.1, P2y1 - 2.1]]);   // closes the back and both ends of platform 2
   for (const x of [0, 6, 12, 18, 24]) { box(root, x + 0.8, x + 2.8, P2y0 + 0.6, P2y0 + 1.1, 0.42, 0.47); for (const xl of [x + 0.9, x + 2.64]) box(root, xl, xl + 0.06, P2y0 + 0.6, P2y0 + 1.1, 0, 0.42); }   // benches on platform 2
   // ---- platform fence (page picket) with the two walk gates ----
   for (const [a, b] of [[P.x0, -12], [-10, H.x0 - 0.1], [H.x1 + 0.1, 33], [35, P.x1]]) picket(root, a, b, H.y0 + 0.05);
