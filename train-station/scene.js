@@ -725,7 +725,6 @@ function site(root) {
   for (const xw of [-12, 33]) {
     side(root, [[0.3, g], [33.5, g], [33.5, LG + 0.15], [18, LG + 0.15], [9, 0], [0.3, 0]], xw, xw + 2);          // walk: level by the station, gentle slope, then flat
   }
-  shelter(root, 9.5, 13.5, 16.2, 17.7, LG + 0.15);
   // ---- car park: one rectangle, one-way aisle; drop-off and accessible bays opposite the steps ----
   slab(root, [[-10, 18], [33, 18], [33, 33], [-10, 33]], LG, LG + 0.02);
   slab(root, [[-10, 33], [-5, 33], [-5, 35.5], [-10, 35.5]], LG, LG + 0.02); slab(root, [[28, 33], [33, 33], [33, 35.5], [28, 35.5]], LG, LG + 0.02);
