@@ -518,7 +518,9 @@ function stands(xf, dx, n, y0, y1) {
 // low-poly tree: trunk + faceted crown
 const crownG = new THREE.IcosahedronGeometry(1, 0), crownE = new THREE.EdgesGeometry(crownG, 1);
 const trunkG = new THREE.CylinderGeometry(0.18, 0.25, 1, 6), trunkE = new THREE.EdgesGeometry(trunkG, 30);
+const TREES = [];                                  // trunk positions, so the shrubs keep clear of them
 function tree(x, y, r = 3, h = 7) {
+  TREES.push([x, y]);
   const t = new THREE.Mesh(trunkG, W0); t.scale.set(1, h - r, 1); t.position.copy(V(x, y, (h - r) / 2)); root.add(t);
   const c = new THREE.Mesh(crownG, W0); c.scale.set(r, r * 1.1, r); c.position.copy(V(x, y, h)); c.rotation.y = (x * 7 + y * 3) % 6.28; root.add(c);
   const ce = new THREE.LineSegments(crownE, M.line); ce.scale.copy(c.scale); ce.position.copy(c.position); ce.rotation.copy(c.rotation); root.add(ce);
@@ -799,6 +801,49 @@ for (let x = 170; x < 215; x += 3) { seg([x, 298, 0.06], [x, 303.5, 0.06]); seg(
     const src = K.line, out = new Float32Array(src.length * n), v = new THREE.Vector3();
     K.at.forEach((m, i) => { for (let j = 0; j < src.length; j += 3) { v.set(src[j], src[j + 1], src[j + 2]).applyMatrix4(m); out.set([v.x, v.y, v.z], i * src.length + j); } });
     const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.BufferAttribute(out, 3)); root.add(new THREE.LineSegments(lg, M.line)); }
+}
+
+// ---- shrubs (Ahmed's picks: #2 round bush and #5 ornamental grass, blades only): clumps scattered at random over the lawns and planted islands,
+// kept off the walks, clear of tree trunks and of each other; a few baked variants repeated as instances
+{
+  const srand = (s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; })(777);
+  const VAR = [];
+  for (let v = 0; v < 6; v++) { const ms = [], ls = [], n = 3 + Math.floor(srand() * 3);
+    for (let i = 0; i < n; i++) { const a = srand() * 6.28, d = i ? 0.25 + srand() * 0.2 : 0, r = i ? 0.3 + srand() * 0.15 : 0.45;
+      const m = new THREE.Matrix4().compose(new THREE.Vector3(Math.cos(a) * d, r * 0.85 + (i ? 0 : 0.1), Math.sin(a) * d), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, srand() * 6, 0)), new THREE.Vector3(r, r * 0.9, r));
+      const g = new THREE.IcosahedronGeometry(1, 1); ls.push(new THREE.EdgesGeometry(g, 20).applyMatrix4(m)); g.applyMatrix4(m); g.deleteAttribute("uv"); ms.push(g); }
+    VAR.push({ body: mergeGeometries(ms), line: mergeGeometries(ls).getAttribute("position").array, at: [] }); }
+  const GRASS = [];                                 // grass tufts: long blades fanning out from the ground, lines only
+  for (let v = 0; v < 4; v++) { const q = [];
+    for (let i = 0; i < 34; i++) { const a = srand() * 6.28, t = 0.25 + srand() * 0.55, h = 0.6 + srand() * 0.5, bx = Math.cos(a) * 0.12, bz = Math.sin(a) * 0.12;
+      const mx = bx + Math.cos(a) * t * 0.5, mz = bz + Math.sin(a) * t * 0.5, tx = bx + Math.cos(a) * t, tz = bz + Math.sin(a) * t;
+      q.push(bx, 0, bz, mx, h * 0.75, mz, mx, h * 0.75, mz, tx, h * (0.85 + srand() * 0.2), tz); }
+    GRASS.push({ body: null, line: new Float32Array(q), at: [] }); }
+  const inRing = (x, y, r) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) { const [xi, yi] = r[i], [xj, yj] = r[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; };
+  const inPoly = (x, y, p) => inRing(x, y, p.o) && !(p.h || []).some(h => inRing(x, y, h));
+  const edgeDist = (x, y, r) => { let m = 1e9; for (let i = 0; i < r.length; i++) { const [ax, ay] = r[i], [bx, by] = r[(i + 1) % r.length], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L2)); m = Math.min(m, Math.hypot(x - ax - t * dx, y - ay - t * dy)); } return m; };
+  const nearEdge = (x, y, p, d) => [p.o, ...(p.h || [])].some(r => edgeDist(x, y, r) < d);
+  const onWalk = (x, y) => SITE_LAYERS.W.polys.some(p => inPoly(x, y, p) || nearEdge(x, y, p, 0.8));
+  const placed = [];
+  const free = (x, y, s) => !TREES.some(([tx, ty]) => Math.hypot(x - tx, y - ty) < 0.9 + s * 0.6) && !placed.some(([px, py, ps]) => Math.hypot(x - px, y - py) < 0.75 * (s + ps));
+  for (const p of SITE_LAYERS.G.polys) {
+    const xs = p.o.map(q => q[0]), ys = p.o.map(q => q[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    let A = 0; for (let i = 0; i < p.o.length; i++) { const [ax, ay] = p.o[i], [bx, by] = p.o[(i + 1) % p.o.length]; A += ax * by - bx * ay; } A = Math.abs(A) / 2;
+    let clumps = Math.floor(A / 150 + srand()); if (A < 60 && srand() < 0.5) clumps = 0;   // the small end islands: some get a bush, some don't
+    for (let c = 0, tries = 0; c < clumps && tries < clumps * 40; tries++) {
+      const cx = x0 + srand() * (x1 - x0), cy = y0 + srand() * (y1 - y0); if (!inPoly(cx, cy, p)) continue; c++;
+      const n = 1 + Math.floor(srand() * srand() * 5), set = srand() < 0.35 ? GRASS : VAR;  // clumps of 1 to 5, mostly small; some clumps are grass
+      for (let k = 0; k < n; k++) { const s = 0.75 + srand() * 0.6, a = srand() * 6.28, d = k ? 0.9 + srand() * 1.2 : 0, x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d;
+        if (!inPoly(x, y, p) || nearEdge(x, y, p, 0.75 * s) || onWalk(x, y) || !free(x, y, s)) continue;
+        placed.push([x, y, s]); set[Math.floor(srand() * set.length)].at.push(new THREE.Matrix4().compose(V(x, y, 0.12), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, srand() * 6.28, 0)), new THREE.Vector3(s, s * (0.85 + srand() * 0.3), s))); } }
+  }
+  for (const K of [...VAR, ...GRASS]) { const n = K.at.length; if (!n) continue;
+    if (K.body) { const im = new THREE.InstancedMesh(K.body, W0, n); K.at.forEach((m, i) => im.setMatrixAt(i, m)); root.add(im); }
+    const src = K.line, out = new Float32Array(src.length * n), v = new THREE.Vector3();
+    K.at.forEach((m, i) => { for (let j = 0; j < src.length; j += 3) { v.set(src[j], src[j + 1], src[j + 2]).applyMatrix4(m); out[i * src.length + j] = v.x; out[i * src.length + j + 1] = v.y; out[i * src.length + j + 2] = v.z; } });
+    const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.BufferAttribute(out, 3)); root.add(new THREE.LineSegments(lg, M.line)); }
+  window.__shrubs = placed.length;
 }
 
 // ---- baseball + softball (home SW, toward NE): outfield fence, foul lines, infield, mound, bases, backstop, dugouts
