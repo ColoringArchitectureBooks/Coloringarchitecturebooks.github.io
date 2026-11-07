@@ -632,11 +632,9 @@ function rail(root, pts, h = 0.9, step = 1.5) {     // handrail: posts and a top
     for (let k = 0; k <= n; k++) { const t = k / n, p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; rod(root, p, [p[0], p[1], p[2] + h], 0.03); }
   }
 }
-function ramp(root, x0, x1, y0, y1, z0, z1) {      // a solid ramp running along x from z0 (at x0) to z1 (at x1)
+function ramp(root, x0, x1, y0, y1, z0, z1) {      // a solid ramp running along x from z0 (at x0) to z1 (at x1), smooth top
   const g = D.ground;
   elev(root, [[x0, g], [x1, g], [x1, z1], [x0, z0]], y0, y1);
-  const L = []; for (let k = 1; k * 0.6 < Math.abs(x1 - x0); k++) { const x = x0 + Math.sign(x1 - x0) * k * 0.6, z = z0 + (z1 - z0) * (x - x0) / (x1 - x0); L.push([[x, y0, z + 0.005], [x, y1, z + 0.005]]); }
-  lines(root, L);                                                                                                  // anti-slip grooves
 }
 function picket(root, x0, x1, y, z = 0) {           // the page's picket fence, between two x
   const G = lvl(root, z);
@@ -677,15 +675,15 @@ function site(root) {
   slab(root, [[SX0, 0.3], [SX1, 0.3], [SX1, 33.5], [EX1, 33.5], [EX1, SY1], [EX0, SY1], [EX0, 33.5], [SX0, 33.5]], g, LG);   // site + the street running on, one piece
   // platform 1 (the station floor runs on to y 9) with a notch at the far end for the crossing ramp
   const P2y0 = -16.9, P2y1 = -12.9, rx0 = 30.4, rx1 = P.x1;            // crossing ramps run 8.6 m (0.72 m drop at 1:12)
-  { const pp = [[P.x0, P.y0], [rx0, P.y0], [rx0, P.y0 + 2], [P.x1, P.y0 + 2], [P.x1, P.y1], [P.x0, P.y1]];
+  { const pp = [[P.x0, P.y0], [rx0, P.y0], [rx0, P.y0 + 2], [SX1, P.y0 + 2], [SX1, P.y1], [P.x0, P.y1]];
     slab(root, pp, g, 0).userData.noEdge = true;                       // own outline: the back edge stays open where the two walks leave it
     const E = [];
     for (let i = 0; i < pp.length; i++) { const a = pp[i], b = pp[(i + 1) % pp.length];
-      if (a[1] === P.y1 && b[1] === P.y1) { for (const [u, v] of [[P.x1, 35], [33, -10], [-12, P.x0]]) E.push([[u, P.y1, 0], [v, P.y1, 0]], [[u, P.y1, LG], [v, P.y1, LG]]); }
+      if (a[1] === P.y1 && b[1] === P.y1) { for (const [u, v] of [[SX1, 35], [33, -10], [-12, P.x0]]) E.push([[u, P.y1, 0], [v, P.y1, 0]], [[u, P.y1, LG], [v, P.y1, LG]]); }
       else E.push([[...a, 0], [...b, 0]], [[...a, g], [...b, g]]);
       E.push([[...a, g], [...a, 0]]); }
     lines(root, E); }
-  slab(root, [[P.x0, P2y0], [P.x1, P2y0], [P.x1, P2y1 - 2], [rx0, P2y1 - 2], [rx0, P2y1], [P.x0, P2y1]], g, 0);   // platform 2
+  slab(root, [[P.x0, P2y0], [SX1, P2y0], [SX1, P2y1 - 2], [rx0, P2y1 - 2], [rx0, P2y1], [P.x0, P2y1]], g, 0);   // platform 2
   const j = [];
   for (let x = P.x0 + 3.33; x < rx0; x += 3.33) j.push([[x, P.y0 - 0.01, g], [x, P.y0 - 0.01, 0]], [[x, P2y1 + 0.01, g], [x, P2y1 + 0.01, 0]]);
   j.push([[P.x0, P.y0 + 0.5, 0.01], [rx0, P.y0 + 0.5, 0.01]], [[P.x0, P2y1 - 0.5, 0.01], [rx0, P2y1 - 0.5, 0.01]]); lines(root, j);   // slab joints, edge strips
@@ -706,11 +704,11 @@ function site(root) {
     for (const x of [cx0 + 0.05, cx1 - 0.17]) box(root, x, x + 0.12, yg - 0.06, yg + 0.06, zr, zr + 1.3);
     for (const h of [0.35, 1.05]) box(root, cx0 + 0.17, cx1 - 0.17, yg - 0.03, yg + 0.03, zr + h, zr + h + 0.06);
     for (let x = cx0 + 0.4; x < cx1 - 0.3; x += 0.3) box(root, x, x + 0.04, yg - 0.025, yg + 0.025, zr + 0.35, zr + 1.11);
-    const lx = cx1 + 0.5, ly = yg + (yg > -9 ? 0.6 : -0.6);                                                         // lights + bell on a post
-    cyl(root, lx, ly, (g + zr + 3.0) / 2, 0.07, zr + 3.0 - g, "z", 12); box(root, lx - 0.6, lx + 0.6, ly - 0.05, ly + 0.05, zr + 2.3, zr + 2.42);
+    const lx = cx1 - 0.75, ly = yg > -9 ? P.y0 + 2.4 : P2y1 - 2.4;   // lights + bell on a post, on the platform corner beside the walkway
+    { const zr = 0; cyl(root, lx, ly, 1.5, 0.07, 3.0, "z", 12); box(root, lx - 0.6, lx + 0.6, ly - 0.05, ly + 0.05, zr + 2.3, zr + 2.42);
     for (const dx of [-0.45, 0.45]) { cyl(root, lx + dx, ly, zr + 2.0, 0.18, 0.08, "y", 20); cyl(root, lx + dx, ly + (yg > -9 ? -0.06 : 0.06), zr + 2.0, 0.21, 0.04, "y", 20); }
     cyl(root, lx, ly, zr + 2.75, 0.16, 0.2, "z", 16, M.white, 0.06);                                              // bell
-    sign(root, lx, ly + (yg > -9 ? -0.07 : 0.07), zr + 1.4, 0.9, 0.45, textTex(["STOP", "LOOK LISTEN"], 384, 192), yg > -9 ? "-y" : "+y");
+    sign(root, lx, ly + (yg > -9 ? -0.07 : 0.07), zr + 1.75, 0.9, 0.45, textTex(["STOP", "LOOK LISTEN"], 384, 192), yg > -9 ? "-y" : "+y"); }
   }
   for (const [yc, yb] of [[T1, T1 - 1.6], [T2, T2 + 1.6]]) {                                                       // STOP boards 6 m before the crossing
     const xs = rx1 - 6; cyl(root, xs, yb, g + 1.0, 0.05, 2.0, "z", 10);
@@ -718,10 +716,11 @@ function site(root) {
     sign(root, xs, yb - 0.04, g + 1.95, 0.6, 0.6, textTex(["STOP"], 256, 256)); sign(root, xs, yb + 0.04, g + 1.95, 0.6, 0.6, textTex(["STOP"], 256, 256), "+y");
   }
   railFence(root, [[26, P.y0 + 0.15], [rx0, P.y0 + 0.15]]); railFence(root, [[26, P2y1 - 0.15], [rx0, P2y1 - 0.15]]);   // edge fences near the end
-  railing(root, [[P.x0 + 0.1, P2y1 - 0.4], [P.x0 + 0.1, P2y0 + 0.1], [P.x1 - 0.1, P2y0 + 0.1], [P.x1 - 0.1, P2y1 - 2.1]]);   // closes the back and both ends of platform 2
+  railing(root, [[P.x0 + 0.1, P2y1 - 0.4], [P.x0 + 0.1, P2y0 + 0.1], [SX1 - 0.1, P2y0 + 0.1], [SX1 - 0.1, P2y1 - 2.05], [P.x1, P2y1 - 2.05]]);   // back, both ends, and the drop to the walkway
+  railing(root, [[P.x1, P.y0 + 2.05], [SX1 - 0.1, P.y0 + 2.05], [SX1 - 0.1, H.y0 + 0.05]]);   // platform 1: drop to the walkway, then the site edge up to the fence
   for (const x of [0, 6, 12, 18, 24]) { box(root, x + 0.8, x + 2.8, P2y0 + 0.6, P2y0 + 1.1, 0.42, 0.47); for (const xl of [x + 0.9, x + 2.64]) box(root, xl, xl + 0.06, P2y0 + 0.6, P2y0 + 1.1, 0, 0.42); }   // benches on platform 2
   // ---- platform fence (page picket) with the two walk gates ----
-  for (const [a, b] of [[P.x0, -12], [-10, H.x0 - 0.1], [H.x1 + 0.1, 33], [35, P.x1]]) picket(root, a, b, H.y0 + 0.05);
+  for (const [a, b] of [[P.x0, -12], [-10, H.x0 - 0.1], [H.x1 + 0.1, 33], [35, SX1]]) picket(root, a, b, H.y0 + 0.05);
   // ---- entrance: 4 steps down to the court, folded ramps either side ----
   const sx0 = 8.7, sx1 = 14.3;
   for (let k = 1; k <= 3; k++) box(root, sx0, sx1, 9 + (k - 1) * 0.6, 9 + k * 0.6, g, -0.15 * k);
