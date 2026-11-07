@@ -621,6 +621,74 @@ for (let i = 0; i < 4; i++) {
 // ---- field parking off SE 15th St
 for (let x = 170; x < 215; x += 3) { seg([x, 298, 0.06], [x, 303.5, 0.06]); seg([x, 332, 0.06], [x, 326.5, 0.06]); }
 
+// ---- parked cars (random, in the marked stalls) + a school bus at the drop-off curb
+{
+  const crand = (s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; })(4242);
+  // side profiles (length along x from the rear, height z), belt line for the side windows, wheel radius and axles
+  const TYPES = {
+    sedan:  { w: 1.8,  p: [[0, 0.32], [4.6, 0.32], [4.6, 0.78], [3.55, 0.92], [2.85, 1.42], [1.35, 1.45], [0.55, 1.0], [0, 0.92]], belt: 0.97, r: 0.32, ax: [0.95, 3.7], pil: [2.15] },
+    hatch:  { w: 1.75, p: [[0, 0.32], [4.0, 0.32], [4.0, 0.76], [3.15, 0.92], [2.5, 1.45], [0.35, 1.48], [0.05, 1.12], [0, 0.85]], belt: 0.98, r: 0.31, ax: [0.75, 3.25], pil: [1.5] },
+    suv:    { w: 1.9,  p: [[0, 0.42], [4.8, 0.42], [4.8, 0.96], [3.9, 1.1], [3.3, 1.75], [0.2, 1.78], [0, 1.6]], belt: 1.14, r: 0.38, ax: [1.0, 3.85], pil: [2.35, 0.9] },
+    pickup: { w: 1.95, p: [[0, 0.45], [5.3, 0.45], [5.3, 1.0], [4.4, 1.12], [3.9, 1.8], [2.5, 1.8], [2.45, 1.18], [0, 1.18]], belt: 1.2, r: 0.4, ax: [1.05, 4.35], pil: [] },
+    van:    { w: 1.95, p: [[0, 0.36], [5.0, 0.36], [5.0, 0.9], [4.3, 1.1], [3.55, 1.76], [0.15, 1.8], [0, 1.55]], belt: 1.12, r: 0.34, ax: [0.95, 4.0], pil: [2.7, 1.3] },
+  };
+  const geos = [], lines = [];
+  const wheelG = new THREE.CylinderGeometry(1, 1, 1, 12).rotateX(Math.PI / 2).toNonIndexed(), wheelE = new THREE.EdgesGeometry(wheelG, 30);
+  // polygon above a height (the glass part of the profile), shrunk a little so it sits inside the side face
+  function above(p, zc) { const o = []; for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length], ia = a[1] >= zc, ib = b[1] >= zc;
+      if (ia) o.push(a); if (ia !== ib) { const t = (zc - a[1]) / (b[1] - a[1]); o.push([a[0] + t * (b[0] - a[0]), zc]); } }
+    const cx = o.reduce((s, q) => s + q[0], 0) / o.length, cz = o.reduce((s, q) => s + q[1], 0) / o.length; return o.map(([x, z]) => [cx + (x - cx) * 0.9, cz + (z - cz) * 0.72]); }
+  // one vehicle: profile extruded across its width, wheels, outlines + side detail lines; m places it (local x = forward)
+  function vehicle(T, m, extra) {
+    const L = Math.max(...T.p.map(q => q[0])), w = T.w;
+    const g = new THREE.ExtrudeGeometry(new THREE.Shape(T.p.map(([x, z]) => new THREE.Vector2(x - L / 2, z))), { depth: w, bevelEnabled: false }).translate(0, 0, -w / 2);
+    const e = new THREE.EdgesGeometry(g, 25); geos.push(g.applyMatrix4(m)); lines.push(e.applyMatrix4(m));
+    for (const ax of T.ax) for (const s of [-1, 1]) { const wm = new THREE.Matrix4().makeTranslation(ax - L / 2, T.r, s * (w / 2 - 0.13 + 0.02)).multiply(new THREE.Matrix4().makeScale(T.r, T.r, 0.26)), mm = m.clone().multiply(wm);
+      geos.push(wheelG.clone().applyMatrix4(mm)); lines.push(wheelE.clone().applyMatrix4(mm)); }
+    const pts = [], loop = (q, s) => { for (let i = 0; i < q.length; i++) { const a = q[i], b = q[(i + 1) % q.length]; pts.push(new THREE.Vector3(a[0] - L / 2, a[1], s), new THREE.Vector3(b[0] - L / 2, b[1], s)); } };
+    for (const s of [-1, 1]) { const z = s * (w / 2 + 0.01);
+      if (T.belt) { const win = above(T.p, T.belt); loop(win, z);
+        for (const px of T.pil) { const zs = win.map(q => q[1]); pts.push(new THREE.Vector3(px - L / 2, Math.min(...zs), z), new THREE.Vector3(px - L / 2, Math.max(...zs) - 0.04, z)); } }
+      if (extra) extra(pts, s, z, L, w); }
+    lines.push(new THREE.BufferGeometry().setFromPoints(pts).applyMatrix4(m));
+  }
+  const place = (x, y, h) => new THREE.Matrix4().makeTranslation(...V(x, y, 0).toArray()).multiply(new THREE.Matrix4().makeRotationY(h));
+  const pick = () => { const r = crand(); return r < 0.34 ? "sedan" : r < 0.5 ? "hatch" : r < 0.8 ? "suv" : r < 0.9 ? "pickup" : "van"; };
+  // a car in a stall: (x0..x1) is the stall depth along x (or y when along = "y"), c its centre across; face = +1/-1 toward the aisle
+  function park(d0, d1, c, face, along) { if (crand() > 0.6) return;
+    let T = TYPES[pick()], L = Math.max(...T.p.map(q => q[0])); const f = crand() < 0.85 ? face : -face;   // most drive in nose first
+    if (L > d1 - d0 - 0.2) { T = TYPES.suv; L = 4.8; }                     // a long pickup or van would stick out of a short stall into the next one
+    const gap = Math.min(0.35, d1 - d0 - L - 0.1), mid = face > 0 ? d1 - gap - L / 2 : d0 + gap + L / 2, cc = c + (crand() - 0.5) * 0.25, h = (crand() - 0.5) * 0.06;
+    if (along === "y") vehicle(T, place(cc, mid, (f > 0 ? Math.PI / 2 : -Math.PI / 2) + h));
+    else vehicle(T, place(mid, cc, (f > 0 ? 0 : Math.PI) + h)); }
+  // south lots: rows run north-south, stalls 2.7 m wide, each pair of rows faces the 7 m aisle between them
+  for (const px of [-40, 42, 124]) for (let k = 0; k < 4; k++) { const bx = px + 18 * k;
+    for (let j = 0; j < 25; j++) { const c = LY0 + 3 + 2.7 * j + 1.35; park(bx, bx + 5.5, c, 1); park(bx + 12.5, bx + 18, c, -1); } }
+  // east lot (staff / visitors): same stall lines as drawn above, skipping the curb islands
+  for (let k = -24; k < 24; k++) { const y = 67.5 + 2.7 * k; if (y < 5.3 || y + 2.7 > 121.6 || Math.abs(k) <= 1 || k === -2) continue;
+    park(182, 187, y + 1.35, 1); park(193, 198, y + 1.35, -1); park(198, 203, y + 1.35, 1); park(209, 214, y + 1.35, -1); }
+  // field parking off SE 15th St: stalls 3 m wide, noses toward the aisle between the two rows
+  for (let x = 170; x + 3 < 215; x += 3) { park(298, 303.5, x + 1.5, 1, "y"); park(326.5, 332, x + 1.5, -1, "y"); }
+  // yellow school bus (conventional, long nose) at the drop-off curb, door side to the curb, heading south just past the crosswalk
+  const BUS = { w: 2.45, p: [[0, 0.5], [11.4, 0.5], [11.4, 1.5], [10.2, 1.72], [9.85, 3.0], [0.1, 3.05], [0, 2.9]], belt: 0, r: 0.5, ax: [2.9, 9.6], pil: [] };
+  vehicle(BUS, place(169.5, 81.9, -Math.PI / 2), (pts, s, z, L) => {
+    const P = (x, y) => new THREE.Vector3(x - L / 2, y, z), rect = (x0, x1, y0, y1) => pts.push(P(x0, y0), P(x1, y0), P(x1, y0), P(x1, y1), P(x1, y1), P(x0, y1), P(x0, y1), P(x0, y0));
+    for (let i = 0; i < 9; i++) rect(0.9 + i * 0.86, 0.9 + i * 0.86 + 0.74, 1.85, 2.62);        // passenger windows
+    for (const zz of [1.05, 1.42]) pts.push(P(0.05, zz), P(9.95, zz));                          // the black rub rails along the sides
+    if (s > 0) { rect(8.85, 9.7, 0.6, 2.75); pts.push(P(9.275, 0.6), P(9.275, 2.75)); }          // folding door on the curb side
+    else { const cx = 9.3, cy = 2.2, r = 0.24; for (let k = 0; k < 8; k++) { const a = (k + 0.5) * Math.PI / 4, b = (k + 1.5) * Math.PI / 4; pts.push(P(cx + r * Math.cos(a), cy + r * Math.sin(a)), P(cx + r * Math.cos(b), cy + r * Math.sin(b))); } }   // stop arm
+  });
+  // bus front (grille, headlights) and rear (emergency door) as lines on its end faces
+  { const m = place(169.5, 81.9, -Math.PI / 2), pts = [], L = 11.4, X = (x, y, z) => new THREE.Vector3(x - L / 2, y, z);
+    const rq = (x, y0, y1, z0, z1) => pts.push(X(x, y0, z0), X(x, y0, z1), X(x, y0, z1), X(x, y1, z1), X(x, y1, z1), X(x, y1, z0), X(x, y1, z0), X(x, y0, z0));
+    rq(L + 0.01, 0.7, 1.35, -0.55, 0.55);                                                       // grille
+    for (const zz of [-0.85, 0.85]) for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5, b = (k + 1) * Math.PI / 5; pts.push(X(L + 0.01, 1.05 + 0.14 * Math.sin(a), zz + 0.14 * Math.cos(a)), X(L + 0.01, 1.05 + 0.14 * Math.sin(b), zz + 0.14 * Math.cos(b))); }
+    rq(-0.01, 0.65, 2.75, -0.55, 0.55); rq(-0.01, 1.85, 2.6, -0.45, 0.45);                     // rear emergency door + its window
+    lines.push(new THREE.BufferGeometry().setFromPoints(pts).applyMatrix4(m)); }
+  const body = new THREE.Mesh(mergeGeometries(geos.map(g => { g.deleteAttribute("uv"); return g.index ? g.toNonIndexed() : g; })), W0); root.add(body);
+  root.add(new THREE.LineSegments(mergeGeometries(lines.map(g => { const n = new THREE.BufferGeometry(); n.setAttribute("position", g.getAttribute("position")); return n; })), M.line));
+}
+
 // ---- baseball + softball (home SW, toward NE): outfield fence, foul lines, infield, mound, bases, backstop, dugouts
 function diamond(hx, hy, base, rubber, lines, center, arc, back, moundR) {
   const rot = (u, v) => [hx + (u + v) / Math.SQRT2, hy + (v - u) / Math.SQRT2];
