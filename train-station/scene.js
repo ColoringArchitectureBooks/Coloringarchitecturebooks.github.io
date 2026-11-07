@@ -441,21 +441,45 @@ function front(root) {
   // street door under the entrance porch (plan v13): 5.6 x 2.5 m, as wide as the steps, gable to the court,
   // on two posts with curved brackets like the platform canopy, a small king-post truss in the gable
   opening(root, "+y", yb, 10.8, 12.2, 0.02, 2.7, 2, 1, false);
-  { const x0 = 8.7, x1 = 14.3, xm = (x0 + x1) / 2, ye = yb + 2.5, ez = 3.65, pz = 4.95, o = 0.25;
-    const zAt = (x) => ez + (pz - ez) * (1 - Math.abs(x - xm) / (xm - x0));
-    for (const xe of [x0 - o, x1 + o]) { const ze = ez - (pz - ez) * o / (xm - x0);
-      plane(root, [[xe, yb, ze], [xm, yb, pz], [xm, ye + o, pz], [xe, ye + o, ze]], M.roof, [0, 1, 0]); }
-    elev(root, [[x0 - o, ez - 0.2], [x1 + o, ez - 0.2], [x1 + o, ez - (pz - ez) * o / (xm - x0)], [xm, pz], [x0 - o, ez - (pz - ez) * o / (xm - x0)]].map(([x, z], i) => [x, z]), ye + o - 0.08, ye + o);   // gable fascia
-    elev(root, [[x0, ez - 0.2], [x1, ez - 0.2], [xm, pz - 0.12]], ye - 0.04, ye, M.siding);                    // gable infill
-    box(root, x0, x1, ye - 0.12, ye, ez - 0.4, ez - 0.2);                                                         // tie beam
-    box(root, xm - 0.08, xm + 0.08, ye - 0.14, ye + 0.02, ez - 0.2, pz - 0.2);                                   // king post
-    for (const x of [x0 + 0.12, x1 - 0.12]) {
-      box(root, x - 0.1, x + 0.1, ye - 0.22, ye - 0.02, 0, ez - 0.4);                                            // post
-      box(root, x - 0.16, x + 0.16, ye - 0.28, ye + 0.04, 0, 0.3); box(root, x - 0.14, x + 0.14, ye - 0.26, ye + 0.02, ez - 0.55, ez - 0.4);
-      box(root, x - 0.07, x + 0.07, yb, ye - 0.12, ez - 0.4, ez - 0.2);                                          // side beam back to the wall
-      side(root, [[ye - 0.22, ez - 0.4], [ye - 1.0, ez - 0.4], [ye - 0.22, ez - 1.2]], x - 0.05, x + 0.05);     // knee brace
-      const sx = x < xm ? 1 : -1;
-      elev(root, [[x, ez - 0.4], [x + sx * 0.9, ez - 0.4], [x, ez - 1.3]].map(p => p), ye - 0.16, ye - 0.08);   // corner bracket under the tie beam
+  { // the street porch in the spirit of the page's TRAIN STATION gable and platform canopy: kicked double bargeboard, open truss with a drop,
+    // finial; posts with base and capital, an arched spandrel, pierced brackets and curved end brackets, as on the platform side
+    const x0 = 8.7, x1 = 14.3, xm = (x0 + x1) / 2, ye = yb + 2.5, o = 0.3, E0 = x0 - o, E1 = x1 + o, ez = 3.6, pz = 5.25, pitch = (pz - ez) / ((E1 - E0) / 2);
+    const zR = (x) => pz - Math.abs(x - xm) * pitch, yo = ye + o;
+    for (const xe of [E0, E1]) plane(root, [[xe, yb, ez], [xm, yb, pz], [xm, yo, pz], [xe, yo, ez]], M.roof, [0, 1, 0]);
+    const t = 0.22, fz = 0.28, k = 0.22, f2 = 0.11, d2 = 0.28;
+    elev(root, [[E0 - k, ez - fz], [E0, ez - fz], [xm, pz - fz], [E1, ez - fz], [E1 + k, ez - fz], [E1 + k, ez], [E1, ez], [xm, pz], [E0, ez], [E0 - k, ez]], yo, yo + t);   // bargeboard with level kicks
+    elev(root, [[E0 + d2, ez - fz - f2 + d2 * pitch], [xm, pz - fz - f2], [E1 - d2, ez - fz - f2 + d2 * pitch], [E1 - d2, ez - fz + d2 * pitch], [xm, pz - fz], [E0 + d2, ez - fz + d2 * pitch]], yo, yo + t - 0.06);   // inner band
+    const tb0 = 3.0, tb1 = 3.42;                                                                                  // fascia beam on the posts
+    elev(root, [[x0, tb1], [x1, tb1], [x1, zR(x1) - 0.3], [xm, pz - 0.3], [x0, zR(x0) - 0.3]], ye - 0.06, ye, M.siding);   // gable infill behind the truss
+    box(root, E0 + 0.08, E1 - 0.08, ye - 0.24, ye, tb0, tb1);
+    const yt = ye + 0.08, zk = tb1 + 0.5, under = (d) => pz - d * pitch - fz - f2 + 0.02;
+    const strut = (ax, az, bx, bz) => { const A = V(ax, yt, az), B = V(bx, yt, bz), m = new THREE.Mesh(new THREE.BoxGeometry(0.08, A.distanceTo(B), 0.08), M.white);
+      m.position.copy(A).add(B).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize()); root.add(m); };
+    box(root, xm - 0.07, xm + 0.07, yt - 0.05, yt + 0.05, zk - 0.12, pz - 0.3);                                   // king post
+    const kd = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.15, 4), M.white); kd.rotation.x = Math.PI; kd.position.copy(V(xm, yt, zk - 0.2)); root.add(kd);
+    for (const sg of [-1, 1]) { strut(xm + sg * 0.09, zk + 0.05, xm + sg * 0.7, under(0.7) - 0.04); strut(xm + sg * 0.09, under(0.1) - 0.1, xm + sg * 0.7, zk + 0.05); }
+    const cw = (pz - fz - f2 - zk - 0.05) / pitch; box(root, xm - cw, xm + cw, yt - 0.045, yt + 0.045, zk - 0.045, zk + 0.045);   // collar
+    cyl(root, xm, yo + 0.1, pz + 0.12, 0.08, 0.25); ball(root, xm, yo + 0.1, pz + 0.33, 0.12);                     // finial
+    { const sp = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 8), M.white); sp.position.copy(V(xm, yo + 0.1, pz + 0.58)); root.add(sp); }
+    const pw = 0.24, py = ye - 0.12, P0 = x0 + 0.12, P1 = x1 - 0.12, zs = 2.6, crown = 2.92, th = 0.1;
+    for (const x of [P0, P1]) {
+      box(root, x - pw / 2, x + pw / 2, py - pw / 2, py + pw / 2, 0, tb0);                                        // post
+      box(root, x - 0.22, x + 0.22, py - 0.22, py + 0.22, 0, 0.45);                                               // base
+      box(root, x - 0.2, x + 0.2, py - 0.2, py + 0.2, 2.38, 2.5); box(root, x - 0.24, x + 0.24, py - 0.24, py + 0.24, 2.5, 2.6);   // capital
+      box(root, x - 0.07, x + 0.07, yb, py - pw / 2, tb0, tb1 - 0.05);                                            // side beam back to the wall
+      box(root, x - 0.06, x + 0.06, py + pw / 2, py + pw / 2 + 0.08, tb0 - 0.32, tb0);                              // drop at the post head
+    }
+    const spandrel = (a0, a1) => { const pts = [[a0, zs]], w = (a1 - a0) / 2, c = (a0 + a1) / 2;
+      for (let q = 1; q < 24; q++) { const an = Math.PI - Math.PI * q / 24; pts.push([c + w * Math.cos(an), zs + (crown - zs) * Math.sin(an)]); }
+      pts.push([a1, zs], [a1, tb0], [a0, tb0]); return pts; };
+    elev(root, spandrel(P0 + pw / 2, P1 - pw / 2), py - th / 2, py + th / 2);                                    // arched spandrel across the front
+    for (const x of [P0, P1]) side(root, spandrel(yb, py - pw / 2), x - th / 2, x + th / 2);                       // and along each side to the wall
+    for (const [x, sg, xe] of [[P0, -1, E0 + 0.08], [P1, 1, E1 - 0.08]]) {                                        // curved end brackets out to the beam ends
+      const b0 = x + sg * pw / 2, Wd = Math.abs(xe - b0), pts = [[b0, zs]];
+      for (let q = 1; q <= 16; q++) { const an = Math.PI / 2 * q / 16; pts.push([b0 + sg * Wd * (1 - Math.cos(an)), zs + (tb0 - zs) * Math.sin(an)]); }
+      pts.push([b0, tb0]); elev(root, sg < 0 ? pts.reverse() : pts, py - th / 2, py + th / 2);
+      const bi = x - sg * pw / 2;                                                                                  // pierced triangle bracket on the inner side
+      elev(root, [[bi, tb0 - 0.5], [bi, tb0], [bi - sg * 0.52, tb0]], py + th / 2, py + th / 2 + 0.08);
     }
   }
   opening(root, "-x", H.x0, 2.3, 3.7, PZ(820), PZ(700)); opening(root, "+x", H.x1, 2.3, 3.7, PZ(820), PZ(700));
@@ -603,9 +627,10 @@ function train(root) {
   const yc = D.track[0], zr = D.rail, hw = 0.75;
   locomotive(root, yc, zr, hw);
   const t0 = PX(190) + 0.25;                    // first coach right behind the cab, as on the page
-  const L = 14.0, gap = 0.6;                    // two coaches (14 m) running off to the left
+  const L = 14.0, gap = 0.6;                    // three coaches (14 m) running off to the left
   coach(root, yc, zr, hw, t0 - gap - L, t0 - gap);
   coach(root, yc, zr, hw, t0 - 2 * gap - 2 * L, t0 - 2 * gap - L);
+  coach(root, yc, zr, hw, t0 - 3 * gap - 3 * L, t0 - 3 * gap - 2 * L);   // third coach, past the platform end: its doors stay shut, people walk through from the next one
 }
 
 // ---------- site (plan v13): platforms, tracks, foot crossing, entrance court, ramps, car park, street ----------
@@ -828,6 +853,11 @@ function site(root) {
     lines(root, L); }
   // ---- hedge, sidewalk, street with the bus + taxi lay-by and its shelter ----
   for (const [a, b] of [[-18, -12], [-5, 28], [35, 42]]) box(root, a, b, 34.9, 35.5, LG, LG + 1.0);
+  { const yh = 35.2, GL = lvl(root, LG), GW = lvl(root, W);                                             // light picket gates where the lanes and walks meet the street
+    for (const x of [-12, -10.07, -5.07, 28, 32.93, 34.93]) box(GL, x, x + 0.14, yh - 0.08, yh + 0.08, 0, 1.45);   // gate posts at the hedge ends
+    for (const [a, b] of [[-9.93, -5.07], [28.14, 32.93]]) gate(GL, a, b, yh, -1.0);                       // car gates: two leaves, swung well open into the lane
+    for (const [a, b] of [[-11.86, -10.07], [33.07, 34.93]]) gate(GW, a, b, yh, -0.6);                     // walk gates, a little open
+  }
   for (const [a, b] of [[EX0, -10], [-5, 28], [33, EX1]]) {
     slab(root, [[a, 35.5], [b, 35.5], [b, 37.5], [a, 37.5]], LG, W).userData.noEdge = true;
     K.push([[a, 37.5, W], [b, 37.5, W]], [[a, 37.5, LG], [b, 37.5, LG]]);
