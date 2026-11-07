@@ -912,6 +912,43 @@ export function zoomFade(d) {
   M.fine.color.setScalar(0.2 * Math.sqrt(t));                                   // linear value: a mid grey, about #7c7c7c, at full fade
 }
 // builds everything; resolves when the 3D letters are in
+// ---------- smoke from the engine's stack (page): billowing white puffs with a black outline, rising and rolling back over the coaches ----------
+// Each puff is a little cluster of balls with a black back-face shell a few cm larger, so it keeps a clean outline from any side.
+// The puffs travel a fixed path from the stack, growing as they go, and shrink away at the end while a new one starts at the stack.
+const SMOKE = { n: 18, period: 16, puffs: [] };
+function buildSmoke(scene) {
+  const yc = D.track[0], sx = PX(575), sz = 4.15;
+  const white = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x9a9a9a }), ink = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
+  const ballG = new THREE.SphereGeometry(1, 20, 14), G = new THREE.Group(); scene.add(G);
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < SMOKE.n; i++) {
+    const P = new THREE.Group(), parts = [];
+    for (let k = 0; k < 3; k++) {                                       // a main ball and two smaller ones tucked against it
+      const r = k === 0 ? 1 : 0.55 + 0.2 * rnd(), off = k === 0 ? [0, 0, 0] : [(rnd() - 0.5) * 1.2, (rnd() - 0.5) * 0.8, 0.3 + rnd() * 0.5];
+      const b = new THREE.Mesh(ballG, white), h = new THREE.Mesh(ballG, ink); b.userData.noEdge = h.userData.noEdge = true;
+      P.add(b, h); parts.push({ b, h, r, off });
+    }
+    G.add(P); SMOKE.puffs.push({ P, parts, ph: rnd() * Math.PI * 2 });
+  }
+  SMOKE.path = (u) => {                                                  // up out of the stack, then rolling back (toward -x) and up over the coaches
+    const a = Math.min(1, u * 5);
+    return [sx - 11 * Math.pow(u, 1.15) + 0.4 * a, yc - 0.6 * u, sz + 0.3 + 1.6 * a + 3.4 * Math.pow(u, 0.8)];
+  };
+  tickSmoke(0);
+}
+export function tickSmoke(t) {
+  if (!SMOKE.path) return;
+  for (let i = 0; i < SMOKE.n; i++) {
+    const q = SMOKE.puffs[i], u = ((i / SMOKE.n) + t / SMOKE.period) % 1;
+    const [x, y, z] = SMOKE.path(u), w = Math.sin(t * 0.6 + q.ph);
+    let R = 0.32 + 1.25 * Math.pow(u, 0.6); if (u > 0.85) R *= Math.max(0, 1 - (u - 0.85) / 0.15);   // grow, then thin away at the end
+    q.P.position.copy(V(x + 0.15 * w, y + 0.2 * Math.cos(t * 0.5 + q.ph), z + 0.12 * w)); q.P.visible = R > 0.02;
+    for (const { b, h, r, off } of q.parts) {
+      const rr = R * r, o = V(off[0] * R, off[1] * R, off[2] * R);
+      b.position.copy(o); h.position.copy(o); b.scale.setScalar(rr); h.scale.setScalar(rr + 0.045);
+    }
+  }
+}
 export function buildScene(scene) {
   mats();
   const root = new THREE.Group();
@@ -920,7 +957,7 @@ export function buildScene(scene) {
   scene.add(new THREE.HemisphereLight(0xffffff, 0xdddddd, 2.3));
   const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(-50, 80, 90); scene.add(sun);
   const signRoot = new THREE.Group(); root.add(signRoot);
-  const finish = (font) => { entryGable(signRoot, font); wallUV(root); outline(root); seams(root); };
+  const finish = (font) => { entryGable(signRoot, font); wallUV(root); outline(root); seams(root); buildSmoke(scene); };
   return new Promise((res) => new FontLoader().load(new URL("./helvetiker_bold.typeface.json", import.meta.url).href,
     (font) => { finish(font); res(root); }, undefined, () => { finish(null); res(root); }));
 }
