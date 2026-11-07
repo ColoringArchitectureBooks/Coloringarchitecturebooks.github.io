@@ -290,10 +290,10 @@ function tower(root) {
   plane(root, Tp.map(p => [...p, zt]), M.white);
   cyl(root, cx, cy, zt + 0.2, 0.14, 0.4); cyl(root, cx, cy, zt + 0.45, 0.24, 0.1); ball(root, cx, cy, zt + 0.6, 0.12);   // vent with cap (page)
   box(root, 13.05, 14.05, 3.0, 4.0, 9.0, 11.83, M.brick); box(root, 12.95, 14.15, 2.9, 4.1, 11.83, 12.0);   // chimney
-  archWindow(root, "-y", y0, PX(572), PX(640), 6.75, PZ(362));
-  archWindow(root, "-y", y0, PX(748), PX(815), 6.75, PZ(362));
-  archWindow(root, "+y", y1, PX(572), PX(640), 6.75, PZ(362));
-  archWindow(root, "+y", y1, PX(748), PX(815), 6.75, PZ(362));
+  archWindow(root, "-y", y0, PX(572) + 0.06, PX(640) - 0.06, 7.2, 8.7);      // smaller: clear of the roof below and the cornice above
+  archWindow(root, "-y", y0, PX(748) + 0.06, PX(815) - 0.06, 7.2, 8.7);
+  archWindow(root, "+y", y1, PX(572) + 0.06, PX(640) - 0.06, 7.2, 8.7);      // smaller: clear of the roof below and the cornice above
+  archWindow(root, "+y", y1, PX(748) + 0.06, PX(815) - 0.06, 7.2, 8.7);
 }
 
 // ---------- cross gable on the right (ridge front to back), truss in the front gable ----------
@@ -436,10 +436,10 @@ function front(root) {
   hangLamp(root, PX(833), -1.4); hangLamp(root, PX(1160), -1.4); hangLamp(root, 5.2, -1.4);
   // back and ends
   const yb = H.y1;
-  for (const [a0, a1] of [[1.8, 3.2], [4.6, 6.0], [PX(630), PX(715)], [16.0, 17.4], [19.6, 21.0]]) opening(root, "+y", yb, a0, a1, PZ(820), PZ(700));
+  for (const [a0, a1] of [[1.8, 3.2], [4.6, 6.0], [7.6, 9.0], [16.0, 17.4], [19.6, 21.0]]) opening(root, "+y", yb, a0, a1, PZ(820), PZ(700));
   // street door: panelled double door with a transom, under a small gabled hood on two brackets
-  opening(root, "+y", yb, 10.7, 12.3, 0.02, 2.6, 2, 2, false); opening(root, "+y", yb, 10.7, 12.3, 2.74, 3.2, 3, 1, false);
-  { const hx0 = 10.25, hx1 = 12.75, hm = (hx0 + hx1) / 2, hz = 3.55, hp = 4.1, hd = 1.0;
+  opening(root, "+y", yb, 10.8, 12.2, 0.02, 2.7, 2, 1, false);                                          // one clean door, no window over it
+  { const hx0 = 10.35, hx1 = 12.65, hm = (hx0 + hx1) / 2, hz = 3.1, hp = 3.6, hd = 0.9;
     for (const xe of [hx0, hx1]) plane(root, [[xe, yb, hz], [hm, yb, hp], [hm, yb + hd, hp], [xe, yb + hd, hz]], M.roof, [0, 1, 0]);
     elev(root, [[hx0, hz - 0.12], [hx1, hz - 0.12], [hx1, hz], [hm, hp], [hx0, hz]], yb + hd - 0.06, yb + hd + 0.02);   // gable board
     elev(root, [[hx0 + 0.25, hz - 0.1], [hx1 - 0.25, hz - 0.1], [hm, hp - 0.25]], yb + hd - 0.1, yb + hd - 0.06, M.siding);
