@@ -20,6 +20,9 @@
     border-radius:999px; padding:9px 16px; cursor:pointer; white-space:nowrap; }
   button:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
   button[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
+  #sound { display:inline-flex; align-items:center; gap:6px; }
+  .ico { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  #sound .on { display:none; } #sound[aria-pressed="true"] .on { display:inline; } #sound[aria-pressed="true"] .off { display:none; }
   .hint { position:fixed; left:0; right:0; bottom:calc(max(16px, env(safe-area-inset-bottom, 0px)) + 52px);
     text-align:center; font-size:13px; color:var(--muted); pointer-events:none; transition:opacity .6s; }
   #status { position:fixed; inset:0; display:grid; place-items:center; font-size:15px; color:var(--muted); }
@@ -30,12 +33,12 @@
   <h1>Train Station 3D Model</h1>
 </header>
 <div id="status">Loading the building…</div>
-<div class="hint" id="hint">Drag to turn the train station, pinch to zoom</div>
+<div class="hint" id="hint">Drag to turn the train station, pinch to zoom<br>Tap the train to blow the whistle</div>
 <div class="bar">
   <button id="v-front">Front</button>
   <button id="v-obl">Aerial</button>
   <button id="spin" aria-pressed="false">Spin</button>
-  <button id="sound" aria-pressed="true">Sound</button>
+  <button id="sound" aria-pressed="false" aria-label="Sound"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="off" d="M16 9l6 6M22 9l-6 6"/><path class="on" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>Sound</button>
 </div>
 
 <script type="importmap">
@@ -45,7 +48,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { buildScene, V, zoomFade, tickSmoke, TRAIN, SMOKE_BEAT } from "./scene.js?v=52";
-import { whistle, setSound, tickSound } from "./sound.js?v=1";
+import { whistle, setSound, isSoundOn, tickSound } from "./sound.js?v=2";
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -77,8 +80,9 @@ for (const k of Object.keys(VIEWS)) if (document.getElementById("v-" + k)) docum
 const spinBtn = document.getElementById("spin");
 spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute("aria-pressed", controls.autoRotate); };
 const soundBtn = document.getElementById("sound");
-soundBtn.onclick = () => { const v = soundBtn.getAttribute("aria-pressed") !== "true"; soundBtn.setAttribute("aria-pressed", v); setSound(v); };
-// a tap (not a drag) on the train blows the whistle
+const sound = (v) => { soundBtn.setAttribute("aria-pressed", v); setSound(v); };
+soundBtn.onclick = () => sound(!isSoundOn());
+// a tap (not a drag) on the train blows the whistle, and turns the sound on if it was off
 const ray = new THREE.Raycaster(), tap = new THREE.Vector2(); let down = null;
 canvas.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
 canvas.addEventListener("pointerup", (e) => {
@@ -86,7 +90,7 @@ canvas.addEventListener("pointerup", (e) => {
   const r = canvas.getBoundingClientRect();
   tap.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(tap, camera);
   const hit = ray.intersectObjects(scene.children, true).find((h) => h.object.isMesh && h.object.visible);
-  for (let o = hit && hit.object; o; o = o.parent) if (o === TRAIN.group) { whistle(); break; }
+  for (let o = hit && hit.object; o; o = o.parent) if (o === TRAIN.group) { if (!isSoundOn()) sound(true); whistle(); break; }
 });
 const hint = document.getElementById("hint");
 controls.addEventListener("start", () => { hint.style.opacity = 0; }, { once: true });
