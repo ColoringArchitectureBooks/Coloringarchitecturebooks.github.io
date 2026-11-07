@@ -803,8 +803,8 @@ for (let x = 170; x < 215; x += 3) { seg([x, 298, 0.06], [x, 303.5, 0.06]); seg(
     const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.BufferAttribute(out, 3)); root.add(new THREE.LineSegments(lg, M.line)); }
 }
 
-// ---- shrubs (Ahmed's picks: #2 round bush and #5 ornamental grass, blades only): clumps scattered at random over the lawns and planted islands,
-// kept off the walks, clear of tree trunks and of each other; a few baked variants repeated as instances
+// ---- shrubs (Ahmed's picks: #2 round bush and #5 ornamental grass, blades only), only in the planting beds at the entrance;
+// clear of tree trunks and of each other; a few baked variants repeated as instances
 {
   const srand = (s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; })(777);
   const VAR = [];
@@ -824,7 +824,6 @@ for (let x = 170; x < 215; x += 3) { seg([x, 298, 0.06], [x, 303.5, 0.06]); seg(
   const edgeDist = (x, y, r) => { let m = 1e9; for (let i = 0; i < r.length; i++) { const [ax, ay] = r[i], [bx, by] = r[(i + 1) % r.length], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1;
       const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L2)); m = Math.min(m, Math.hypot(x - ax - t * dx, y - ay - t * dy)); } return m; };
   const nearEdge = (x, y, p, d) => [p.o, ...(p.h || [])].some(r => edgeDist(x, y, r) < d);
-  const onWalk = (x, y) => SITE_LAYERS.W.polys.some(p => inPoly(x, y, p) || nearEdge(x, y, p, 0.8));
   const placed = [];
   const free = (x, y, s) => !TREES.some(([tx, ty]) => Math.hypot(x - tx, y - ty) < 0.9 + s * 0.6) && !placed.some(([px, py, ps]) => Math.hypot(x - px, y - py) < 0.75 * (s + ps));
   // the planting beds along the entrance forecourt: filled close together with smaller bushes (and a few grass tufts)
@@ -836,17 +835,6 @@ for (let x = 170; x < 215; x += 3) { seg([x, 298, 0.06], [x, 303.5, 0.06]); seg(
       const s = 0.5 + srand() * 0.3, px = x + (srand() - 0.5) * 0.4, py = y + (srand() - 0.5) * 0.4;
       if (!inPoly(px, py, p) || nearEdge(px, py, p, 0.45 * s) || !free(px, py, s * 0.6)) continue;
       placed.push([px, py, s * 0.6]); pick(srand() < 0.2 ? GRASS : VAR).at.push(new THREE.Matrix4().compose(V(px, py, 0.12), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, srand() * 6.28, 0)), new THREE.Vector3(s, s * (0.85 + srand() * 0.3), s))); }
-  }
-  for (const p of SITE_LAYERS.G.polys) { if (p.bed) continue;
-    const xs = p.o.map(q => q[0]), ys = p.o.map(q => q[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    let A = 0; for (let i = 0; i < p.o.length; i++) { const [ax, ay] = p.o[i], [bx, by] = p.o[(i + 1) % p.o.length]; A += ax * by - bx * ay; } A = Math.abs(A) / 2;
-    let clumps = Math.floor(A / 150 + srand()); if (A < 60 && srand() < 0.5) clumps = 0;   // the small end islands: some get a bush, some don't
-    for (let c = 0, tries = 0; c < clumps && tries < clumps * 40; tries++) {
-      const cx = x0 + srand() * (x1 - x0), cy = y0 + srand() * (y1 - y0); if (!inPoly(cx, cy, p)) continue; c++;
-      const n = 1 + Math.floor(srand() * srand() * 5), set = srand() < 0.35 ? GRASS : VAR;  // clumps of 1 to 5, mostly small; some clumps are grass
-      for (let k = 0; k < n; k++) { const s = 0.75 + srand() * 0.6, a = srand() * 6.28, d = k ? 0.9 + srand() * 1.2 : 0, x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d;
-        if (!inPoly(x, y, p) || nearEdge(x, y, p, 0.75 * s) || onWalk(x, y) || !free(x, y, s)) continue;
-        placed.push([x, y, s]); set[Math.floor(srand() * set.length)].at.push(new THREE.Matrix4().compose(V(x, y, 0.12), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, srand() * 6.28, 0)), new THREE.Vector3(s, s * (0.85 + srand() * 0.3), s))); } }
   }
   for (const K of [...VAR, ...GRASS]) { const n = K.at.length; if (!n) continue;
     if (K.body) { const im = new THREE.InstancedMesh(K.body, W0, n); K.at.forEach((m, i) => im.setMatrixAt(i, m)); root.add(im); }
