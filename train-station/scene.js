@@ -14,7 +14,7 @@ const PX = (px) => (px - 10) / 60, PZ = (py) => (905 - py) / 60;
 // ---------- dimensions ----------
 export const D = {
   hall: { x0: 0.6, x1: 23.4, y0: 0.3, y1: 6.3, eave: 6.5 },          // ground-floor walls; the main roof's eave sits at 6.5
-  roof: { x0: 4.3, hx: 0.95, y0: 0, y1: 6.7, ridge: 9.33 },           // upper main roof: steep hip just left of the dormer (page)
+  roof: { x0: 4.15, hx: 0.7,  y0: 0, y1: 6.7, ridge: 9.33 },           // upper main roof: steep hip just left of the dormer (page)
   canopy: { x0: 0, x1: 24.0, y: -3.0, z0: 4.67, z1: 5.17 },          // platform canopy: fascia 4.67..5.17, rises to the wall at 6.5
   posts: [60, 230, 418, 590, 745, 920, 1085, 1240, 1410].map(PX), postY: -2.75,
   tower: { x0: 8.1, x1: 14.9, h: 9.58 },                              // two-storey block with the bracketed cornice
@@ -200,12 +200,14 @@ function hall(root) {
   // low hipped roof over the hall's left end: sits at the canopy's top line, so only the canopy shows here (page)
   const lx = H.x0, lx1 = R.x0 + 0.7;
   plane(root, [[lx, R.y0, e - 0.01], [lx1, R.y0, e - 0.01], [lx1, R.y1, e - 0.01], [lx, R.y1, e - 0.01]]);
-  box(root, lx, R.x0, H.y1 - 0.02, H.y1 + 0.06, e - 0.25, e - 0.01);
+  box(root, lx, R.x0, H.y1 - 0.02, H.y1 + 0.06, e - 0.25, e + 0.04);                                   // flush trim round the flat roof (back + left)
+  box(root, lx - 0.06, lx + 0.02, H.y0 + 0.05, H.y1 + 0.06, e - 0.25, e + 0.04);
   // canopy roof from the fascia up to the wall line, hipped at both ends (page)
   const a = 0.6, top = H.eave;
-  plane(root, [[C.x0, C.y, C.z1], [C.x1, C.y, C.z1], [C.x1 - a, 0, top], [C.x0 + a, 0, top]]);
-  plane(root, [[C.x0, C.y, C.z1], [C.x0 + a, 0, top], [C.x0, 0, C.z1]], M.roof, [0, 1, 0]);
-  plane(root, [[C.x1, C.y, C.z1], [C.x1, 0, C.z1], [C.x1 - a, 0, top]], M.roof, [0, 1, 0]);
+  const yw = H.y0;      // the canopy roof runs right up to the wall face, so its hips land on the wall corners
+  plane(root, [[C.x0, C.y, C.z1], [C.x1, C.y, C.z1], [C.x1 - a, yw, top], [C.x0 + a, yw, top]]);
+  plane(root, [[C.x0, C.y, C.z1], [C.x0 + a, yw, top], [C.x0, yw, C.z1]], M.roof, [0, 1, 0]);
+  plane(root, [[C.x1, C.y, C.z1], [C.x1, yw, C.z1], [C.x1 - a, yw, top]], M.roof, [0, 1, 0]);
   box(root, C.x0, C.x1, C.y - 0.08, C.y + 0.08, C.z0, C.z1 - 0.14);                                    // fascia board
   for (const x of [C.x0, C.x1]) box(root, x - 0.08, x + 0.08, C.y, H.y0, C.z0, C.z1 - 0.14);
   // crown moulding: two stepped caps that run past the fascia and its returns, so the ends kick out like the page
@@ -216,8 +218,8 @@ function hall(root) {
   box(root, C.x0, C.x1, C.y, H.y0, C.z0 - 0.04, C.z0);                                                 // soffit
   box(root, D.gable.x0, H.x1, 0, H.y0 + 0.02, top - 0.05, top);                                       // closes the strip between the canopy and the gable wall
   // the hip apexes land on the wall corners, so only a small triangle behind each hip closes the end
-  plane(root, [[H.x1, 0, C.z0], [C.x1, 0, C.z0], [C.x1, 0, C.z1], [H.x1, 0, top]], M.white);
-  plane(root, [[C.x0, 0, C.z0], [H.x0, 0, C.z0], [H.x0, 0, top], [C.x0, 0, C.z1]], M.white);
+  plane(root, [[H.x1, yw, C.z0], [C.x1, yw, C.z0], [C.x1, yw, C.z1], [H.x1, yw, top]], M.white);
+  plane(root, [[C.x0, yw, C.z0], [H.x0, yw, C.z0], [H.x0, yw, top], [C.x0, yw, C.z1]], M.white);
   lines(root, [[[C.x0, C.y - 0.09, C.z0 + 0.25], [C.x1, C.y - 0.09, C.z0 + 0.25]]]);                    // fascia moulding line
   // posts with base and capital, arched spandrels between them (page)
   const pw = 0.24, py = D.postY;
@@ -293,7 +295,6 @@ function tower(root) {
   archWindow(root, "-y", y0, PX(748), PX(815), 6.75, PZ(362));
   archWindow(root, "+y", y1, PX(572), PX(640), 6.75, PZ(362));
   archWindow(root, "+y", y1, PX(748), PX(815), 6.75, PZ(362));
-  archWindow(root, "-x", T.x0, cy - 0.56, cy + 0.56, 6.9, PZ(362));
 }
 
 // ---------- cross gable on the right (ridge front to back), truss in the front gable ----------
@@ -333,7 +334,7 @@ function crossGable(root) {
 // ---------- dormer on the left of the roof (page): flat front with corner pilasters, sloped cheeks,
 // a curved roof with a thick double-line eave that overhangs front and sides, arched window
 function dormer(root) {
-  const x0 = PX(322), x1 = PX(428), yf = 0.15, yb = 3.35, zt = 8.38, crown = 8.92, o = 0.32, c = (x0 + x1) / 2;
+  const x0 = PX(322), x1 = PX(428), yf = 0.15, yb = 3.0, zt = 8.38, crown = 8.92, o = 0.32, c = (x0 + x1) / 2;
   box(root, x0, x1, yf, yb, 6.5, zt, M.siding);
   for (const x of [x0, x1]) box(root, x - 0.13, x + 0.13, yf - 0.1, yf + 0.05, 6.55, zt);                         // corner pilasters
   box(root, x0 - 0.1, x1 + 0.1, yf - 0.12, yf + 0.05, 6.5, 6.7);                                                    // base board
