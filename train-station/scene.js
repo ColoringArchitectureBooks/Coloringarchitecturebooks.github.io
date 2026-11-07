@@ -821,8 +821,9 @@ function site(root) {
   // ---- car park: one rectangle, one-way aisle; drop-off and accessible bays opposite the steps ----
   slab(root, [[-10, 18], [33, 18], [33, 37.5], [28, 37.5], [28, 35], [-5, 35], [-5, 37.5], [-10, 37.5]], LG, LG + 0.004).userData.noEdge = true;   // flush with the street   // lot and its two lanes in one piece
   { const z = LG + 0.008, L = [];
-    for (let k = 0; k <= 15; k++) { const x = -8.75 + 2.7 * k; L.push([[x, 18, z], [x, 23.5, z]]); }       // US bays 2.7 x 5.5 m: 15 along the walk
-    for (let k = 0; k <= 12; k++) { const x = -4.7 + 2.7 * k; L.push([[x, 29.5, z], [x, 35, z]]); }        // 12 along the hedge, between the entry lanes; 6 m aisle
+    const B1 = 43 / 16, B2 = 33 / 12;                                                                    // US bays ~2.7 x 5.5 m, whole bays only: 16 fill the 43 m along the walk,
+    for (let k = 1; k < 16; k++) { const x = -10 + B1 * k; L.push([[x, 18, z], [x, 23.5, z]]); }          // 12 fill the 33 m between the entry lanes; 6 m aisle
+    for (let k = 0; k <= 12; k++) { const x = -5 + B2 * k; L.push([[x, 29.5, z], [x, 35, z]]); }
     L.push([[-10, 23.5, z], [33, 23.5, z]], [[-5, 29.5, z], [28, 29.5, z]]);     // nothing across the two entry lanes
     lines(root, L); }
   // ---- hedge, sidewalk, street with the bus + taxi lay-by and its shelter ----
@@ -840,8 +841,8 @@ function site(root) {
   shelter(root, 15.5, 19.5, 35.9, 37.3, LG + 0.15);
   sign(root, 20.7, 37.3, LG + 2.6, 0.9, 0.45, textTex(["BUS"], 256, 128), "+y"); cyl(root, 20.7, 37.35, LG + 1.2, 0.04, 2.4, "z", 8);   // the two stop signs side by side, just past the shelter
   sign(root, 22.0, 37.3, LG + 2.6, 0.9, 0.45, textTex(["TAXI"], 256, 128), "+y"); cyl(root, 22.0, 37.35, LG + 1.2, 0.04, 2.4, "z", 8);
-  for (const [k, t] of [[0, "suv"], [1, "sedan"], [4, "hatch"], [9, "sedan"], [13, "suv"]]) car(root, -7.4 + 2.7 * k, 20.75, -1, t);                   // a few cars nosed in toward the walk
-  for (const [k, t] of [[1, "hatch"], [5, "sedan"], [6, "suv"], [10, "sedan"]]) car(root, -3.35 + 2.7 * k, 32.25, 1, t);                       // and toward the hedge
+  for (const [k, t] of [[0, "suv"], [1, "sedan"], [4, "hatch"], [9, "sedan"], [13, "suv"]]) car(root, -10 + 43 / 16 * (k + 0.5), 20.75, -1, t);                   // a few cars nosed in toward the walk
+  for (const [k, t] of [[1, "hatch"], [5, "sedan"], [6, "suv"], [10, "sedan"]]) car(root, -5 + 33 / 12 * (k + 0.5), 32.25, 1, t);                       // and toward the hedge
   // ---- trees: an orchard either side, two by the court ----
   for (const x of [-17.0, -15.1, -13.2, 36.5, 38.6, 40.7]) for (const y of [11.0, 16.6, 22.2, 27.8]) tree(root, x, y, 0.95);
   for (const [x, y] of [[-4.0, 14.3], [-7.0, 11.6], [-1.2, 11.4], [27.0, 14.3], [24.4, 11.5], [29.6, 11.8]]) tree(root, x, y, 1.0);   // lawns either side of the entrance
