@@ -13,7 +13,7 @@ const PX = (px) => (px - 10) / 60, PZ = (py) => (905 - py) / 60;
 
 // ---------- dimensions ----------
 export const D = {
-  hall: { x0: 0.6, x1: 23.4, y0: 0.3, y1: 6.3, eave: 6.5 },          // ground-floor walls; the main roof's eave sits at 6.5
+  hall: { x0: 0, x1: 24.0,  y0: 0.3, y1: 6.3, eave: 6.5 },          // ground-floor walls; the main roof's eave sits at 6.5
   roof: { x0: 4.15, hx: 0.7,  y0: 0, y1: 6.7, ridge: 9.33 },           // upper main roof: steep hip just left of the dormer (page)
   canopy: { x0: 0, x1: 24.0, y: -3.0, z0: 4.67, z1: 5.17 },          // platform canopy: fascia 4.67..5.17, rises to the wall at 6.5
   posts: [60, 230, 418, 590, 745, 920, 1085, 1240, 1410].map(PX), postY: -2.75,
@@ -218,8 +218,6 @@ function hall(root) {
   box(root, C.x0, C.x1, C.y, H.y0, C.z0 - 0.04, C.z0);                                                 // soffit
   box(root, D.gable.x0, H.x1, 0, H.y0 + 0.02, top - 0.05, top);                                       // closes the strip between the canopy and the gable wall
   // the hip apexes land on the wall corners, so only a small triangle behind each hip closes the end
-  plane(root, [[H.x1, yw, C.z0], [C.x1, yw, C.z0], [C.x1, yw, C.z1], [H.x1, yw, top]], M.white);
-  plane(root, [[C.x0, yw, C.z0], [H.x0, yw, C.z0], [H.x0, yw, top], [C.x0, yw, C.z1]], M.white);
   lines(root, [[[C.x0, C.y - 0.09, C.z0 + 0.25], [C.x1, C.y - 0.09, C.z0 + 0.25]]]);                    // fascia moulding line
   // posts with base and capital, arched spandrels between them (page)
   const pw = 0.24, py = D.postY;
@@ -313,6 +311,13 @@ function crossGable(root) {
     elev(root, [[G.x0 - o + 0.25, e0 - fz + 0.25 * G.pitch - 0.02], [mid, pk + 0.12 - fz], [G.x1 + o - 0.25, e0 - fz + 0.25 * G.pitch - 0.02], [G.x1 + o - 0.25, e0 - fz + 0.25 * G.pitch + f2 - 0.02], [mid, pk + 0.12 - fz + f2], [G.x0 - o + 0.25, e0 - fz + 0.25 * G.pitch + f2 - 0.02]].map(([a, z]) => [a, z - f2]), y + sgn * t / 2, y + sgn * (t / 2 + 0.06));
   }
   for (const x of [G.x0, G.x1]) for (const y of [y0, y1]) box(root, x - 0.12, x + 0.12, y - 0.12, y + 0.12, H.eave - 0.3, G.eave);   // corner boards (page)
+  // low lean-to roof from under the gable's right eave out past the hall's right wall, so the whole hall top is covered
+  const sx0 = G.x1 + 0.3, sz0 = e0 + 0.2 * G.pitch - 0.06, sx1 = H.x1 + 0.3, sz1 = H.eave + 0.05, sy0 = y0 - ov, sy1 = y1 + ov;
+  const sz = (x) => sz0 + (x - sx0) * (sz1 - sz0) / (sx1 - sx0);
+  plane(root, [[sx0, sy0, sz0], [sx1, sy0, sz1], [sx1, sy1, sz1], [sx0, sy1, sz0]], M.roof, [0, 1, 0]);
+  box(root, sx1 - 0.04, sx1, sy0, sy1, sz1 - 0.2, sz1);                                                        // fascia
+  for (const y of [sy0, sy1]) elev(root, [[sx0, sz0], [sx1, sz1], [sx1, sz1 - 0.16], [sx0, sz0 - 0.16]], y - 0.05, y + 0.05);   // edge boards
+  for (const y of [y0, y1]) elev(root, [[G.x1, H.eave - 0.02], [H.x1, H.eave - 0.02], [H.x1, sz(H.x1)], [G.x1, sz(G.x1)]], y - 0.01, y + 0.01, M.siding);   // infill under it
   // truss in the front gable: collar, king post with a drop, X braces (page)
   const yt = y0 - 0.12, zc = 9.32;           // collar just above the window hood (page)
   const wAt = (z) => (pk + 0.12 - 0.46 - z) / G.pitch - 0.05;      // half-width inside the bargeboards at height z
