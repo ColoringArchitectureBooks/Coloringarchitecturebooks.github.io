@@ -689,16 +689,20 @@ function put(f, x, y, dx, dy, stride, ph) {
 const putBall = (b, x, y, z) => b.position.copy(V(x, y, z));
 const smooth = u => u * u * (3 - 2 * u);
 
-// tennis: a rally on the first court of every pair; the ball arcs over the net, players slide to meet it
+// tennis: a rally on the first court of every pair; each player keeps to their own baseline and slides
+// smoothly from where they last hit the ball to where the next ball lands, so nobody jumps
 for (let i = 0; i < 4; i++) {
   const cx = 167 + 3.66, a = 146 + i * 36.6 + 6.4, b = a + 23.77, p1 = figure(), p2 = figure(), ball = ballObj(0.18), T = 1.6 + 0.15 * i, off = i * 0.7;
+  const xs = q => cx + 2 + 7 * (0.5 + 0.5 * Math.sin(q * 2.3 + i)), ya = a + 0.3, yb = b - 0.3;
   PLAY.push(t => {
-    const k = Math.floor((t + off) / T), u = ((t + off) / T) % 1, xs = q => cx + 2 + 7 * (0.5 + 0.5 * Math.sin(q * 2.3 + i));
-    const from = k % 2 ? b - 0.8 : a + 0.8, to = k % 2 ? a + 0.8 : b - 0.8, x0 = xs(k), x1 = xs(k + 1);
-    const bx = x0 + (x1 - x0) * u, by = from + (to - from) * u; putBall(ball, bx, by, 1.0 + 2.6 * Math.sin(Math.PI * u));
-    const near = k % 2 ? p2 : p1, far = k % 2 ? p1 : p2, nx = x0, fx = x0 + (x1 - x0) * smooth(Math.min(1, u * 1.3));
-    put(near, nx, from - (k % 2 ? -0.5 : 0.5), 0, k % 2 ? -1 : 1, 0.2, t * 6);
-    put(far, fx, to + (k % 2 ? -0.5 : 0.5), 0, k % 2 ? 1 : -1, 0.8, t * 9);
+    const k = Math.floor((t + off) / T), u = ((t + off) / T) % 1, odd = k % 2 === 1;
+    const x0 = xs(k), x1 = xs(k + 1), from = odd ? yb : ya, to = odd ? ya : yb;
+    putBall(ball, x0 + (x1 - x0) * u, from + (to - from) * u, 1.0 + 2.6 * Math.sin(Math.PI * u));
+    // hitter drifts back toward the middle of the baseline after the shot; receiver runs from its last hit to the next ball
+    const hit = odd ? p2 : p1, rec = odd ? p1 : p2, xm = cx + 5.485, w = smooth(Math.min(1, u * 1.3));
+    const hx = x0 + (xm - x0) * 0.4 * smooth(u), rx = (xs(k - 1) + (xm - xs(k - 1)) * 0.4) + (x1 - (xs(k - 1) + (xm - xs(k - 1)) * 0.4)) * w;
+    put(hit, hx, from, (xm - x0) * 0.4, 0, 0.3, t * 6); hit.rotation.y = Math.atan2(odd ? -1 : 1, 0) ;
+    put(rec, rx, to, 0, 0, 0.8, t * 9); rec.rotation.y = Math.atan2(odd ? 1 : -1, 0);
   });
 }
 
@@ -732,16 +736,33 @@ for (let i = 0; i < 4; i++) {
   for (const gy of [SY0 + 1, SY0 + 99]) { const f = figure();   // goalkeepers
     PLAY.push(t => { const [x] = bpos(t); put(f, SX0 + 32 + Math.max(-3, Math.min(3, (x - SX0 - 32) * 0.2)), gy, 0, gy < SY0 + 50 ? 1 : -1, 0.3, t * 5); }); } }
 
-// baseball: pitch to the catcher, the catcher throws it back
-{ const hx = -82, hy = 362, rot = (u, v) => [hx + (u + v) / Math.SQRT2, hy + (v - u) / Math.SQRT2];
-  const home = rot(0, 0.8), mound = rot(0, 18.44), pitcher = figure(), catcher = figure(), batter = figure(), ball = ballObj(0.15);
-  const fielders = [rot(19, 19), rot(-19, 19), rot(8, 30), rot(0, 70), rot(-40, 60), rot(40, 60)].map(p => { const f = figure(); put(f, p[0], p[1], home[0] - p[0], home[1] - p[1], 0, 0); return f; });
-  PLAY.push(t => { const T = 1.4, u = (t / 2 / T) % 1, out = u < 0.5, w = out ? u * 2 : (u - 0.5) * 2, [f, g] = out ? [mound, home] : [home, mound];
+// baseball + softball: pitch to the catcher and back; fielders shuffle on their toes and lean toward the ball
+function ballgame(hx, hy, rubber, bases, far, T) {
+  const rot = (u, v) => [hx + (u + v) / Math.SQRT2, hy + (v - u) / Math.SQRT2];
+  const home = rot(0, 0.8), mound = rot(0, rubber), pitcher = figure(), catcher = figure(), batter = figure(), ball = ballObj(0.15);
+  const spots = [rot(bases * 0.6, bases * 0.88), rot(-bases * 0.6, bases * 0.88), rot(bases * 0.3, bases * 1.15), rot(-bases * 0.3, bases * 1.15), rot(0, far), rot(-far * 0.45, far * 0.82), rot(far * 0.45, far * 0.82)];   // all inside the foul lines (|u| < v)
+  const fielders = spots.map((p, j) => { const f = figure(), dir = [home[0] - p[0], home[1] - p[1]], L = Math.hypot(...dir), side = [-dir[1] / L, dir[0] / L];
+    PLAY.push(t => { const sw = Math.sin(t * 1.3 + j * 1.7) * 1.6, x = p[0] + side[0] * sw, y = p[1] + side[1] * sw;
+      put(f, x, y, dir[0], dir[1], Math.abs(Math.cos(t * 1.3 + j * 1.7)) * 0.6, t * 7 + j); }); return f; });
+  PLAY.push(t => { const u = (t / (2 * T)) % 1, out = u < 0.5, w = out ? u * 2 : (u - 0.5) * 2, [f, g] = out ? [mound, home] : [home, mound];
     putBall(ball, f[0] + (g[0] - f[0]) * w, f[1] + (g[1] - f[1]) * w, 1.7 + (out ? 0.4 : 2.5) * Math.sin(Math.PI * w));
-    put(pitcher, mound[0], mound[1], home[0] - mound[0], home[1] - mound[1], 0, 0);
+    put(pitcher, mound[0], mound[1], home[0] - mound[0], home[1] - mound[1], out ? 0 : 0.2, t * 5);
     put(catcher, home[0] - 0.9, home[1] - 0.9, mound[0] - home[0], mound[1] - home[1], 0, 0);
-    put(batter, home[0] + 1.0, home[1] - 0.6, -1, 1, 0, 0); });
+    put(batter, home[0] + 1.0 + 0.15 * Math.sin(t * 3), home[1] - 0.6, -1, 1, 0, 0); });
 }
+ballgame(-82, 362, 18.44, 27.43, 80, 1.4);
+ballgame(54, 360, 13.11, 18.29, 50, 1.2);
+
+// practice lawn: two throwers tossing a ball long, and a small group running laps around the lawn
+{ const LX0 = -95, LX1 = -35, LYa = 178, LYb = 292, A = [(LX0 + LX1) / 2, LYa + 20], B = [(LX0 + LX1) / 2 + 6, LYa + 60], ta = figure(), tb = figure(), ball = ballObj(0.2);
+  PLAY.push(t => { const T = 2.2, k = Math.floor(t / T), u = (t / T) % 1, [f, g] = k % 2 ? [B, A] : [A, B];
+    putBall(ball, f[0] + (g[0] - f[0]) * u, f[1] + (g[1] - f[1]) * u, 1.8 + 9 * Math.sin(Math.PI * u));
+    put(ta, A[0], A[1], B[0] - A[0], B[1] - A[1], 0, 0); put(tb, B[0], B[1], A[0] - B[0], A[1] - B[1], 0, 0); });
+  const cx = (LX0 + LX1) / 2, cy = (LYa + LYb) / 2, rx = (LX1 - LX0) / 2 - 4, ry = (LYb - LYa) / 2 - 4;
+  for (let j = 0; j < 4; j++) { const f = figure();
+    PLAY.push(t => { const a = t * 0.06 + j * 0.05, x = cx + rx * Math.cos(a), y = cy + ry * Math.sin(a);
+      put(f, x + (j % 2) * 1.2, y, -rx * Math.sin(a), ry * Math.cos(a), 1, t * 9 + j); }); } }
+
 function tickPlay(t) { for (const f of PLAY) f(t); }
 
 // ---------------- viewer ----------------
@@ -753,8 +774,11 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0xdddddd, 2.4));
 const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(-60, 90, 80); scene.add(sun);
 const camera = new THREE.PerspectiveCamera(34, 1, 0.5, 3000);
 const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true; controls.minDistance = 10; controls.maxDistance = 900;
+controls.enableDamping = true; controls.minDistance = 4; controls.maxDistance = 900;
 controls.maxPolarAngle = Math.PI / 2 - 0.02; controls.autoRotateSpeed = 1.0;
+// easier moving around a big site: pinch zooms toward the fingers (not back toward the entrance),
+// one/two-finger drag slides along the ground instead of up into the sky, and you can get close to the players
+controls.zoomToCursor = true; controls.screenSpacePanning = false; controls.minDistance = 4;
 const VIEWS = {
   entry: { eye: [210, 68, 3.5], tgt: [150, 68, 7.5] },   // same framing as the coloring page
   door: { eye: [188, 40, 7], tgt: [152, 66, 6] },
