@@ -827,7 +827,17 @@ for (let x = 170; x < 215; x += 3) { seg([x, 298, 0.06], [x, 303.5, 0.06]); seg(
   const onWalk = (x, y) => SITE_LAYERS.W.polys.some(p => inPoly(x, y, p) || nearEdge(x, y, p, 0.8));
   const placed = [];
   const free = (x, y, s) => !TREES.some(([tx, ty]) => Math.hypot(x - tx, y - ty) < 0.9 + s * 0.6) && !placed.some(([px, py, ps]) => Math.hypot(x - px, y - py) < 0.75 * (s + ps));
+  // the planting beds along the entrance forecourt: filled close together with smaller bushes (and a few grass tufts)
+  const pick = (set) => set[Math.floor(srand() * set.length)];
   for (const p of SITE_LAYERS.G.polys) {
+    const xs = p.o.map(q => q[0]), ys = p.o.map(q => q[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    if (x0 < 150 || x1 > 168.5 || y0 < 40 || y1 > 101) continue; p.bed = true;
+    for (let x = x0 + 0.5; x < x1; x += 1.05) for (let y = y0 + 0.5; y < y1; y += 1.05) {
+      const s = 0.5 + srand() * 0.3, px = x + (srand() - 0.5) * 0.4, py = y + (srand() - 0.5) * 0.4;
+      if (!inPoly(px, py, p) || nearEdge(px, py, p, 0.45 * s) || !free(px, py, s * 0.6)) continue;
+      placed.push([px, py, s * 0.6]); pick(srand() < 0.2 ? GRASS : VAR).at.push(new THREE.Matrix4().compose(V(px, py, 0.12), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, srand() * 6.28, 0)), new THREE.Vector3(s, s * (0.85 + srand() * 0.3), s))); }
+  }
+  for (const p of SITE_LAYERS.G.polys) { if (p.bed) continue;
     const xs = p.o.map(q => q[0]), ys = p.o.map(q => q[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
     let A = 0; for (let i = 0; i < p.o.length; i++) { const [ax, ay] = p.o[i], [bx, by] = p.o[(i + 1) % p.o.length]; A += ax * by - bx * ay; } A = Math.abs(A) / 2;
     let clumps = Math.floor(A / 150 + srand()); if (A < 60 && srand() < 0.5) clumps = 0;   // the small end islands: some get a bush, some don't
