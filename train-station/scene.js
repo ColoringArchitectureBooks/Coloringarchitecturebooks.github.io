@@ -379,7 +379,7 @@ function entryGable(root, font) {
   for (const sg of [-1, 1]) {
     const dO = 0.8, zO = rU(dO) + 0.1, zI = zO;                                       // upper ends run in behind the bargeboard
     board(mid + sg * 0.1, zt1 - 0.06, mid + sg * dO, zO, 0.16);                                      // brace up from the king post foot to the rafter
-    board(mid + sg * 0.1, zI, mid + sg * dO, zt1 - 0.06, 0.16);                                      // and its partner down to the tie: the X
+    box(root, mid + sg * dO - 0.08, mid + sg * dO + 0.08, yt - 0.04, yt + 0.04, zt1 - 0.02, rU(dO) + 0.1);   // upright stud from the tie up to the rafter where the brace lands
   }
   // king post through the peak with a small square cap (calmer than a spike)
   box(root, mid - 0.08, mid + 0.08, yf - 0.24, yf - 0.08, E.peak - 0.1, E.peak + 0.2);
@@ -390,13 +390,16 @@ function entryGable(root, font) {
     lines(root, L); }
   // the sign: a plain board with four screws and the name painted on in a serif face, no frame and no raised letters (page)
   box(root, sx0, sx1, yf - 0.1, yf, sz0, sz1);
+  const tex = stationTex();
+  sign(root, (sx0 + sx1) / 2, yf - 0.105, (sz0 + sz1) / 2, sx1 - sx0 - 0.02, sz1 - sz0 - 0.02, tex);
+}
+function stationTex() {                             // TRAIN STATION painted on a plain board in a serif face, four screws (page)
   const tex = canvasTex(1536, 256, (g, w, h) => { g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.fillStyle = "#000";
     g.font = 'bold 150px Georgia, "Times New Roman", "DejaVu Serif", serif'; g.textAlign = "center"; g.textBaseline = "middle";
     const txt = "TRAIN STATION", sp = 14; let tw = 0; for (const ch of txt) tw += g.measureText(ch).width + sp; tw -= sp;
     let x = w / 2 - tw / 2; g.textAlign = "left"; for (const ch of txt) { g.fillText(ch, x, h / 2 + 6); x += g.measureText(ch).width + sp; }
     for (const [cx, cy] of [[22, 22], [w - 22, 22], [22, h - 22], [w - 22, h - 22]]) { g.beginPath(); g.arc(cx, cy, 7, 0, Math.PI * 2); g.fill(); } });
-  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-  sign(root, (sx0 + sx1) / 2, yf - 0.105, (sz0 + sz1) / 2, sx1 - sx0 - 0.02, sz1 - sz0 - 0.02, tex);
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; return tex;
 }
 
 // ---------- the platform front: windows, door, posters, clock, timetable, benches, lamps ----------
@@ -463,13 +466,20 @@ function front(root) {
     for (const [a, b] of [[E0, x0 + 0.05], [x1 - 0.05, E1]]) box(root, a, b, yb, yo, ez - 0.26, ez - 0.22);         // soffit board under each overhang
     elev(root, [[x0, tb1], [x1, tb1], [x1, zR(x1) - 0.3], [xm, pz - 0.3], [x0, zR(x0) - 0.3]], ye - 0.06, ye, M.siding);   // gable infill behind the truss
     box(root, E0 + 0.08, E1 - 0.08, ye - 0.24, ye, tb0, tb1);
-    const yt = ye + 0.08, zk = tb1 + 0.5, under = (d) => pz - d * pitch - fz - f2 + 0.02;
-    const strut = (ax, az, bx, bz) => { const A = V(ax, yt, az), B = V(bx, yt, bz), m = new THREE.Mesh(new THREE.BoxGeometry(0.08, A.distanceTo(B), 0.08), M.white);
+    // TRAIN STATION board on the gable and the same truss as the platform gable: tie on the board, king post with a pendant,
+    // a brace each side up to the rafter and an upright stud under where it lands
+    const yt = ye + 0.08, rU = (d) => pz - d * pitch - fz - f2 + 0.02, sz0 = tb1 + 0.03, sz1 = tb1 + 0.53, sw = 1.62;
+    box(root, xm - sw, xm + sw, ye, ye + 0.1, sz0, sz1);
+    sign(root, xm, ye + 0.105, (sz0 + sz1) / 2, 2 * sw - 0.02, sz1 - sz0 - 0.02, stationTex(), "+y");
+    const zt1 = sz1 + 0.11, cwT = (pz - fz - f2 - zt1) / pitch;
+    box(root, xm - cwT, xm + cwT, yt - 0.04, yt + 0.04, sz1, zt1);                                                // tie on the board
+    box(root, xm - 0.09, xm + 0.09, yt - 0.05, yt + 0.05, zt1 + 0.11, pz - 0.25);                                  // king post
+    elev(root, [[xm - 0.09, zt1 + 0.15], [xm + 0.09, zt1 + 0.15], [xm + 0.09, zt1 + 0.06], [xm, zt1 - 0.01], [xm - 0.09, zt1 + 0.06]], yt - 0.06, yt + 0.06);   // pendant
+    const board = (ax, az, bx, bz, w = 0.14, dz = 0.07) => { const A = V(ax, yt, az), B = V(bx, yt, bz), m = new THREE.Mesh(new THREE.BoxGeometry(w, A.distanceTo(B), dz), M.white);
       m.position.copy(A).add(B).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize()); root.add(m); };
-    box(root, xm - 0.07, xm + 0.07, yt - 0.05, yt + 0.05, zk - 0.12, pz - 0.3);                                   // king post
-    const kd = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.15, 4), M.white); kd.rotation.x = Math.PI; kd.position.copy(V(xm, yt, zk - 0.2)); root.add(kd);
-    for (const sg of [-1, 1]) { strut(xm + sg * 0.09, zk + 0.05, xm + sg * 0.7, under(0.7) - 0.04); strut(xm + sg * 0.09, under(0.1) - 0.1, xm + sg * 0.7, zk + 0.05); }
-    const cw = (pz - fz - f2 - zk - 0.05) / pitch; box(root, xm - cw, xm + cw, yt - 0.045, yt + 0.045, zk - 0.045, zk + 0.045);   // collar
+    for (const sg of [-1, 1]) { const dO = 0.7;
+      board(xm + sg * 0.09, zt1 - 0.05, xm + sg * dO, rU(dO) + 0.1);
+      box(root, xm + sg * dO - 0.07, xm + sg * dO + 0.07, yt - 0.04, yt + 0.04, zt1 - 0.02, rU(dO) + 0.1); }
     box(root, xm - 0.07, xm + 0.07, yo + 0.04, yo + 0.18, pz - 0.1, pz + 0.17);                                  // king post through the peak with a small square cap, as on the platform gable
     cyl(root, xm, yo + 0.11, pz + 0.235, 0.115, 0.13, "z", 4, M.white, 0.02).rotation.y = Math.PI / 4;
     const pw = 0.24, py = ye - 0.12, P0 = x0 + 0.12, P1 = x1 - 0.12, zs = 2.6, crown = 2.92, th = 0.1;
