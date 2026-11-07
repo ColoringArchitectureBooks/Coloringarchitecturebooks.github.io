@@ -432,7 +432,8 @@ function front(root) {
   { const r = 0.36, g = new THREE.CircleGeometry(r, 40), uv = g.attributes.uv, pos = g.attributes.position;
     for (let i = 0; i < uv.count; i++) { const px = 884 + pos.getX(i) * 60, py = 712 - pos.getY(i) * 60; uv.setXY(i, px / 1492, 1 - py / 1054); }
     const m = new THREE.Mesh(g, M.page); m.position.copy(V(cxk, y - 0.30, czk)); m.userData.noEdge = true; root.add(m); }
-  bench(root, PX(640), PX(730)); bench(root, PX(940), PX(1065)); bench(root, PX(1100), PX(1225)); bench(root, 2.0, 4.0);
+  // every bench the same 2 m long, centred under the window above it
+  for (const [a0, a1] of [[1.8, 3.2], [PX(630), PX(715)], [PX(955), PX(1050)], [PX(1120), PX(1195)]]) { const c = (a0 + a1) / 2; bench(root, c - 1.0, c + 1.0); }
   hangLamp(root, PX(833), -1.4); hangLamp(root, PX(1160), -1.4); hangLamp(root, 5.2, -1.4);
   // back and ends
   const yb = H.y1;
