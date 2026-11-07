@@ -50,7 +50,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { buildScene, V, zoomFade, tickSmoke, TRAIN, SMOKE_BEAT } from "./scene.js?v=52";
 import { whistle, setSound, isSoundOn, tickSound } from "./sound.js?v=2";
-import { mapTouch } from "./touch.js?v=1";
+import { mapTouch } from "./touch.js?v=2";
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -69,7 +69,7 @@ const VIEWS = {
   obl:   { eye: [70, -60, 60], tgt: [12, 8, -1] },     // whole site: platforms, crossing, court, car park, street
 };
 let baseFov = 34;
-function setView(k) { const v = VIEWS[k]; baseFov = v.fov || 34; resize(); camera.position.copy(V(...v.eye)); controls.target.copy(V(...v.tgt)); controls.update(); }
+function setView(k) { touch.stop(); const v = VIEWS[k]; baseFov = v.fov || 34; resize(); camera.position.copy(V(...v.eye)); controls.target.copy(V(...v.tgt)); controls.update(); }
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.8 ? baseFov * 58 / 34 : baseFov; camera.updateProjectionMatrix();
