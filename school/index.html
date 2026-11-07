@@ -700,12 +700,89 @@ const arm = (a, x, y, z) => a.rotation.set(x, y, z);
 
 // ---- sound: synthesized in the browser (no files), switched on by the first touch; every field has its own
 // sounds and they only play when the camera is close to that field, fading in and out with distance
+// Crowd cheer (the one Ahmed picked, #9): formant voices, real clappers, finger whistles, stereo + reverb
+function makeCrowd(ctx, dest) {
+  const SR = ctx.sampleRate, R = Math.random;
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 10; comp.ratio.value = 4; comp.attack.value = 0.01; comp.release.value = 0.25;
+  const master = ctx.createGain(); master.gain.value = 1; master.connect(comp); comp.connect(dest);
+  // synthetic hall/stadium impulse response: early reflections + dark exponential tail
+  const irLen = Math.floor(SR * 2.6), ir = ctx.createBuffer(2, irLen, SR);
+  for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); let lp = 0;
+    for (let i = 0; i < irLen; i++) { const t = i / SR; lp += 0.35 * ((R() * 2 - 1) - lp); d[i] = lp * Math.exp(-t / 0.55) * (t < 0.012 ? t / 0.012 : 1); }
+    for (let k = 0; k < 14; k++) { const i = Math.floor(SR * (0.015 + R() * 0.09)); d[i] += (R() < 0.5 ? -1 : 1) * (0.5 - k * 0.025); } }
+  const verb = ctx.createConvolver(); verb.buffer = ir; const wet = ctx.createGain(); verb.connect(wet); wet.connect(master);
+  const noiseBuf = ctx.createBuffer(1, SR * 2, SR); { const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = R() * 2 - 1; }
+  // one clap sample: sharp attack, ~20 ms decay, a little body thump
+  const clapBufs = [0, 1, 2, 3, 4, 5].map(() => { const n = Math.floor(SR * 0.06), b = ctx.createBuffer(1, n, SR), d = b.getChannelData(0), tau = 0.006 + R() * 0.008;
+    for (let i = 0; i < n; i++) { const t = i / SR; d[i] = (R() * 2 - 1) * Math.exp(-t / tau) * (t < 0.0008 ? t / 0.0008 : 1); } return b; });
+  const VOW = { ee: [290, 2250, 2950], eh: [540, 1840, 2500], ah: [760, 1180, 2600], oh: [520, 880, 2500], oo: [330, 820, 2350], ay: [650, 1700, 2550] };
+  const BW = [90, 110, 150], FG = [1, 0.55, 0.3];
+  function strip(out, pan, far, send) { // per-source chain: distance lowpass -> pan -> dry + reverb send
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 9000 - far * 6500; const p = ctx.createStereoPanner(); p.pan.value = pan;
+    const dry = ctx.createGain(); dry.gain.value = 1 - far * 0.45; const sd = ctx.createGain(); sd.gain.value = send * (0.6 + far * 0.8);
+    lp.connect(p); p.connect(dry); dry.connect(out); p.connect(sd); sd.connect(verb); return lp; }
+  // one person shouting; kind sets the pitch contour and the vowel path
+  function shout(out, o) {
+    const { t, dur, f0, fem, kind, g, pan, far, send } = o, sc = fem ? 1.17 : 1, end = t + dur;
+    const path = { yeah: [[0, "ee"], [0.12, "eh"], [0.3, "ah"], [1, "ah"]], woo: [[0, "oo"], [0.5, "oo"], [1, "oh"]], ah: [[0, "ah"], [1, "ah"]], hey: [[0, "ay"], [0.5, "eh"], [1, "ee"]], oh: [[0, "oh"], [0.6, "ah"], [1, "ah"]] }[kind];
+    const pc = { yeah: [[0, 1], [0.18, 1.35], [0.6, 1.2], [1, 0.82]], woo: [[0, 1], [0.35, 1.75], [0.8, 1.6], [1, 1.15]], ah: [[0, 0.95], [0.25, 1.2], [0.8, 1.1], [1, 0.85]], hey: [[0, 1.1], [0.3, 1.3], [1, 0.9]], oh: [[0, 1], [0.3, 1.4], [1, 1.0]] }[kind];
+    const src = ctx.createOscillator(); src.type = "sawtooth"; const src2 = ctx.createOscillator(); src2.type = "sawtooth"; src2.detune.value = 8 + R() * 10;
+    for (const s of [src, src2]) { s.frequency.setValueAtTime(f0 * pc[0][1], t); for (const [u, m] of pc.slice(1)) s.frequency.linearRampToValueAtTime(f0 * m * (1 + (R() - 0.5) * 0.04), t + u * dur); }
+    const vib = ctx.createOscillator(), vg = ctx.createGain(); vib.frequency.value = 5 + R() * 2.5; vg.gain.value = f0 * (0.012 + R() * 0.02); vib.connect(vg); vg.connect(src.frequency); vg.connect(src2.frequency);
+    const mix = ctx.createGain(); mix.gain.value = 0.5; src.connect(mix); src2.connect(mix);
+    const asp = ctx.createBufferSource(); asp.buffer = noiseBuf; asp.loop = true; const ag = ctx.createGain(); ag.gain.value = 0.22 + R() * 0.2; asp.connect(ag);
+    const env = ctx.createGain(); const head = strip(out, pan, far, send); env.connect(head);
+    for (let k = 0; k < 3; k++) { const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; const f = (v) => VOW[v][k] * sc;
+      bp.frequency.setValueAtTime(f(path[0][1]), t); for (const [u, v] of path.slice(1)) bp.frequency.linearRampToValueAtTime(f(v), t + u * dur);
+      bp.Q.value = VOW.ah[k] * sc / BW[k]; const fg = ctx.createGain(); fg.gain.value = FG[k] * 3.2; mix.connect(bp); ag.connect(bp); bp.connect(fg); fg.connect(env); }
+    const a = Math.min(0.1, dur * 0.2); env.gain.setValueAtTime(0.0001, t); env.gain.exponentialRampToValueAtTime(g, t + a); env.gain.setValueAtTime(g, t + dur * 0.65); env.gain.exponentialRampToValueAtTime(0.0001, end);
+    for (const s of [src, src2, vib, asp]) { s.start(t, s === asp ? R() : undefined); s.stop(end + 0.05); }
+  }
+  // a finger whistle: fast rise, held, falls away
+  function whistle(out, t, dur, g, pan, far, send) {
+    const o = ctx.createOscillator(); o.type = "sine"; const f = 2300 + R() * 900; o.frequency.setValueAtTime(f * 0.7, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.08); o.frequency.setValueAtTime(f, t + dur * 0.7); o.frequency.exponentialRampToValueAtTime(f * 0.8, t + dur);
+    const v = ctx.createOscillator(), vg = ctx.createGain(); v.frequency.value = 6 + R() * 3; vg.gain.value = 18; v.connect(vg); vg.connect(o.frequency);
+    const env = ctx.createGain(); env.gain.setValueAtTime(0.0001, t); env.gain.exponentialRampToValueAtTime(g, t + 0.05); env.gain.setValueAtTime(g * 0.9, t + dur * 0.8); env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(env); env.connect(strip(out, pan, far, send)); o.start(t); v.start(t); o.stop(t + dur + 0.05); v.stop(t + dur + 0.05);
+  }
+  // each clapper keeps their own tempo and hand tone; loudness follows the excitement curve
+  function clapper(out, t0, t1, g, pan, far, send, curve) {
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 900 + R() * 1600; bp.Q.value = 1.2 + R() * 1.5;
+    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 350; bp.connect(hp); hp.connect(strip(out, pan, far, send));
+    const per = 0.17 + R() * 0.12, buf = clapBufs[Math.floor(R() * clapBufs.length)];
+    for (let t = t0 + R() * per; t < t1; t += per * (0.93 + R() * 0.14)) { const lv = curve((t - t0) / (t1 - t0)); if (lv < 0.03) continue;
+      const s = ctx.createBufferSource(); s.buffer = buf; s.playbackRate.value = 0.85 + R() * 0.3; const gg = ctx.createGain(); gg.gain.value = g * lv * (0.7 + R() * 0.3); s.connect(gg); gg.connect(bp); s.start(t); }
+  }
+  // breathy crowd bed under everything
+  function bed(out, t, dur, g, far, send, peak = 0.25) {
+    for (const [f, q, m] of [[600, 1.2, 1], [1300, 1.5, 0.5], [2600, 2, 0.2]]) { const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = f; bp.Q.value = q;
+      const e = ctx.createGain(); e.gain.setValueAtTime(0.0001, t); e.gain.exponentialRampToValueAtTime(g * m, t + dur * peak); e.gain.setValueAtTime(g * m * 0.85, t + dur * 0.5); e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      s.connect(bp); bp.connect(e); e.connect(strip(out, (R() - 0.5) * 0.4, far, send)); s.start(t, R()); s.stop(t + dur + 0.05); }
+  }
+  const KINDS = { yeah: 0.4, woo: 0.2, ah: 0.25, oh: 0.15 };
+  function pick(w) { let r = R() * Object.values(w).reduce((a, b) => a + b, 0); for (const k in w) { if ((r -= w[k]) <= 0) return k; } return Object.keys(w)[0]; }
+  // a whole crowd reaction to one big moment
+  function cheer(out, t, o) {
+    const { people, clappers, whistles, far, send, spread, dur, kinds = KINDS, vg = 0.05, wg = 0.05, cg = 0.5, bedg = 0.03 } = o;
+    for (let i = 0; i < people; i++) { const fem = R() < 0.45, d0 = R() < 0.15 ? R() * 0.15 : 0.05 + Math.pow(R(), 1.6) * 0.6;
+      const kind = pick(kinds), du = (kind === "woo" ? 0.9 : 0.7) + R() * (dur * 0.45);
+      shout(out, { t: t + d0, dur: du, f0: (fem ? 230 : 125) * (0.85 + R() * 0.45) * (kind === "woo" ? 1.4 : 1), fem, kind, g: vg * (0.5 + R() * 0.5), pan: (R() * 2 - 1) * spread, far: Math.min(1, far + R() * 0.3), send });
+      if (R() < 0.35) { const t2 = t + d0 + du + 0.1 + R() * 0.4; if (t2 < t + dur - 0.8) shout(out, { t: t2, dur: 0.5 + R() * 0.8, f0: (fem ? 230 : 125) * (0.9 + R() * 0.4), fem, kind: R() < 0.5 ? "yeah" : "hey", g: vg * 0.6 * (0.5 + R() * 0.5), pan: (R() * 2 - 1) * spread, far: Math.min(1, far + R() * 0.3), send }); } }
+    for (let i = 0; i < whistles; i++) { const wt = t + 0.2 + R() * dur * 0.4; whistle(out, wt, 0.6 + R() * 0.9, wg * (0.5 + R() * 0.5), (R() * 2 - 1) * spread, far, send); if (R() < 0.5) whistle(out, wt + 1 + R() * 0.6, 0.4 + R() * 0.5, wg * 0.6, (R() * 2 - 1) * spread, far, send); }
+    const curve = (u) => u < 0.06 ? u / 0.06 : u < 0.4 ? 1 : Math.max(0, 1 - (u - 0.4) / 0.6) ** 1.5;
+    for (let i = 0; i < clappers; i++) clapper(out, t + 0.15 + R() * 0.3, t + dur, cg, (R() * 2 - 1) * spread, Math.min(1, far + R() * 0.3), send, curve);
+    bed(out, t, dur, bedg, far, send);
+  }
+  function bus() { const g = ctx.createGain(); g.connect(master); return g; }
+  return { ctx, master, wet, bus, cheer, shout, whistle, clapper, bed };
+}
 const SND = (() => {
-  let ctx = null, master = null, noiseBuf = null, on = false; const loops = [];
+  let ctx = null, master = null, noiseBuf = null, crowd = null, on = false; const loops = [];
   const start = () => { if (ctx) { if (ctx.state === "suspended") ctx.resume(); return; }
     try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}   // iPhone: play even with the silent switch on
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
     master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
+    crowd = makeCrowd(ctx, master); crowd.master.gain.value = 2.45; crowd.wet.gain.value = 0.4;
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     };
   const near = (x, y, rN, rF) => { if (typeof camera === "undefined") return 0; const d = camera.position.distanceTo(V(x, y, 1));
@@ -733,8 +810,8 @@ const SND = (() => {
     kick: (t, g) => { tone(t, 0.12, 140, 60, 0.7 * g); noise(t, 0.03, "lowpass", 1500, 1, 0.3 * g); },
     whistle: (t, g) => { tone(t, 0.45, 2900, 2850, 0.18 * g, "triangle"); tone(t, 0.45, 3150, 3100, 0.1 * g, "triangle"); },
     // a crowd cheer = many voices shouting "hey/yeah" at slightly different pitches and times, plus applause
-    cheer: (t, g) => { for (let i = 0; i < 18; i++) voice(t + Math.random() * 0.35, 0.5 + Math.random() * 0.9, 190 + Math.random() * 260, 1.25, 0.05 * g, Math.random() < 0.5 ? 750 : 1050);
-      clap(t + 0.2, 2.4, 70, 0.32 * g); },
+    cheer: (t, g) => { const out = crowd.bus(); out.gain.value = g;
+      crowd.cheer(out, t, { people: 30, clappers: 34, whistles: 5, far: 0.2, send: 0.45, spread: 0.85, dur: 5.5, vg: 0.045, wg: 0.06, cg: 0.38, bedg: 0.035, kinds: { yeah: 0.3, woo: 0.45, ah: 0.1, oh: 0.15 } }); },
     hut: (t, g) => { voice(t, 0.16, 135, 0.92, 0.35 * g, 650); voice(t + 0.42, 0.16, 135, 0.92, 0.35 * g, 650); },          // the quarterback's "hut, hut!"
     slap: (t, g) => { noise(t, 0.05, "bandpass", 700, 1.2, 0.7 * g, 0.002); tone(t, 0.06, 180, 90, 0.25 * g); },           // leather ball into hands
     snap: (t, g) => noise(t, 0.04, "bandpass", 400, 1, 0.4 * g, 0.002),
