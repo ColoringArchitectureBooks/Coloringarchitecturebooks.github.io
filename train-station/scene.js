@@ -21,7 +21,7 @@ export const D = {
   gable: { x0: 15.33, x1: 22.5, eave: 7.67, pitch: 0.83 },            // cross gable on the right, ridge front to back
   entry: { x0: 10.9, x1: 17.04, eave: 5.1, peak: 6.8, y0: -3.25 },    // TRAIN STATION gable over the canopy
   track: [-7.0, -11.2], gauge: 1.435, rail: -0.72, ground: -1.0,
-  platform: { x0: -18, x1: 42, y0: -5.3, y1: 9 },
+  platform: { x0: -18, x1: 39, y0: -5.3, y1: 9 },
 };
 const H = D.hall, C = D.canopy;
 const cslope = (D.hall.eave - C.z1) / (0 - C.y);                     // canopy roof rise per metre
@@ -438,13 +438,25 @@ function front(root) {
   // back and ends
   const yb = H.y1;
   for (const [a0, a1] of [[1.8, 3.2], [4.6, 6.0], [7.6, 9.0], [16.0, 17.4], [19.6, 21.0]]) opening(root, "+y", yb, a0, a1, PZ(820), PZ(700));
-  // street door: panelled double door with a transom, under a small gabled hood on two brackets
-  opening(root, "+y", yb, 10.8, 12.2, 0.02, 2.7, 2, 1, false);                                          // one clean door, no window over it
-  { const hx0 = 10.35, hx1 = 12.65, hm = (hx0 + hx1) / 2, hz = 3.1, hp = 3.6, hd = 0.9;
-    for (const xe of [hx0, hx1]) plane(root, [[xe, yb, hz], [hm, yb, hp], [hm, yb + hd, hp], [xe, yb + hd, hz]], M.roof, [0, 1, 0]);
-    elev(root, [[hx0, hz - 0.12], [hx1, hz - 0.12], [hx1, hz], [hm, hp], [hx0, hz]], yb + hd - 0.06, yb + hd + 0.02);   // gable board
-    elev(root, [[hx0 + 0.25, hz - 0.1], [hx1 - 0.25, hz - 0.1], [hm, hp - 0.25]], yb + hd - 0.1, yb + hd - 0.06, M.siding);
-    for (const x of [hx0 + 0.15, hx1 - 0.15]) side(root, [[yb, hz - 0.12], [yb + hd - 0.15, hz - 0.12], [yb, hz - 0.85]], x - 0.05, x + 0.05);   // knee brackets
+  // street door under the entrance porch (plan v13): 5.6 x 2.5 m, as wide as the steps, gable to the court,
+  // on two posts with curved brackets like the platform canopy, a small king-post truss in the gable
+  opening(root, "+y", yb, 10.8, 12.2, 0.02, 2.7, 2, 1, false);
+  { const x0 = 8.7, x1 = 14.3, xm = (x0 + x1) / 2, ye = yb + 2.5, ez = 3.65, pz = 4.95, o = 0.25;
+    const zAt = (x) => ez + (pz - ez) * (1 - Math.abs(x - xm) / (xm - x0));
+    for (const xe of [x0 - o, x1 + o]) { const ze = ez - (pz - ez) * o / (xm - x0);
+      plane(root, [[xe, yb, ze], [xm, yb, pz], [xm, ye + o, pz], [xe, ye + o, ze]], M.roof, [0, 1, 0]); }
+    elev(root, [[x0 - o, ez - 0.2], [x1 + o, ez - 0.2], [x1 + o, ez - (pz - ez) * o / (xm - x0)], [xm, pz], [x0 - o, ez - (pz - ez) * o / (xm - x0)]].map(([x, z], i) => [x, z]), ye + o - 0.08, ye + o);   // gable fascia
+    elev(root, [[x0, ez - 0.2], [x1, ez - 0.2], [xm, pz - 0.12]], ye - 0.04, ye, M.siding);                    // gable infill
+    box(root, x0, x1, ye - 0.12, ye, ez - 0.4, ez - 0.2);                                                         // tie beam
+    box(root, xm - 0.08, xm + 0.08, ye - 0.14, ye + 0.02, ez - 0.2, pz - 0.2);                                   // king post
+    for (const x of [x0 + 0.12, x1 - 0.12]) {
+      box(root, x - 0.1, x + 0.1, ye - 0.22, ye - 0.02, 0, ez - 0.4);                                            // post
+      box(root, x - 0.16, x + 0.16, ye - 0.28, ye + 0.04, 0, 0.3); box(root, x - 0.14, x + 0.14, ye - 0.26, ye + 0.02, ez - 0.55, ez - 0.4);
+      box(root, x - 0.07, x + 0.07, yb, ye - 0.12, ez - 0.4, ez - 0.2);                                          // side beam back to the wall
+      side(root, [[ye - 0.22, ez - 0.4], [ye - 1.0, ez - 0.4], [ye - 0.22, ez - 1.2]], x - 0.05, x + 0.05);     // knee brace
+      const sx = x < xm ? 1 : -1;
+      elev(root, [[x, ez - 0.4], [x + sx * 0.9, ez - 0.4], [x, ez - 1.3]].map(p => p), ye - 0.16, ye - 0.08);   // corner bracket under the tie beam
+    }
   }
   opening(root, "-x", H.x0, 2.3, 3.7, PZ(820), PZ(700)); opening(root, "+x", H.x1, 2.3, 3.7, PZ(820), PZ(700));
 }
@@ -596,34 +608,152 @@ function train(root) {
   coach(root, yc, zr, hw, t0 - 2 * gap - 2 * L, t0 - 2 * gap - L);
 }
 
-// ---------- site: platform, tracks, ballast, parking, street ----------
+// ---------- site (plan v13): platforms, tracks, foot crossing, entrance court, ramps, car park, street ----------
+const LG = -0.6;                                   // landside grade: court, lawn, car park and street sit 0.6 m below the floor
+function lvl(root, z) { const g = new THREE.Group(); g.position.y = z; root.add(g); return g; }   // items standing at another level
+function textTex(lines, w = 512, h = 256, bg = "#fff") {
+  return canvasTex(w, h, (g) => { g.fillStyle = bg; g.fillRect(0, 0, w, h); g.strokeStyle = "#000"; g.lineWidth = 10; g.strokeRect(5, 5, w - 10, h - 10);
+    g.fillStyle = "#000"; g.textAlign = "center"; g.textBaseline = "middle"; const fs = Math.min(90, h / (lines.length + 0.6));
+    g.font = `bold ${fs}px Helvetica, Arial, sans-serif`; lines.forEach((t, i) => g.fillText(t, w / 2, h / 2 + (i - (lines.length - 1) / 2) * fs * 1.1)); });
+}
+function sign(root, x, y, z, w, h, tex, face = "-y") {   // flat board with printed text; face = side it reads from
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide }));
+  m.position.copy(V(x, y, z)); if (face === "+y") m.rotation.y = Math.PI; else if (face === "-x") m.rotation.y = -Math.PI / 2; else if (face === "+x") m.rotation.y = Math.PI / 2;
+  m.userData.noEdge = true; root.add(m); return m;
+}
+function tree(root, x, y, r = 1.0) {               // trunk + round crown, standing on the lawn
+  const g = lvl(root, LG); cyl(g, x, y, 0.9, 0.13, 1.8, "z", 10, M.white, 0.1);
+  ball(g, x, y, 2.6, r * 1.15); ball(g, x - r * 0.55, y + r * 0.2, 2.2, r * 0.75); ball(g, x + r * 0.5, y - r * 0.25, 2.25, r * 0.7);
+}
+function rail(root, pts, h = 0.9, step = 1.5) {     // handrail: posts and a top bar following the walking surface
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [a, b] = [pts[i], pts[i + 1]], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(L / step));
+    rod(root, [a[0], a[1], a[2] + h], [b[0], b[1], b[2] + h], 0.035);
+    for (let k = 0; k <= n; k++) { const t = k / n, p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; rod(root, p, [p[0], p[1], p[2] + h], 0.03); }
+  }
+}
+function ramp(root, x0, x1, y0, y1, z0, z1) {      // a solid ramp running along x from z0 (at x0) to z1 (at x1)
+  const g = D.ground;
+  elev(root, [[x0, g], [x1, g], [x1, z1], [x0, z0]], y0, y1);
+  const L = []; for (let k = 1; k * 0.6 < Math.abs(x1 - x0); k++) { const x = x0 + Math.sign(x1 - x0) * k * 0.6, z = z0 + (z1 - z0) * (x - x0) / (x1 - x0); L.push([[x, y0, z + 0.005], [x, y1, z + 0.005]]); }
+  lines(root, L);                                                                                                  // anti-slip grooves
+}
+function picket(root, x0, x1, y, z = 0) {           // the page's picket fence, between two x
+  const G = lvl(root, z);
+  box(G, x0, x1, y - 0.04, y + 0.04, 0.35, 0.45); box(G, x0, x1, y - 0.04, y + 0.04, 0.95, 1.05);
+  for (let x = x0; x < x1 - 0.1; x += 0.28) elev(G, [[x, 0], [x + 0.14, 0], [x + 0.14, 1.15], [x + 0.07, 1.3], [x, 1.15]], y - 0.08, y - 0.04);
+  for (const x of [x0, x1 - 0.14]) box(G, x, x + 0.14, y - 0.07, y + 0.07, 0, 1.45);
+}
+function railFence(root, pts, z = 0) {              // simple post-and-two-rail fence along a polyline
+  const G = lvl(root, z);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [a, b] = [pts[i], pts[i + 1]], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(L / 2));
+    for (const h of [0.5, 1.0]) rod(G, [a[0], a[1], h], [b[0], b[1], h], 0.04);
+    for (let k = 0; k <= n; k++) { const t = k / n; box(G, a[0] + (b[0] - a[0]) * t - 0.06, a[0] + (b[0] - a[0]) * t + 0.06, a[1] + (b[1] - a[1]) * t - 0.06, a[1] + (b[1] - a[1]) * t + 0.06, 0, 1.15); }
+  }
+}
+function shelter(root, x0, x1, y0, y1, z) {         // small open shelter: four posts, flat roof, back screen, bench
+  const G = lvl(root, z), h = 2.5;
+  for (const x of [x0 + 0.08, x1 - 0.08]) for (const y of [y0 + 0.08, y1 - 0.08]) box(G, x - 0.06, x + 0.06, y - 0.06, y + 0.06, 0, h);
+  box(G, x0 - 0.15, x1 + 0.15, y0 - 0.15, y1 + 0.15, h, h + 0.15); box(G, x0 - 0.05, x1 + 0.05, y0 - 0.05, y1 + 0.05, h + 0.15, h + 0.22);
+  box(G, x0 + 0.15, x1 - 0.15, y1 - 0.1, y1 - 0.06, 0.4, 2.1, M.siding);
+  box(G, x0 + 0.3, x1 - 0.3, y1 - 0.55, y1 - 0.12, 0.42, 0.47); for (const x of [x0 + 0.4, x1 - 0.46]) box(G, x, x + 0.06, y1 - 0.5, y1 - 0.15, 0, 0.42);
+}
 function site(root) {
-  const g = D.ground, P = D.platform;
+  const g = D.ground, P = D.platform, T1 = D.track[0], T2 = D.track[1];
   flat(root, [[-80, -60], [110, -60], [110, 70], [-80, 70]], g - 0.02);
-  slab(root, [[P.x0, P.y0], [P.x1, P.y0], [P.x1, P.y1], [P.x0, P.y1]], g, 0);
-  const j = []; for (let x = P.x0 + 3.33; x < P.x1; x += 3.33) j.push([[x, P.y0 - 0.01, g], [x, P.y0 - 0.01, 0]]);
-  j.push([[P.x0, P.y0 + 0.5, 0.01], [P.x1, P.y0 + 0.5, 0.01]]); lines(root, j);                                       // slab joints and the edge strip
-  flat(root, [[-80, -15], [110, -15], [110, P.y0], [-80, P.y0]], g + 0.005, M.ballast);
+  // landside grade from the platform fence to beyond the street
+  slab(root, [[-80, 0.3], [110, 0.3], [110, 70], [-80, 70]], g, LG);
+  // platform 1 (the station floor runs on to y 9) with a notch at the far end for the crossing ramp
+  const P2y0 = -16.9, P2y1 = -12.9, rx0 = 30.4, rx1 = P.x1;            // crossing ramps run 8.6 m (0.72 m drop at 1:12)
+  slab(root, [[P.x0, P.y0], [rx0, P.y0], [rx0, P.y0 + 2], [P.x1, P.y0 + 2], [P.x1, P.y1], [P.x0, P.y1]], g, 0);
+  slab(root, [[P.x0, P2y0], [P.x1, P2y0], [P.x1, P2y1 - 2], [rx0, P2y1 - 2], [rx0, P2y1], [P.x0, P2y1]], g, 0);   // platform 2
+  const j = [];
+  for (let x = P.x0 + 3.33; x < rx0; x += 3.33) j.push([[x, P.y0 - 0.01, g], [x, P.y0 - 0.01, 0]], [[x, P2y1 + 0.01, g], [x, P2y1 + 0.01, 0]]);
+  j.push([[P.x0, P.y0 + 0.5, 0.01], [rx0, P.y0 + 0.5, 0.01]], [[P.x0, P2y1 - 0.5, 0.01], [rx0, P2y1 - 0.5, 0.01]]); lines(root, j);   // slab joints, edge strips
+  flat(root, [[-80, P2y1], [110, P2y1], [110, P.y0], [-80, P.y0]], g + 0.005, M.ballast);
   for (const yc of D.track) {
     for (let x = -40; x < 70; x += 0.75) box(root, x, x + 0.26, yc - 1.3, yc + 1.3, g, g + 0.14);                     // sleepers
     for (const s of [-1, 1]) { const yr = yc + s * D.gauge / 2; box(root, -80, 110, yr - 0.04, yr + 0.04, g + 0.14, D.rail); box(root, -80, 110, yr - 0.08, yr + 0.08, g + 0.14, g + 0.17); }
   }
-  // parking lot behind the station and the street
-  slab(root, [[-6, 12], [32, 12], [32, 26], [-6, 26]], g, g + 0.04);
-  const st = []; for (let x = -5; x <= 31; x += 3) st.push([[x, 12.2, g + 0.05], [x, 17, g + 0.05]], [[x, 21, g + 0.05], [x, 25.8, g + 0.05]]);
-  lines(root, st);
-  slab(root, [[13, 9], [16, 9], [16, 12], [13, 12]], g, g + 0.04);                                                    // drive from the lot to the platform walk
-  slab(root, [[-80, 27], [110, 27], [110, 28.5], [-80, 28.5]], g, g + 0.15);                                           // sidewalk
-  const d = []; for (let x = -78; x < 108; x += 6) d.push([[x, 33.5, g + 0.01], [x + 3, 33.5, g + 0.01]]);
-  d.push([[-80, 39, g + 0.01], [110, 39, g + 0.01]]); lines(root, d);
-  slab(root, [[13, 26], [16, 26], [16, 27], [13, 27]], g, g + 0.04);
+  // ---- foot crossing at the end of both platforms ----
+  const zr = D.rail;
+  ramp(root, rx0, rx1, P.y0, P.y0 + 2, 0, zr); ramp(root, rx0, rx1, P2y1 - 2, P2y1, 0, zr);
+  for (const [ya, yb] of [[P.y0 + 0.1, P.y0 + 1.9], [P2y1 - 0.1, P2y1 - 1.9]]) for (const y of [ya, yb]) rail(root, [[rx0, y, 0], [rx1, y, zr]]);
+  box(root, rx1 - 0.4, rx1, P.y0, P.y0 + 2, zr, zr + 0.02); box(root, rx1 - 0.4, rx1, P2y1 - 2, P2y1, zr, zr + 0.02);   // tactile strips at the foot
+  const cx0 = rx1, cx1 = rx1 + 3;
+  box(root, cx0, cx1, P2y1 - 2, P.y0 + 2, g, zr - 0.005);                                                          // 3 m walkway, flush with the rails
+  { const L = []; for (let y = P2y1 - 2 + 0.5; y < P.y0 + 2; y += 0.5) L.push([[cx0, y, zr], [cx1, y, zr]]); lines(root, L); }
+  for (const yg of [P.y0 - 0.3, P2y1 + 0.3]) {                                                                     // gate across the walkway on each side
+    for (const x of [cx0 + 0.05, cx1 - 0.17]) box(root, x, x + 0.12, yg - 0.06, yg + 0.06, zr, zr + 1.3);
+    for (const h of [0.35, 1.05]) box(root, cx0 + 0.17, cx1 - 0.17, yg - 0.03, yg + 0.03, zr + h, zr + h + 0.06);
+    for (let x = cx0 + 0.4; x < cx1 - 0.3; x += 0.3) box(root, x, x + 0.04, yg - 0.025, yg + 0.025, zr + 0.35, zr + 1.11);
+    const lx = cx1 + 0.5, ly = yg + (yg > -9 ? 0.6 : -0.6);                                                         // lights + bell on a post
+    cyl(root, lx, ly, (g + zr + 3.0) / 2, 0.07, zr + 3.0 - g, "z", 12); box(root, lx - 0.6, lx + 0.6, ly - 0.05, ly + 0.05, zr + 2.3, zr + 2.42);
+    for (const dx of [-0.45, 0.45]) { cyl(root, lx + dx, ly, zr + 2.0, 0.18, 0.08, "y", 20); cyl(root, lx + dx, ly + (yg > -9 ? -0.06 : 0.06), zr + 2.0, 0.21, 0.04, "y", 20); }
+    cyl(root, lx, ly, zr + 2.75, 0.16, 0.2, "z", 16, M.white, 0.06);                                              // bell
+    sign(root, lx, ly + (yg > -9 ? -0.07 : 0.07), zr + 1.4, 0.9, 0.45, textTex(["STOP", "LOOK LISTEN"], 384, 192), yg > -9 ? "-y" : "+y");
+  }
+  for (const [yc, yb] of [[T1, T1 - 1.6], [T2, T2 + 1.6]]) {                                                       // STOP boards 6 m before the crossing
+    const xs = rx1 - 6; cyl(root, xs, yb, g + 1.0, 0.05, 2.0, "z", 10);
+    const b = box(root, xs - 0.35, xs + 0.35, yb - 0.03, yb + 0.03, g + 1.6, g + 2.3);
+    sign(root, xs, yb - 0.04, g + 1.95, 0.6, 0.6, textTex(["STOP"], 256, 256)); sign(root, xs, yb + 0.04, g + 1.95, 0.6, 0.6, textTex(["STOP"], 256, 256), "+y");
+  }
+  railFence(root, [[26, P.y0 + 0.15], [rx0, P.y0 + 0.15]]); railFence(root, [[26, P2y1 - 0.15], [rx0, P2y1 - 0.15]]);   // edge fences near the end
+  for (const x of [0, 6, 12, 18, 24]) { box(root, x + 0.8, x + 2.8, P2y0 + 0.6, P2y0 + 1.1, 0.42, 0.47); for (const xl of [x + 0.9, x + 2.64]) box(root, xl, xl + 0.06, P2y0 + 0.6, P2y0 + 1.1, 0, 0.42); }   // benches on platform 2
+  // ---- platform fence (page picket) with the two walk gates ----
+  for (const [a, b] of [[P.x0, -12], [-10, H.x0 - 0.1], [H.x1 + 0.1, 33], [35, P.x1]]) picket(root, a, b, H.y0 + 0.05);
+  // ---- entrance: 4 steps down to the court, folded ramps either side ----
+  const sx0 = 8.7, sx1 = 14.3;
+  for (let k = 1; k <= 3; k++) box(root, sx0, sx1, 9 + (k - 1) * 0.6, 9 + k * 0.6, g, -0.15 * k);
+  slab(root, [[1.5, 10.8], [21.5, 10.8], [21.5, 15.8], [1.5, 15.8]], LG, LG + 0.03);                                // court paving
+  { const L = []; for (let x = 2.5; x < 21.5; x += 1) L.push([[x, 10.8, LG + 0.035], [x, 15.8, LG + 0.035]]); for (let y = 11.8; y < 15.8; y += 1) L.push([[1.5, y, LG + 0.035], [21.5, y, LG + 0.035]]); lines(root, L); }
+  for (const sd of [1, -1]) {
+    const X = (x) => sd > 0 ? x : 2 * 11.5 - x, Bx = (a, b) => [Math.min(X(a), X(b)), Math.max(X(a), X(b))];
+    const [a1, b1] = Bx(3.6, 7.2), [ta, tb] = Bx(2.1, 3.6), [la, lb] = Bx(7.2, 8.7);
+    ramp(root, X(7.2), X(3.6), 11.1, 12.6, LG + 0.03, -0.3);                                                       // run 1: outward
+    box(root, ta, tb, 9.0, 12.6, g, -0.3);                                                                          // turning landing
+    ramp(root, X(3.6), X(7.2), 9.0, 10.5, -0.3, 0);                                                                 // run 2: back toward the steps
+    box(root, la, lb, 9.0, 10.5, g, 0);                                                                             // level landing beside the top step
+    box(root, Math.min(X(3.6), X(8.7)), Math.max(X(3.6), X(8.7)), 10.5, 11.1, g, 0);                                // kerb between the runs
+    rail(root, [[X(7.2), 11.15, LG], [X(3.6), 11.15, -0.3]]); rail(root, [[X(3.6), 10.45, -0.3], [X(7.2), 10.45, 0]]);
+    rail(root, [[X(7.2), 12.55, LG], [X(3.6), 12.55, -0.3], [X(2.15), 12.55, -0.3], [X(2.15), 9.05, -0.3], [X(3.6), 9.05, -0.3], [X(7.2), 9.05, 0]]);
+  }
+  for (const x of [8.0, 15.0]) lampPost(lvl(root, LG), x, 14.6);
+  // ---- front walk, side walks to the street, pick-up shelter ----
+  slab(root, [[-12, 15.8], [35, 15.8], [35, 18], [-12, 18]], LG, LG + 0.15);
+  for (const xw of [-12, 33]) {
+    side(root, [[0.3, g], [33.5, g], [33.5, LG + 0.15], [18, LG + 0.15], [9, 0], [0.3, 0]], xw, xw + 2);          // walk: level by the station, gentle slope, then flat
+  }
+  shelter(root, 9.5, 13.5, 16.2, 17.7, LG + 0.15);
+  // ---- car park: one rectangle, one-way aisle; drop-off and accessible bays opposite the steps ----
+  slab(root, [[-10, 18], [33, 18], [33, 33], [-10, 33]], LG, LG + 0.02);
+  slab(root, [[-10, 33], [-5, 33], [-5, 35.5], [-10, 35.5]], LG, LG + 0.02); slab(root, [[28, 33], [33, 33], [33, 35.5], [28, 35.5]], LG, LG + 0.02);
+  { const z = LG + 0.025, L = [];
+    for (let x = -10; x <= 33.01; x += 2.5) { L.push([[x, 18, z], [x, 22.5, z]]); if (!(x > -10 && x < -5) && !(x > 28 && x < 33)) L.push([[x, 28.5, z], [x, 33, z]]); }
+    L.push([[-10, 22.5, z], [33, 22.5, z]], [[-10, 28.5, z], [-5, 28.5, z]], [[-5, 28.5, z], [28, 28.5, z]], [[28, 28.5, z], [33, 28.5, z]]);
+    for (const [a, b] of [[9, 14], [30.5, 33]]) for (let k = 0; k < 5; k++) L.push([[a, 18 + k * 0.9, z], [b, 18.9 + k * 0.9, z]]);   // hatched drop-off + ambulance bays
+    for (const x0 of [6, 14]) L.push([[x0 + 0.6, 19.4, z], [x0 + 2.4, 19.4, z]], [[x0 + 1.5, 19.4, z], [x0 + 1.5, 21, z]]);           // accessible bay marks
+    for (const x0 of [-4, 3, 10, 17, 24]) L.push([[x0, 25.5, z], [x0 - 1.4, 25.0, z]], [[x0, 25.5, z], [x0 - 1.4, 26.0, z]], [[x0 - 1.4, 25.5, z], [x0 - 3.2, 25.5, z]]);   // one-way arrows
+    lines(root, L); }
+  // ---- hedge, sidewalk, street with the bus + taxi lay-by and its shelter ----
+  for (const [a, b] of [[-18, -12], [-5, 28], [35, 42]]) box(root, a, b, 32.9, 33.5, LG, LG + 1.0);
+  for (const [a, b] of [[-80, -10], [-5, 28], [33, 110]]) slab(root, [[a, 33.5], [b, 33.5], [b, 35.5], [a, 35.5]], LG, LG + 0.15);
+  { const z = LG + 0.005, L = []; for (let x = -78; x < 108; x += 6) if (!(x > 12 && x < 27)) L.push([[x, 40, z], [x + 3, 40, z]]);
+    L.push([[14, 38, z], [26, 38, z]], [[14, 35.5, z], [14, 38, z]], [[26, 35.5, z], [26, 38, z]], [[20, 35.5, z], [20, 38, z]]); lines(root, L); }
+  shelter(root, 15.5, 19.5, 33.9, 35.3, LG + 0.15);
+  sign(root, 22, 35.3, LG + 2.6, 0.9, 0.45, textTex(["BUS"], 256, 128), "+y"); cyl(root, 22, 35.35, LG + 1.2, 0.04, 2.4, "z", 8);
+  sign(root, 25, 35.3, LG + 2.6, 0.9, 0.45, textTex(["TAXI"], 256, 128), "+y"); cyl(root, 25, 35.35, LG + 1.2, 0.04, 2.4, "z", 8);
+  // ---- trees: an orchard either side, two by the court ----
+  for (const x of [-17.0, -15.1, -13.2, 36.5, 38.6, 40.7]) for (const y of [11.0, 16.6, 22.2, 27.8]) tree(root, x, y, 0.95);
+  for (const x of [27.0, -4.0]) tree(root, x, 14.3, 1.0);
 }
 
 // builds everything; resolves when the 3D letters are in
 export function buildScene(scene) {
   mats();
   const root = new THREE.Group();
-  hall(root); tower(root); crossGable(root); dormer(root); front(root); lampPost(root, 24.6, -2.2); fence(root); train(root); site(root);
+  hall(root); tower(root); crossGable(root); dormer(root); front(root); lampPost(root, 24.6, -2.2); train(root); site(root);
   scene.add(root);
   scene.add(new THREE.HemisphereLight(0xffffff, 0xdddddd, 2.3));
   const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(-50, 80, 90); scene.add(sun);

@@ -43,7 +43,7 @@
 <script type="module">
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { buildScene, V } from "./scene.js?v=17";
+import { buildScene, V } from "./scene.js?v=18";
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -58,7 +58,7 @@ controls.maxPolarAngle = Math.PI / 2 - 0.02; controls.autoRotateSpeed = 1.0;
 
 const VIEWS = {
   front: { eye: [12.27, -65.6, 6.3], tgt: [12.27, 0, 6.3], fov: 16 },   // long lens: near-flat like the page
-  obl:   { eye: [56, -47, 32], tgt: [11, 2, 2] },
+  obl:   { eye: [70, -60, 60], tgt: [12, 8, -1] },     // whole site: platforms, crossing, court, car park, street
 };
 let baseFov = 34;
 function setView(k) { const v = VIEWS[k]; baseFov = v.fov || 34; resize(); camera.position.copy(V(...v.eye)); controls.target.copy(V(...v.tgt)); controls.update(); }
