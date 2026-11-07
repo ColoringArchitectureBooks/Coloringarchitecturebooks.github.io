@@ -658,6 +658,92 @@ for (const half of [17.46]) { const a0 = (90 - half) * Math.PI / 180, a1 = (90 +
 root.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(segs, 3)), M.line));
 }
 
+// ---------------- people at play (animated) ----------------
+// small white figures with black outlines, like the rest of the drawing; moved every frame in tickPlay(t)
+const PLAY = [];
+const figGeo = (() => {
+  const parts = [], add = (g, x, y, z) => { g.translate(x, y, z); parts.push(g.index ? g.toNonIndexed() : g); };
+  add(new THREE.BoxGeometry(0.28, 0.62, 0.44), 0, 1.13, 0);            // torso (three coords: y up, figure faces +x)
+  add(new THREE.IcosahedronGeometry(0.15, 0), 0, 1.62, 0);              // head
+  add(new THREE.BoxGeometry(0.1, 0.55, 0.1), 0, 1.15, 0.29);            // arms
+  add(new THREE.BoxGeometry(0.1, 0.55, 0.1), 0, 1.15, -0.29);
+  for (const p of parts) p.deleteAttribute("uv");
+  return mergeGeometries(parts);
+})();
+const legGeo = new THREE.BoxGeometry(0.13, 0.82, 0.13).translate(0, -0.41, 0);
+const figEdges = new THREE.EdgesGeometry(figGeo, 30), legEdges = new THREE.EdgesGeometry(legGeo, 30);
+function figure() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(figGeo, M.wall), new THREE.LineSegments(figEdges, M.line));
+  const legs = [-0.11, 0.11].map(z => { const l = new THREE.Group(); l.position.set(0, 0.82, z);
+    l.add(new THREE.Mesh(legGeo, M.wall), new THREE.LineSegments(legEdges, M.line)); g.add(l); return l; });
+  g.userData.legs = legs; root.add(g); return g;
+}
+function ballObj(r) { const g = new THREE.Group(), s = new THREE.IcosahedronGeometry(r, 1);
+  g.add(new THREE.Mesh(s, M.wall), new THREE.LineSegments(new THREE.EdgesGeometry(s, 30), M.line)); root.add(g); return g; }
+// place a figure at plan (x, y) facing plan direction (dx, dy); stride 0..1 swings the legs
+function put(f, x, y, dx, dy, stride, ph) {
+  f.position.copy(V(x, y, 0)); if (dx || dy) f.rotation.y = Math.atan2(dy, dx);
+  const s = Math.sin(ph) * 0.6 * stride; f.userData.legs[0].rotation.z = s; f.userData.legs[1].rotation.z = -s;
+}
+const putBall = (b, x, y, z) => b.position.copy(V(x, y, z));
+const smooth = u => u * u * (3 - 2 * u);
+
+// tennis: a rally on the first court of every pair; the ball arcs over the net, players slide to meet it
+for (let i = 0; i < 4; i++) {
+  const cx = 167 + 3.66, a = 146 + i * 36.6 + 6.4, b = a + 23.77, p1 = figure(), p2 = figure(), ball = ballObj(0.18), T = 1.6 + 0.15 * i, off = i * 0.7;
+  PLAY.push(t => {
+    const k = Math.floor((t + off) / T), u = ((t + off) / T) % 1, xs = q => cx + 2 + 7 * (0.5 + 0.5 * Math.sin(q * 2.3 + i));
+    const from = k % 2 ? b - 0.8 : a + 0.8, to = k % 2 ? a + 0.8 : b - 0.8, x0 = xs(k), x1 = xs(k + 1);
+    const bx = x0 + (x1 - x0) * u, by = from + (to - from) * u; putBall(ball, bx, by, 1.0 + 2.6 * Math.sin(Math.PI * u));
+    const near = k % 2 ? p2 : p1, far = k % 2 ? p1 : p2, nx = x0, fx = x0 + (x1 - x0) * smooth(Math.min(1, u * 1.3));
+    put(near, nx, from - (k % 2 ? -0.5 : 0.5), 0, k % 2 ? -1 : 1, 0.2, t * 6);
+    put(far, fx, to + (k % 2 ? -0.5 : 0.5), 0, k % 2 ? 1 : -1, 0.8, t * 9);
+  });
+}
+
+// track: runners in different lanes at different speeds, counter-clockwise
+{ const TX = 101, TY = 238.5, L = 84.39;
+  const lap = r => { const P = 2 * L + 2 * Math.PI * r; return s => { s = ((s % P) + P) % P;
+    if (s < L) return [TX + r, TY - L / 2 + s, 0, 1]; s -= L;
+    if (s < Math.PI * r) { const a = s / r; return [TX + r * Math.cos(a), TY + L / 2 + r * Math.sin(a), -Math.sin(a), Math.cos(a)]; } s -= Math.PI * r;
+    if (s < L) return [TX - r, TY + L / 2 - s, 0, -1]; s -= L;
+    const a = s / r; return [TX - r * Math.cos(a), TY - L / 2 - r * Math.sin(a), Math.sin(a), -Math.cos(a)]; }; };
+  [[1, 6.2, 0], [2, 5.6, 60], [3, 6.8, 140], [5, 4.2, 230], [6, 4.6, 300]].forEach(([lane, v, s0]) => {
+    const f = figure(), path = lap(36.5 + 1.22 * lane - 0.6);
+    PLAY.push(t => { const [x, y, dx, dy] = path(s0 + v * t); put(f, x, y, dx, dy, 1, t * v * 2.2); });
+  }); }
+
+// football field: a quarterback and a receiver throwing a long pass back and forth, two players jogging
+{ const TX = 101, TY = 238.5, qb = figure(), wr = figure(), ball = ballObj(0.2);
+  PLAY.push(t => { const T = 2.4, k = Math.floor(t / T), u = (t / T) % 1, A = [TX - 6, TY - 12], B = [TX + 4, TY + 14];
+    const [f, g] = k % 2 ? [B, A] : [A, B], d = [g[0] - f[0], g[1] - f[1]];
+    putBall(ball, f[0] + d[0] * u, f[1] + d[1] * u, 1.8 + 7 * Math.sin(Math.PI * u));
+    put(qb, A[0], A[1], B[0] - A[0], B[1] - A[1], 0, 0); put(wr, B[0], B[1], A[0] - B[0], A[1] - B[1], 0, 0); });
+  [[0, 1.7], [Math.PI, 1.4]].forEach(([ph, w]) => { const f = figure();
+    PLAY.push(t => { const a = ph + t * w / 12, x = TX + 14 * Math.cos(a), y = TY + 34 * Math.sin(a);
+      put(f, x, y, -Math.sin(a) * 14, Math.cos(a) * 34, 0.8, t * 8); }); }); }
+
+// soccer: the ball wanders, two teams chase it
+{ const SX0 = 134, SY0 = 362, ball = ballObj(0.25), bpos = t => [SX0 + 32 + 22 * Math.sin(t * 0.37) * Math.cos(t * 0.11), SY0 + 50 + 38 * Math.sin(t * 0.23 + 1)];
+  PLAY.push(t => { const [x, y] = bpos(t); putBall(ball, x, y, 0.25 + 0.6 * Math.abs(Math.sin(t * 2.1))); });
+  for (let j = 0; j < 8; j++) { const f = figure(), lag = 0.4 + j * 0.35, sp = [(j % 4 - 1.5) * 9 + (j < 4 ? 2 : -2), (j < 4 ? -1 : 1) * (5 + (j % 3) * 6)];
+    PLAY.push(t => { const [x, y] = bpos(t - lag), [x2, y2] = bpos(t - lag - 0.1); put(f, x + sp[0], y + sp[1], x - x2, y - y2, 1, t * 8 + j); }); }
+  for (const gy of [SY0 + 1, SY0 + 99]) { const f = figure();   // goalkeepers
+    PLAY.push(t => { const [x] = bpos(t); put(f, SX0 + 32 + Math.max(-3, Math.min(3, (x - SX0 - 32) * 0.2)), gy, 0, gy < SY0 + 50 ? 1 : -1, 0.3, t * 5); }); } }
+
+// baseball: pitch to the catcher, the catcher throws it back
+{ const hx = -82, hy = 362, rot = (u, v) => [hx + (u + v) / Math.SQRT2, hy + (v - u) / Math.SQRT2];
+  const home = rot(0, 0.8), mound = rot(0, 18.44), pitcher = figure(), catcher = figure(), batter = figure(), ball = ballObj(0.15);
+  const fielders = [rot(19, 19), rot(-19, 19), rot(8, 30), rot(0, 70), rot(-40, 60), rot(40, 60)].map(p => { const f = figure(); put(f, p[0], p[1], home[0] - p[0], home[1] - p[1], 0, 0); return f; });
+  PLAY.push(t => { const T = 1.4, u = (t / 2 / T) % 1, out = u < 0.5, w = out ? u * 2 : (u - 0.5) * 2, [f, g] = out ? [mound, home] : [home, mound];
+    putBall(ball, f[0] + (g[0] - f[0]) * w, f[1] + (g[1] - f[1]) * w, 1.7 + (out ? 0.4 : 2.5) * Math.sin(Math.PI * w));
+    put(pitcher, mound[0], mound[1], home[0] - mound[0], home[1] - mound[1], 0, 0);
+    put(catcher, home[0] - 0.9, home[1] - 0.9, mound[0] - home[0], mound[1] - home[1], 0, 0);
+    put(batter, home[0] + 1.0, home[1] - 0.6, -1, 1, 0, 0); });
+}
+function tickPlay(t) { for (const f of PLAY) f(t); }
+
 // ---------------- viewer ----------------
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
@@ -709,6 +795,6 @@ const spinBtn = document.getElementById("spin");
 spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute("aria-pressed", controls.autoRotate); };
 const hint = document.getElementById("hint");
 controls.addEventListener("start", () => { hint.style.opacity = 0; }, { once: true });
-renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+renderer.setAnimationLoop(() => { controls.update(); tickPlay(performance.now() / 1000); renderer.render(scene, camera); });
 window.__ready = true;
 </script>
