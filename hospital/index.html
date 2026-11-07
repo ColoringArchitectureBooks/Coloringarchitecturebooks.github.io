@@ -47,6 +47,7 @@
 <script type="module">
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { mapTouch } from "./touch.js?v=4";
 
 const canvas = document.getElementById("c");
 const status = document.getElementById("status");
@@ -63,6 +64,7 @@ scene.add(sun);
 
 const camera = new THREE.PerspectiveCamera(45, 1, 0.5, 700);
 const controls = new OrbitControls(camera, canvas);
+const touch = mapTouch(controls, camera, canvas, scene);   // two fingers: turn like one finger, pinch to zoom toward the fingers
 controls.enableDamping = true;
 controls.minDistance = 8;
 controls.maxDistance = 200;
@@ -76,7 +78,7 @@ const VIEWS = {
   front: { dir: [0.2, 0.75, 1], target: [0, 2, 5], halfW: 42, halfH: 22 },      // the whole site from above the street
 };
 let current = VIEWS.start;
-function setView(v) {
+function setView(v) { touch.stop();
   current = v;
   const { halfW, halfH } = v;   // half extents to keep in frame, with a margin
   const vfov = THREE.MathUtils.degToRad(camera.fov);

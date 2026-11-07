@@ -43,6 +43,7 @@
 <script type="module">
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { mapTouch } from "./touch.js?v=4";
 import { buildScene, V } from "./scene.js?v=1";
 
 const canvas = document.getElementById("c");
@@ -53,6 +54,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
 const camera = new THREE.PerspectiveCamera(34, 1, 0.5, 2000);
 const controls = new OrbitControls(camera, canvas);
+const touch = mapTouch(controls, camera, canvas, scene);   // two fingers: turn like one finger, pinch to zoom toward the fingers
 controls.enableDamping = true; controls.minDistance = 4; controls.maxDistance = 400;
 controls.maxPolarAngle = Math.PI / 2 - 0.02; controls.autoRotateSpeed = 1.0;
 
@@ -62,7 +64,7 @@ const VIEWS = {
   back:  { eye: [-40, 120, 50], tgt: [25, 40, 3] },
   entry: { eye: [92, -6, 7], tgt: [52, 9, 6] },
 };
-function setView(k) { const v = VIEWS[k]; camera.position.copy(V(...v.eye)); controls.target.copy(V(...v.tgt)); controls.update(); }
+function setView(k) { touch.stop(); const v = VIEWS[k]; camera.position.copy(V(...v.eye)); controls.target.copy(V(...v.tgt)); controls.update(); }
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.8 ? 58 : 34; camera.updateProjectionMatrix();

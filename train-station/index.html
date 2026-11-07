@@ -50,6 +50,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { buildScene, V, zoomFade, tickSmoke, TRAIN, SMOKE_BEAT } from "./scene.js?v=52";
 import { whistle, setSound, isSoundOn, tickSound } from "./sound.js?v=2";
+import { mapTouch } from "./touch.js?v=4";
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -61,13 +62,14 @@ const camera = new THREE.PerspectiveCamera(34, 1, 0.5, 2000);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true; controls.minDistance = 4; controls.maxDistance = 400;
 controls.maxPolarAngle = Math.PI / 2 - 0.02; controls.autoRotateSpeed = 1.0;
+const touch = mapTouch(controls, camera, canvas, scene);   // two fingers: zoom toward, twist and slide like a maps app
 
 const VIEWS = {
   front: { eye: [12.27, -65.6, 6.3], tgt: [12.27, 0, 6.3], fov: 16 },   // long lens: near-flat like the page
   obl:   { eye: [70, -60, 60], tgt: [12, 8, -1] },     // whole site: platforms, crossing, court, car park, street
 };
 let baseFov = 34;
-function setView(k) { const v = VIEWS[k]; baseFov = v.fov || 34; resize(); camera.position.copy(V(...v.eye)); controls.target.copy(V(...v.tgt)); controls.update(); }
+function setView(k) { touch.stop(); const v = VIEWS[k]; baseFov = v.fov || 34; resize(); camera.position.copy(V(...v.eye)); controls.target.copy(V(...v.tgt)); controls.update(); }
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.8 ? baseFov * 58 / 34 : baseFov; camera.updateProjectionMatrix();
@@ -87,7 +89,7 @@ soundBtn.onclick = () => sound(!isSoundOn());
 const ray = new THREE.Raycaster(), tap = new THREE.Vector2(); let down = null;
 canvas.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
 canvas.addEventListener("pointerup", (e) => {
-  if (!down || !TRAIN.group || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8 || performance.now() - down.t > 600) return;
+  if (touch.active() || !down || !TRAIN.group || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8 || performance.now() - down.t > 600) return;
   const r = canvas.getBoundingClientRect();
   tap.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(tap, camera);
   const hit = ray.intersectObjects(scene.children, true).find((h) => h.object.isMesh && h.object.visible);
