@@ -657,7 +657,7 @@ function car(root, cx, cy, d = 1, kind = "sedan") {   // nose toward +y when d =
     Ln.push([[xs, cf - 0.05, at], [xs, cf - 0.05, belt - 0.01]], [[xs, bp - 0.06, sill], [xs, bp - 0.06, belt + 0.01]], [[xs, dR, at], [xs, dR, belt + 0.01]],   // door shuts
       [[xs, hl - 0.3, belt - 0.28], [xs, -hl + 0.25, belt - 0.28]]);                                                                                               // shoulder crease
     box(G, xs - 0.01, xs + 0.01, cf - 0.75, cf - 0.57, belt - 0.12, belt - 0.08); box(G, xs - 0.01, xs + 0.01, bp - 0.65, bp - 0.47, belt - 0.12, belt - 0.08);   // handles
-    box(G, sg * (cw - 0.02), sg * (w + 0.1), cf - 0.3, cf - 0.14, belt + 0.02, belt + 0.13);                                                                     // mirror
+    box(G, sg * (cw - 0.02), sg * (w + 0.05), cf - 0.28, cf - 0.17, belt + 0.03, belt + 0.11);                                                                     // mirror
     for (const o of [wr, wf]) { cyl(G, sg * (w - 0.1), o, r, r, 0.22, "x", 24); cyl(G, sg * (w - 0.08), o, r, r * 0.6, 0.22, "x", 20); cyl(G, sg * (w - 0.07), o, r, 0.06, 0.22, "x", 10); }   // tyre, rim, hub
   }
   for (const [p0, c, p1, sg] of [[[cf, belt - 0.02], cc0, [rf, roof], 1], [[cb, belt - 0.02], cc1, [rr, roof], -1]]) {   // windscreen and back light on the curved cabin
@@ -731,10 +731,10 @@ function shelter(root, x0, x1, y0, y1, z, faceSt = true) {   // small open shelt
 function site(root) {
   const g = D.ground, P = D.platform, T1 = D.track[0], T2 = D.track[1];
   // the model ends at the site boundary (x -18..42, out to the far kerb of the street); only the track bed runs on
-  const SX0 = -18, SX1 = 42, SY1 = 45.5, EX0 = -58, EX1 = 82;   // track and street run 40 m past the site each way (where marked)
+  const SX0 = -18, SX1 = 42, SY1 = 46.5, EX0 = -58, EX1 = 82;   // track and street run 40 m past the site each way (where marked)
   flat(root, [[EX0, -13.4], [EX1, -13.4], [EX1, -4.8], [EX0, -4.8]], g - 0.02);   // track bed beyond the site
   flat(root, [[SX0, -17.9], [SX1, -17.9], [SX1, SY1], [SX0, SY1]], g - 0.02);
-  slab(root, [[SX0, 0.3], [SX1, 0.3], [SX1, 34.5], [EX1, 34.5], [EX1, SY1], [EX0, SY1], [EX0, 34.5], [SX0, 34.5]], g, LG);   // site + the street running on, one piece
+  slab(root, [[SX0, 0.3], [SX1, 0.3], [SX1, 35.5], [EX1, 35.5], [EX1, SY1], [EX0, SY1], [EX0, 35.5], [SX0, 35.5]], g, LG);   // site + the street running on, one piece
   // platform 1 (the station floor runs on to y 9) with a notch at the far end for the crossing ramp
   const P2y0 = -16.9, P2y1 = -12.9, rx0 = 30.4, rx1 = P.x1;            // crossing ramps run 8.6 m (0.72 m drop at 1:12)
   { const pp = [[P.x0, P.y0], [rx0, P.y0], [rx0, P.y0 + 2], [SX1, P.y0 + 2], [SX1, P.y1], [P.x0, P.y1]];
@@ -810,37 +810,38 @@ function site(root) {
     K.push([[e, 15.8, W], [e, 18, W]]);
   }
   for (const xw of [-12, 33]) {
-    side(root, [[8.95, g], [34.5, g], [34.5, W], [15.8, W], [9, 0], [8.95, 0]], xw, xw + 2).userData.noEdge = true;   // level by the station, gentle slope, then flat
+    side(root, [[8.95, g], [35.5, g], [35.5, W], [15.8, W], [9, 0], [8.95, 0]], xw, xw + 2).userData.noEdge = true;   // level by the station, gentle slope, then flat
     for (const xs of [xw, xw + 2]) {
       const inner = (xw < 0) === (xs === xw + 2);
       const top = [[xs, 9, 0], [xs, 15.8, W]]; if (!inner) top.push([xs, 18, W]);
       for (let i = 0; i < top.length - 1; i++) K.push([top[i], top[i + 1]]);
-      K.push([[xs, 18, W], [xs, 34.5, W]]);
+      K.push([[xs, 18, W], [xs, 35.5, W]]);
     }
   }
   // ---- car park: one rectangle, one-way aisle; drop-off and accessible bays opposite the steps ----
-  slab(root, [[-10, 18], [33, 18], [33, 36.5], [28, 36.5], [28, 34], [-5, 34], [-5, 36.5], [-10, 36.5]], LG, LG + 0.004).userData.noEdge = true;   // flush with the street   // lot and its two lanes in one piece
+  slab(root, [[-10, 18], [33, 18], [33, 37.5], [28, 37.5], [28, 35], [-5, 35], [-5, 37.5], [-10, 37.5]], LG, LG + 0.004).userData.noEdge = true;   // flush with the street   // lot and its two lanes in one piece
   { const z = LG + 0.008, L = [];
-    for (let x = -7.5; x <= 30.51; x += 2.5) { L.push([[x, 18, z], [x, 23, z]]); if (!(x > -10 && x < -5) && !(x > 28 && x < 33)) L.push([[x, 29, z], [x, 34, z]]); }   // 2.5 x 5 m bays, 6 m aisle
-    L.push([[-10, 23, z], [33, 23, z]], [[-5, 29, z], [28, 29, z]]);     // nothing across the two entry lanes
+    for (let k = 0; k <= 15; k++) { const x = -8.75 + 2.7 * k; L.push([[x, 18, z], [x, 23.5, z]]); }       // US bays 2.7 x 5.5 m: 15 along the walk
+    for (let k = 0; k <= 12; k++) { const x = -4.7 + 2.7 * k; L.push([[x, 29.5, z], [x, 35, z]]); }        // 12 along the hedge, between the entry lanes; 6 m aisle
+    L.push([[-10, 23.5, z], [33, 23.5, z]], [[-5, 29.5, z], [28, 29.5, z]]);     // nothing across the two entry lanes
     lines(root, L); }
   // ---- hedge, sidewalk, street with the bus + taxi lay-by and its shelter ----
-  for (const [a, b] of [[-18, -12], [-5, 28], [35, 42]]) box(root, a, b, 33.9, 34.5, LG, LG + 1.0);
+  for (const [a, b] of [[-18, -12], [-5, 28], [35, 42]]) box(root, a, b, 34.9, 35.5, LG, LG + 1.0);
   for (const [a, b] of [[EX0, -10], [-5, 28], [33, EX1]]) {
-    slab(root, [[a, 34.5], [b, 34.5], [b, 36.5], [a, 36.5]], LG, W).userData.noEdge = true;
-    K.push([[a, 36.5, W], [b, 36.5, W]], [[a, 36.5, LG], [b, 36.5, LG]]);
+    slab(root, [[a, 35.5], [b, 35.5], [b, 37.5], [a, 37.5]], LG, W).userData.noEdge = true;
+    K.push([[a, 37.5, W], [b, 37.5, W]], [[a, 37.5, LG], [b, 37.5, LG]]);
     const ia = a === EX0 ? EX0 : a === 33 ? 35 : a, ib = b === -10 ? -12 : b;            // inner edge, open where a walk joins
-    K.push([[ia, 34.5, W], [ib, 34.5, W]]);
-    for (const e of [a, b]) K.push([[e, 34.5, W], [e, 36.5, W]], [[e, 34.5, LG], [e, 36.5, LG]], [[e, 36.5, LG], [e, 36.5, W]], [[e, 34.5, LG], [e, 34.5, W]]);
+    K.push([[ia, 35.5, W], [ib, 35.5, W]]);
+    for (const e of [a, b]) K.push([[e, 35.5, W], [e, 37.5, W]], [[e, 35.5, LG], [e, 37.5, LG]], [[e, 37.5, LG], [e, 37.5, W]], [[e, 35.5, LG], [e, 35.5, W]]);
   }
   lines(root, K);
-  { const z = LG + 0.005, L = []; for (let x = EX0 + 1; x < EX1 - 1; x += 6) L.push([[x, 41, z], [x + 3, 41, z]]);
+  { const z = LG + 0.005, L = []; for (let x = EX0 + 1; x < EX1 - 1; x += 6) L.push([[x, 42, z], [x + 3, 42, z]]);
     lines(root, L); }
-  shelter(root, 15.5, 19.5, 34.9, 36.3, LG + 0.15);
-  sign(root, 20.7, 36.3, LG + 2.6, 0.9, 0.45, textTex(["BUS"], 256, 128), "+y"); cyl(root, 20.7, 36.35, LG + 1.2, 0.04, 2.4, "z", 8);   // the two stop signs side by side, just past the shelter
-  sign(root, 22.0, 36.3, LG + 2.6, 0.9, 0.45, textTex(["TAXI"], 256, 128), "+y"); cyl(root, 22.0, 36.35, LG + 1.2, 0.04, 2.4, "z", 8);
-  for (const [k, t] of [[0, "suv"], [1, "sedan"], [4, "hatch"], [9, "sedan"], [13, "suv"]]) car(root, -6.25 + 2.5 * k, 20.5, -1, t);                   // a few cars nosed in toward the walk
-  for (const [k, t] of [[2, "hatch"], [6, "sedan"], [7, "suv"], [11, "sedan"]]) car(root, -6.25 + 2.5 * k, 31.5, 1, t);                       // and toward the hedge
+  shelter(root, 15.5, 19.5, 35.9, 37.3, LG + 0.15);
+  sign(root, 20.7, 37.3, LG + 2.6, 0.9, 0.45, textTex(["BUS"], 256, 128), "+y"); cyl(root, 20.7, 37.35, LG + 1.2, 0.04, 2.4, "z", 8);   // the two stop signs side by side, just past the shelter
+  sign(root, 22.0, 37.3, LG + 2.6, 0.9, 0.45, textTex(["TAXI"], 256, 128), "+y"); cyl(root, 22.0, 37.35, LG + 1.2, 0.04, 2.4, "z", 8);
+  for (const [k, t] of [[0, "suv"], [1, "sedan"], [4, "hatch"], [9, "sedan"], [13, "suv"]]) car(root, -7.4 + 2.7 * k, 20.75, -1, t);                   // a few cars nosed in toward the walk
+  for (const [k, t] of [[1, "hatch"], [5, "sedan"], [6, "suv"], [10, "sedan"]]) car(root, -3.35 + 2.7 * k, 32.25, 1, t);                       // and toward the hedge
   // ---- trees: an orchard either side, two by the court ----
   for (const x of [-17.0, -15.1, -13.2, 36.5, 38.6, 40.7]) for (const y of [11.0, 16.6, 22.2, 27.8]) tree(root, x, y, 0.95);
   for (const [x, y] of [[-4.0, 14.3], [-7.0, 11.6], [-1.2, 11.4], [27.0, 14.3], [24.4, 11.5], [29.6, 11.8]]) tree(root, x, y, 1.0);   // lawns either side of the entrance
