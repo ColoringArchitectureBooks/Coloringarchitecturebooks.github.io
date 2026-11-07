@@ -43,7 +43,7 @@
 <script type="module">
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { buildScene, V } from "./scene.js?v=41";
+import { buildScene, V } from "./scene.js?v=43";
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -76,6 +76,12 @@ const spinBtn = document.getElementById("spin");
 spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute("aria-pressed", controls.autoRotate); };
 const hint = document.getElementById("hint");
 controls.addEventListener("start", () => { hint.style.opacity = 0; }, { once: true });
-renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+renderer.setAnimationLoop(() => {
+  controls.update();
+  // keep the depth range tight to the view: zoomed far out, a near plane of 0.5 m left too little depth precision and touching faces flickered as stray lines
+  const d = camera.position.distanceTo(controls.target), n = Math.max(0.3, d / 40);
+  if (Math.abs(camera.near - n) > n * 0.05) { camera.near = n; camera.far = d * 8 + 400; camera.updateProjectionMatrix(); }
+  renderer.render(scene, camera);
+});
 </script>
 </html>

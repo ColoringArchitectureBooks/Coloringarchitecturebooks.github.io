@@ -301,7 +301,7 @@ function crossGable(root) {
   const G = D.gable, y0 = H.y0, y1 = H.y1, mid = (G.x0 + G.x1) / 2, r = (G.x1 - G.x0) / 2 * G.pitch, pk = G.eave + r;
   elev(root, [[G.x0, H.eave], [G.x1, H.eave], [G.x1, G.eave], [mid, pk], [G.x0, G.eave]], y0, y1, M.siding);
   const o = 0.5, e0 = G.eave - o * G.pitch, ov = 0.35;
-  const xr = H.x1 + 0.35, er = G.eave - (xr - G.x1) * G.pitch;      // the right slope carries on down to cover the hall's right end
+  const xr = H.x1 + 0.35, er = G.eave - (xr - G.x1) * G.pitch + 0.07;   // the right slope carries on down to cover the hall's right end (lifted 7 cm at the eave so the hall's top edge stays clear of it)
   for (const s of [-1, 1]) {           // the two roof slopes, with course lines along the ridge
     const xe = s < 0 ? G.x0 - o : xr, ze = s < 0 ? e0 : er;
     plane(root, [[xe, y0 - ov, ze], [mid, y0 - ov, pk + 0.12], [mid, y1 + ov, pk + 0.12], [xe, y1 + ov, ze]], M.roof, [0, 1, 0]);
@@ -450,6 +450,8 @@ function front(root) {
     elev(root, [[E0 - k, ez - fz], [E0, ez - fz], [xm, pz - fz], [E1, ez - fz], [E1 + k, ez - fz], [E1 + k, ez], [E1, ez], [xm, pz], [E0, ez], [E0 - k, ez]], yo, yo + t);   // bargeboard with level kicks
     elev(root, [[E0 + d2, ez - fz - f2 + d2 * pitch], [xm, pz - fz - f2], [E1 - d2, ez - fz - f2 + d2 * pitch], [E1 - d2, ez - fz + d2 * pitch], [xm, pz - fz], [E0 + d2, ez - fz + d2 * pitch]], yo, yo + t - 0.06);   // inner band
     const tb0 = 3.0, tb1 = 3.42;                                                                                  // fascia beam on the posts
+    for (const xe of [E0, E1]) box(root, xe - 0.04, xe + 0.04, yb, yo, ez - 0.24, ez);                            // eave fascia along each side
+    for (const [a, b] of [[E0, x0 + 0.05], [x1 - 0.05, E1]]) box(root, a, b, yb, yo, ez - 0.26, ez - 0.22);         // soffit board under each overhang
     elev(root, [[x0, tb1], [x1, tb1], [x1, zR(x1) - 0.3], [xm, pz - 0.3], [x0, zR(x0) - 0.3]], ye - 0.06, ye, M.siding);   // gable infill behind the truss
     box(root, E0 + 0.08, E1 - 0.08, ye - 0.24, ye, tb0, tb1);
     const yt = ye + 0.08, zk = tb1 + 0.5, under = (d) => pz - d * pitch - fz - f2 + 0.02;
@@ -466,7 +468,7 @@ function front(root) {
       box(root, x - pw / 2, x + pw / 2, py - pw / 2, py + pw / 2, 0, tb0);                                        // post
       box(root, x - 0.22, x + 0.22, py - 0.22, py + 0.22, 0, 0.45);                                               // base
       box(root, x - 0.2, x + 0.2, py - 0.2, py + 0.2, 2.38, 2.5); box(root, x - 0.24, x + 0.24, py - 0.24, py + 0.24, 2.5, 2.6);   // capital
-      box(root, x - 0.07, x + 0.07, yb, py - pw / 2, tb0, tb1 - 0.05);                                            // side beam back to the wall
+      box(root, x - 0.07, x + 0.07, yb, py + pw / 2, tb0, pz - (Math.abs(x - xm) + 0.07) * pitch - 0.04);                                          // side plate back to the wall, up to the roof: no gap under the slope
       box(root, x - 0.06, x + 0.06, py + pw / 2, py + pw / 2 + 0.08, tb0 - 0.32, tb0);                              // drop at the post head
     }
     const spandrel = (a0, a1) => { const pts = [[a0, zs]], w = (a1 - a0) / 2, c = (a0 + a1) / 2;
