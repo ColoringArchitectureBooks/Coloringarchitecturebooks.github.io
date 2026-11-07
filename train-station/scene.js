@@ -55,6 +55,7 @@ function mats() {
   ballast.repeat.set(0.25, 0.25);
   M.white = L({}); M.ground = L({}); M.siding = L({ map: siding }); M.roof = L({ map: roof }); M.brick = L({ map: brick }); M.ballast = L({ map: ballast });
   M.line = new THREE.LineBasicMaterial({ color: 0x000000 });
+  M.fine = new THREE.LineBasicMaterial({ color: 0x000000 });          // outlines of small or slender parts (pickets, benches, gates, rails): these fade as the view pulls back
   const page = new THREE.TextureLoader().load(new URL("./page.jpg", import.meta.url).href); page.colorSpace = THREE.SRGBColorSpace; page.anisotropy = 8;
   M.page = L({ map: page });
 }
@@ -899,6 +900,13 @@ function site(root) {
   for (const [x, y] of [[-4.0, 14.3], [-7.0, 11.6], [-1.2, 11.4], [27.0, 14.3], [24.4, 11.5], [29.6, 11.8]]) tree(root, x, y, 1.0);   // lawns either side of the entrance
 }
 
+// as the camera pulls back, ease the fine outlines to grey (and the main ones a touch), so dense fences and benches do not fill in black;
+// the Front view (about 65 m) and closer stay pure black like the page
+export function zoomFade(d) {
+  if (!M.fine) return;
+  const t = Math.min(1, Math.max(0, (d - 80) / 120));
+  M.fine.color.setScalar(0.45 * Math.sqrt(t)); M.line.color.setScalar(0.12 * t);   // linear values: about #b4b4b4 and #606060 at full fade
+}
 // builds everything; resolves when the 3D letters are in
 export function buildScene(scene) {
   mats();
@@ -918,7 +926,9 @@ function outline(root) {
   root.traverse(o => {
     if (!o.isMesh || o.userData.noEdge || o.userData.edged) return;
     const t = o.geometry.type, thr = t === "CylinderGeometry" || t === "SphereGeometry" || t === "ConeGeometry" ? 40 : 20;
-    const e = new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, thr), M.line);
+    o.geometry.computeBoundingBox(); const sz = o.geometry.boundingBox.getSize(new THREE.Vector3()).multiply(o.scale), dm = [sz.x, sz.y, sz.z].sort((a, b) => a - b);
+    const fine = dm[2] < 1.6 || dm[1] < 0.16;                                  // small, or a thin bar
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, thr), fine ? M.fine : M.line);
     e.position.copy(o.position); e.rotation.copy(o.rotation); e.scale.copy(o.scale); add.push([o.parent, e]); o.userData.edged = true;
   });
   for (const [p, e] of add) p.add(e);
