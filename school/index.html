@@ -659,54 +659,68 @@ root.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute("positio
 }
 
 // ---------------- people at play (animated) ----------------
-// small white figures with black outlines, like the rest of the drawing; moved every frame in tickPlay(t)
+// small white figures with black outlines, like the rest of the drawing; each field shows its own game
+// (rackets, bats, an oval football, a discus); everything is moved every frame in tickPlay(t)
 const PLAY = [];
-const figGeo = (() => {
-  const parts = [], add = (g, x, y, z) => { g.translate(x, y, z); parts.push(g.index ? g.toNonIndexed() : g); };
-  add(new THREE.BoxGeometry(0.28, 0.62, 0.44), 0, 1.13, 0);            // torso (three coords: y up, figure faces +x)
-  add(new THREE.IcosahedronGeometry(0.15, 0), 0, 1.62, 0);              // head
-  add(new THREE.BoxGeometry(0.1, 0.55, 0.1), 0, 1.15, 0.29);            // arms
-  add(new THREE.BoxGeometry(0.1, 0.55, 0.1), 0, 1.15, -0.29);
-  for (const p of parts) p.deleteAttribute("uv");
-  return mergeGeometries(parts);
-})();
+const mk = (geos) => { const ps = geos.map(([g, x, y, z]) => { g.translate(x, y, z); g.deleteAttribute("uv"); return g.index ? g.toNonIndexed() : g; }); return mergeGeometries(ps); };
+const bodyGeo = mk([[new THREE.BoxGeometry(0.28, 0.62, 0.44), 0, 1.13, 0], [new THREE.IcosahedronGeometry(0.15, 0), 0, 1.62, 0]]);
 const legGeo = new THREE.BoxGeometry(0.13, 0.82, 0.13).translate(0, -0.41, 0);
-const figEdges = new THREE.EdgesGeometry(figGeo, 30), legEdges = new THREE.EdgesGeometry(legGeo, 30);
-function figure() {
-  const g = new THREE.Group();
-  g.add(new THREE.Mesh(figGeo, M.wall), new THREE.LineSegments(figEdges, M.line));
-  const legs = [-0.11, 0.11].map(z => { const l = new THREE.Group(); l.position.set(0, 0.82, z);
-    l.add(new THREE.Mesh(legGeo, M.wall), new THREE.LineSegments(legEdges, M.line)); g.add(l); return l; });
-  g.userData.legs = legs; root.add(g); return g;
+const armGeo = new THREE.BoxGeometry(0.1, 0.56, 0.1).translate(0, -0.27, 0);
+const ITEMS = {
+  racket: mk([[new THREE.CylinderGeometry(0.02, 0.02, 0.3, 6), 0, -0.68, 0], [new THREE.TorusGeometry(0.14, 0.018, 4, 14).scale(1, 1.25, 1), 0, -1.0, 0]]),
+  bat: mk([[new THREE.CylinderGeometry(0.045, 0.025, 0.85, 6), 0, -0.93, 0]]),
+  glove: mk([[new THREE.BoxGeometry(0.16, 0.2, 0.08), 0, -0.6, 0]]),
+  disc: mk([[new THREE.CylinderGeometry(0.11, 0.11, 0.04, 10).rotateX(Math.PI / 2), 0, -0.6, 0]]),
+};
+const EDG = new Map(), edges = g => { if (!EDG.has(g)) EDG.set(g, new THREE.EdgesGeometry(g, 30)); return EDG.get(g); };
+const solid = (g) => { const o = new THREE.Group(); o.add(new THREE.Mesh(g, M.wall), new THREE.LineSegments(edges(g), M.line)); return o; };
+// figure faces local +x; local +z is its right side. item goes in the right hand
+function figure(item, crouch = 1, lean = 0) {
+  // upper body pivots at the hips, so a lineman or catcher can lean forward over bent knees
+  const g = new THREE.Group(), up = new THREE.Group(), body = solid(bodyGeo); up.position.set(0, 0.82, 0); body.position.y = -0.82; up.add(body); g.add(up); up.rotation.z = -lean;
+  const legs = [-0.11, 0.11].map(z => { const l = solid(legGeo); l.position.set(0, 0.82, z); g.add(l); return l; });
+  const arms = [0.29, -0.29].map(z => { const a = solid(armGeo); a.position.set(0, 0.6, z); a.rotation.order = "YXZ"; up.add(a); return a; });
+  if (item) { const it = solid(ITEMS[item]); arms[0].add(it); g.userData.item = it; }
+  g.scale.set(1, crouch, 1); g.userData.legs = legs; g.userData.arms = arms; root.add(g); return g;
 }
-function ballObj(r) { const g = new THREE.Group(), s = new THREE.IcosahedronGeometry(r, 1);
-  g.add(new THREE.Mesh(s, M.wall), new THREE.LineSegments(new THREE.EdgesGeometry(s, 30), M.line)); root.add(g); return g; }
-// place a figure at plan (x, y) facing plan direction (dx, dy); stride 0..1 swings the legs
-function put(f, x, y, dx, dy, stride, ph) {
+function ballObj(r, oval = 1) { const g = solid(new THREE.IcosahedronGeometry(r, 1)); g.scale.set(oval, 1, 1); root.add(g); return g; }
+// place a figure at plan (x, y) facing plan direction (dx, dy); stride 0..1 swings legs and arms
+function put(f, x, y, dx, dy, stride, ph, armSwing = true) {
   f.position.copy(V(x, y, 0)); if (dx || dy) f.rotation.y = Math.atan2(dy, dx);
-  const s = Math.sin(ph) * 0.6 * stride; f.userData.legs[0].rotation.z = s; f.userData.legs[1].rotation.z = -s;
+  const s = Math.sin(ph) * 0.6 * stride, [L0, L1] = f.userData.legs, [R, L] = f.userData.arms;
+  L0.rotation.z = s; L1.rotation.z = -s;
+  if (armSwing) { R.rotation.set(0, 0, -s * 1.2); L.rotation.set(0, 0, s * 1.2); }
 }
 const putBall = (b, x, y, z) => b.position.copy(V(x, y, z));
-const smooth = u => u * u * (3 - 2 * u);
+const smooth = u => u * u * (3 - 2 * u), clamp = (v, a, b) => Math.max(a, Math.min(b, v)), lerp = (a, b, u) => a + (b - a) * u;
+const arm = (a, x, y, z) => a.rotation.set(x, y, z);
 
-// tennis: a rally on the first court of every pair; each player keeps to their own baseline and slides
-// smoothly from where they last hit the ball to where the next ball lands, so nobody jumps
-for (let i = 0; i < 4; i++) {
-  const cx = 167 + 3.66, a = 146 + i * 36.6 + 6.4, b = a + 23.77, p1 = figure(), p2 = figure(), ball = ballObj(0.18), T = 1.6 + 0.15 * i, off = i * 0.7;
-  const xs = q => cx + 2 + 7 * (0.5 + 0.5 * Math.sin(q * 2.3 + i)), ya = a + 0.3, yb = b - 0.3;
+// tennis: only some courts are in use, spread over the four fenced pairs (one doubles match);
+// players stay on their baseline, slide from their last shot to the next ball and swing the racket through it
+const forehand = (f, dt) => {   // dt: seconds from this player's hit (negative = before)
+  const R = f.userData.arms[0], L = f.userData.arms[1];
+  if (Math.abs(dt) < 0.45) { const s = clamp(dt / 0.45, -1, 1); arm(R, -1.35, s * 1.4, 0); arm(L, 0, 0, 0.3); }
+  else arm(R, -0.35, 0, 0.6), arm(L, 0, 0, 0.2);
+};
+[[0, 1, false], [1, 0, true], [3, 0, false], [3, 1, false]].forEach(([pair, side, doubles], i) => {
+  const y0 = 146 + pair * 36.6, cx = 167 + 3.66 + side * (10.97 + 3.66), a = y0 + 6.4, b = a + 23.77, n = y0 + 18.3;
+  const p1 = figure("racket"), p2 = figure("racket"), ball = ballObj(0.18), T = 1.5 + 0.17 * i, off = i * 0.9;
+  const xs = q => cx + 2 + 7 * (0.5 + 0.5 * Math.sin(q * 2.3 + i * 1.7)), ya = a - 0.3, yb = b + 0.3, xm = cx + 5.485;
+  const mates = doubles ? [figure("racket"), figure("racket")] : [];
   PLAY.push(t => {
-    const k = Math.floor((t + off) / T), u = ((t + off) / T) % 1, odd = k % 2 === 1;
+    const tt = t + off, k = Math.floor(tt / T), u = (tt / T) % 1, odd = k % 2 === 1;
     const x0 = xs(k), x1 = xs(k + 1), from = odd ? yb : ya, to = odd ? ya : yb;
-    putBall(ball, x0 + (x1 - x0) * u, from + (to - from) * u, 1.0 + 2.6 * Math.sin(Math.PI * u));
-    // hitter drifts back toward the middle of the baseline after the shot; receiver runs from its last hit to the next ball
-    const hit = odd ? p2 : p1, rec = odd ? p1 : p2, xm = cx + 5.485, w = smooth(Math.min(1, u * 1.3));
-    const hx = x0 + (xm - x0) * 0.4 * smooth(u), rx = (xs(k - 1) + (xm - xs(k - 1)) * 0.4) + (x1 - (xs(k - 1) + (xm - xs(k - 1)) * 0.4)) * w;
-    put(hit, hx, from, (xm - x0) * 0.4, 0, 0.3, t * 6); hit.rotation.y = Math.atan2(odd ? -1 : 1, 0) ;
-    put(rec, rx, to, 0, 0, 0.8, t * 9); rec.rotation.y = Math.atan2(odd ? 1 : -1, 0);
+    putBall(ball, lerp(x0, x1, u), lerp(from, to, u), 1.0 + 2.4 * Math.sin(Math.PI * u));
+    const hit = odd ? p2 : p1, rec = odd ? p1 : p2, w = smooth(Math.min(1, u * 1.25));
+    const back = q => lerp(xs(q), xm, 0.4), hx = lerp(x0, back(k), smooth(u)), rx = lerp(back(k - 1), x1, w);
+    put(hit, hx, from, 0, odd ? -1 : 1, 0.3, t * 6, false); put(rec, rx, to, 0, odd ? 1 : -1, 0.9, t * 9, false);
+    forehand(p1, ((tt + T) % (2 * T)) - T); forehand(p2, (tt % (2 * T)) - T);
+    mates.forEach((m, j) => { const yy = j ? n + 4 : n - 4, xx = xm + (lerp(x0, x1, u) - xm) * 0.5 + (j ? 1.5 : -1.5);
+      put(m, xx, yy, 0, j ? -1 : 1, 0.4, t * 7 + j, false); arm(m.userData.arms[0], -0.6, 0, 0.9); });
   });
-}
+});
 
-// track: runners in different lanes at different speeds, counter-clockwise
+// track: runners in different lanes at different speeds, counter-clockwise, arms pumping
 { const TX = 101, TY = 238.5, L = 84.39;
   const lap = r => { const P = 2 * L + 2 * Math.PI * r; return s => { s = ((s % P) + P) % P;
     if (s < L) return [TX + r, TY - L / 2 + s, 0, 1]; s -= L;
@@ -718,51 +732,80 @@ for (let i = 0; i < 4; i++) {
     PLAY.push(t => { const [x, y, dx, dy] = path(s0 + v * t); put(f, x, y, dx, dy, 1, t * v * 2.2); });
   }); }
 
-// football field: a quarterback and a receiver throwing a long pass back and forth, two players jogging
-{ const TX = 101, TY = 238.5, qb = figure(), wr = figure(), ball = ballObj(0.2);
-  PLAY.push(t => { const T = 2.4, k = Math.floor(t / T), u = (t / T) % 1, A = [TX - 6, TY - 12], B = [TX + 4, TY + 14];
-    const [f, g] = k % 2 ? [B, A] : [A, B], d = [g[0] - f[0], g[1] - f[1]];
-    putBall(ball, f[0] + d[0] * u, f[1] + d[1] * u, 1.8 + 7 * Math.sin(Math.PI * u));
-    put(qb, A[0], A[1], B[0] - A[0], B[1] - A[1], 0, 0); put(wr, B[0], B[1], A[0] - B[0], A[1] - B[1], 0, 0); });
-  [[0, 1.7], [Math.PI, 1.4]].forEach(([ph, w]) => { const f = figure();
-    PLAY.push(t => { const a = ph + t * w / 12, x = TX + 14 * Math.cos(a), y = TY + 34 * Math.sin(a);
-      put(f, x, y, -Math.sin(a) * 14, Math.cos(a) * 34, 0.8, t * 8); }); }); }
+// football: a line of scrimmage (crouched linemen), the quarterback drops back and throws the oval ball
+// to a receiver running his route; the receiver jogs back and tosses it to the quarterback, then again
+{ const TX = 101, TY = 238.5, LOS = TY - 12, T = 10, ball = ballObj(0.17, 1.7), qb = figure(), wr = figure();
+  const line = [];
+  for (let j = 0; j < 5; j++) line.push([figure(null, 0.75, 0.7), TX - 4 + 2 * j, LOS - 0.8, 1]);
+  for (let j = 0; j < 4; j++) line.push([figure(null, 0.75, 0.7), TX - 3 + 2 * j, LOS + 0.8, -1]);
+  const W0 = [TX + 15, LOS - 0.5], W1 = [TX + 15, LOS + 16], W2 = [TX + 7, LOS + 22];
+  const wrAt = u => u < 0.1 ? W0 : u < 0.4 ? [W0[0], lerp(W0[1], W1[1], (u - 0.1) / 0.3)] : u < 0.7 ? [lerp(W1[0], W2[0], (u - 0.4) / 0.3), lerp(W1[1], W2[1], (u - 0.4) / 0.3)]
+    : u < 0.92 ? [lerp(W2[0], W0[0], smooth((u - 0.7) / 0.22)), lerp(W2[1], W0[1], smooth((u - 0.7) / 0.22))] : W0;
+  const qbAt = u => [TX, u < 0.12 ? LOS - 2 : u < 0.35 ? lerp(LOS - 2, LOS - 8, smooth((u - 0.12) / 0.23)) : u < 0.8 ? LOS - 8 : lerp(LOS - 8, LOS - 2, smooth((u - 0.8) / 0.2))];
+  PLAY.push(t => { const u = (t / T) % 1, q = qbAt(u), r = wrAt(u), rn = wrAt((u + 0.005) % 1);
+    put(qb, q[0], q[1], 0, 1, u > 0.12 && u < 0.35 || u > 0.8 ? 0.6 : 0, t * 7, false);
+    arm(qb.userData.arms[0], 0, 0, u > 0.4 && u < 0.5 ? lerp(2.6, -0.4, (u - 0.4) / 0.1) : u > 0.3 && u <= 0.4 ? 2.6 : 0.3);
+    const moving = u > 0.1 && u < 0.92; put(wr, r[0], r[1], moving ? rn[0] - r[0] : 0, moving ? rn[1] - r[1] : -1, moving ? 1 : 0, t * 10);
+    if (u > 0.62 && u < 0.72) { arm(wr.userData.arms[0], 0, 0, 2.6); arm(wr.userData.arms[1], 0, 0, 2.6); }
+    // ball: in the QB's hand, in the air 0.45..0.68, with the receiver, tossed back 0.92..1
+    let bp; if (u < 0.45) bp = [q[0], q[1], 1.9];
+    else if (u < 0.68) { const w = (u - 0.45) / 0.23, c = wrAt(0.68); bp = [lerp(q[0], c[0], w), lerp(q[1], c[1], w), 2 + 7 * Math.sin(Math.PI * w)]; }
+    else if (u < 0.92) bp = [r[0], r[1], 1.2];
+    else { const w = (u - 0.92) / 0.08, c = qbAt(0); bp = [lerp(W0[0], c[0], w), lerp(W0[1], c[1], w), 1.3 + 3 * Math.sin(Math.PI * w)]; }
+    putBall(ball, ...bp);
+    line.forEach(([f, x, y, d], j) => put(f, x, y + d * 0.15 * Math.sin(t * 2 + j), 0, d, 0.2, t * 4 + j)); });
+}
 
-// soccer: the ball wanders, two teams chase it
+// soccer: the ball wanders, two teams chase it, goalkeepers spread their arms when it comes close
 { const SX0 = 134, SY0 = 362, ball = ballObj(0.25), bpos = t => [SX0 + 32 + 22 * Math.sin(t * 0.37) * Math.cos(t * 0.11), SY0 + 50 + 38 * Math.sin(t * 0.23 + 1)];
   PLAY.push(t => { const [x, y] = bpos(t); putBall(ball, x, y, 0.25 + 0.6 * Math.abs(Math.sin(t * 2.1))); });
   for (let j = 0; j < 8; j++) { const f = figure(), lag = 0.4 + j * 0.35, sp = [(j % 4 - 1.5) * 9 + (j < 4 ? 2 : -2), (j < 4 ? -1 : 1) * (5 + (j % 3) * 6)];
     PLAY.push(t => { const [x, y] = bpos(t - lag), [x2, y2] = bpos(t - lag - 0.1); put(f, x + sp[0], y + sp[1], x - x2, y - y2, 1, t * 8 + j); }); }
-  for (const gy of [SY0 + 1, SY0 + 99]) { const f = figure();   // goalkeepers
-    PLAY.push(t => { const [x] = bpos(t); put(f, SX0 + 32 + Math.max(-3, Math.min(3, (x - SX0 - 32) * 0.2)), gy, 0, gy < SY0 + 50 ? 1 : -1, 0.3, t * 5); }); } }
+  for (const gy of [SY0 + 1, SY0 + 99]) { const f = figure();
+    PLAY.push(t => { const [x, y] = bpos(t), near = Math.abs(y - gy) < 25;
+      put(f, SX0 + 32 + clamp((x - SX0 - 32) * 0.2, -3, 3), gy, 0, gy < SY0 + 50 ? 1 : -1, 0.3, t * 5, false);
+      const o = near ? 1.3 : 0.25; arm(f.userData.arms[0], -o, 0, 0); arm(f.userData.arms[1], o, 0, 0); }); } }
 
-// baseball + softball: pitch to the catcher and back; fielders shuffle on their toes and lean toward the ball
-function ballgame(hx, hy, rubber, bases, far, T) {
+// baseball + softball: pitcher winds up and throws, the batter swings, a crouched catcher with an umpire
+// behind, fielders in their positions on their toes; the catcher throws the ball back to the pitcher
+function ballgame(hx, hy, rubber, bases, far, T, ph) {
   const rot = (u, v) => [hx + (u + v) / Math.SQRT2, hy + (v - u) / Math.SQRT2];
-  const home = rot(0, 0.8), mound = rot(0, rubber), pitcher = figure(), catcher = figure(), batter = figure(), ball = ballObj(0.15);
-  const spots = [rot(bases * 0.6, bases * 0.88), rot(-bases * 0.6, bases * 0.88), rot(bases * 0.3, bases * 1.15), rot(-bases * 0.3, bases * 1.15), rot(0, far), rot(-far * 0.45, far * 0.82), rot(far * 0.45, far * 0.82)];   // all inside the foul lines (|u| < v)
-  const fielders = spots.map((p, j) => { const f = figure(), dir = [home[0] - p[0], home[1] - p[1]], L = Math.hypot(...dir), side = [-dir[1] / L, dir[0] / L];
-    PLAY.push(t => { const sw = Math.sin(t * 1.3 + j * 1.7) * 1.6, x = p[0] + side[0] * sw, y = p[1] + side[1] * sw;
-      put(f, x, y, dir[0], dir[1], Math.abs(Math.cos(t * 1.3 + j * 1.7)) * 0.6, t * 7 + j); }); return f; });
-  PLAY.push(t => { const u = (t / (2 * T)) % 1, out = u < 0.5, w = out ? u * 2 : (u - 0.5) * 2, [f, g] = out ? [mound, home] : [home, mound];
-    putBall(ball, f[0] + (g[0] - f[0]) * w, f[1] + (g[1] - f[1]) * w, 1.7 + (out ? 0.4 : 2.5) * Math.sin(Math.PI * w));
-    put(pitcher, mound[0], mound[1], home[0] - mound[0], home[1] - mound[1], out ? 0 : 0.2, t * 5);
-    put(catcher, home[0] - 0.9, home[1] - 0.9, mound[0] - home[0], mound[1] - home[1], 0, 0);
-    put(batter, home[0] + 1.0 + 0.15 * Math.sin(t * 3), home[1] - 0.6, -1, 1, 0, 0); });
+  const home = rot(0, 0.8), mound = rot(0, rubber), d = [home[0] - mound[0], home[1] - mound[1]], dl = Math.hypot(...d), side = [-d[1] / dl, d[0] / dl];
+  const pitcher = figure("glove"), catcher = figure("glove", 0.62, 0.35), ump = figure(null, 0.9, 0.3), batter = figure("bat"), ball = ballObj(0.14);
+  const bat = [home[0] + side[0] * 1.0, home[1] + side[1] * 1.0];
+  const spots = [rot(bases * 0.6, bases * 0.88), rot(-bases * 0.6, bases * 0.88), rot(bases * 0.3, bases * 1.15), rot(-bases * 0.3, bases * 1.15), rot(0, far), rot(-far * 0.45, far * 0.82), rot(far * 0.45, far * 0.82)];
+  spots.forEach((p, j) => { const f = figure("glove", 0.92, 0.25), dir = [home[0] - p[0], home[1] - p[1]], L = Math.hypot(...dir), sd = [-dir[1] / L, dir[0] / L];
+    PLAY.push(t => { const sw = Math.sin(t * 1.3 + j * 1.7) * 1.4; put(f, p[0] + sd[0] * sw, p[1] + sd[1] * sw, dir[0], dir[1], Math.abs(Math.cos(t * 1.3 + j * 1.7)) * 0.6, t * 7 + j); }); });
+  PLAY.push(t => { const u = ((t + ph) / (2 * T)) % 1, out = u < 0.5, w = out ? u * 2 : (u - 0.5) * 2, [f, g] = out ? [mound, home] : [home, mound];
+    putBall(ball, lerp(f[0], g[0], w), lerp(f[1], g[1], w), 1.7 + (out ? 0.3 : 2.5) * Math.sin(Math.PI * w));
+    put(pitcher, mound[0], mound[1], d[0], d[1], 0, 0, false);
+    arm(pitcher.userData.arms[0], 0, 0, out && w < 0.12 ? lerp(-2.8, 1.4, w / 0.12) : !out && w > 0.8 ? lerp(0.3, -2.8, (w - 0.8) / 0.2) : 0.3);
+    put(catcher, home[0] - d[0] / dl * 0.9, home[1] - d[1] / dl * 0.9, -d[0], -d[1], 0, 0, false); arm(catcher.userData.arms[0], 0, 0, out ? 1.4 : !out && w < 0.12 ? 2.4 : 0.8);
+    put(ump, home[0] - d[0] / dl * 2.0, home[1] - d[1] / dl * 2.0, -d[0], -d[1], 0, 0);
+    put(batter, bat[0], bat[1], -side[0], -side[1], 0, 0, false);
+    // swing as the pitch arrives: bat cocked over the shoulder, then a flat sweep across the plate
+    const s = out ? (w - 0.78) / 0.2 : 2, B = batter.userData.arms;
+    if (s > 0 && s < 1.6) { const y = lerp(-1.6, 1.8, clamp(s, 0, 1)); arm(B[0], 0, y, 1.55); arm(B[1], 0, y, 1.55); }
+    else { arm(B[0], 0, -1.1, 2.6); arm(B[1], 0, -0.6, 1.6); } });
 }
-ballgame(-82, 362, 18.44, 27.43, 80, 1.4);
-ballgame(54, 360, 13.11, 18.29, 50, 1.2);
+ballgame(-82, 362, 18.44, 27.43, 80, 1.5, 0);
+ballgame(54, 360, 13.11, 18.29, 50, 1.3, 0.8);
 
-// practice lawn: two throwers tossing a ball long, and a small group running laps around the lawn
-{ const LX0 = -95, LX1 = -35, LYa = 178, LYb = 292, A = [(LX0 + LX1) / 2, LYa + 20], B = [(LX0 + LX1) / 2 + 6, LYa + 60], ta = figure(), tb = figure(), ball = ballObj(0.2);
-  PLAY.push(t => { const T = 2.2, k = Math.floor(t / T), u = (t / T) % 1, [f, g] = k % 2 ? [B, A] : [A, B];
-    putBall(ball, f[0] + (g[0] - f[0]) * u, f[1] + (g[1] - f[1]) * u, 1.8 + 9 * Math.sin(Math.PI * u));
-    put(ta, A[0], A[1], B[0] - A[0], B[1] - A[1], 0, 0); put(tb, B[0], B[1], A[0] - B[0], A[1] - B[1], 0, 0); });
-  const cx = (LX0 + LX1) / 2, cy = (LYa + LYb) / 2, rx = (LX1 - LX0) / 2 - 4, ry = (LYb - LYa) / 2 - 4;
-  for (let j = 0; j < 4; j++) { const f = figure();
-    PLAY.push(t => { const a = t * 0.06 + j * 0.05, x = cx + rx * Math.cos(a), y = cy + ry * Math.sin(a);
-      put(f, x + (j % 2) * 1.2, y, -rx * Math.sin(a), ry * Math.cos(a), 1, t * 9 + j); }); } }
-
+// throwing field: a discus thrower spins in the cage and lets the disc fly into the sector; an official
+// waits out in the sector, the next athlete waits beside the cage
+{ const LX0 = -95, LX1 = -35, LYa = 178, tcx = (LX0 + LX1) / 2, tcy = LYa + 6, T = 6, thr = figure("disc"), off = figure(), nxt = figure(), disc = ballObj(0.11);
+  disc.scale.set(1, 0.3, 1); const land = [tcx + 4, tcy + 46];
+  put(off, tcx + 10, tcy + 48, -1, -0.3, 0, 0); put(nxt, tcx - 5.5, tcy - 2, 1, 0.4, 0, 0);
+  PLAY.push(t => { const u = (t / T) % 1, R = thr.userData.arms[0];
+    const spin = u < 0.3 ? smooth(u / 0.3) * 3 * Math.PI : 3 * Math.PI;   // 1.5 turns, then face the sector
+    thr.position.copy(V(tcx, tcy, 0)); thr.rotation.y = Math.PI / 2 - Math.PI + spin;
+    const sl = Math.sin(u * 40) * 0.4 * (u < 0.3); thr.userData.legs[0].rotation.z = sl; thr.userData.legs[1].rotation.z = -sl;
+    arm(R, u < 0.32 ? -1.45 : -0.4, 0, u < 0.32 ? 0 : 0.6); arm(thr.userData.arms[1], u < 0.3 ? 1.2 : 0.2, 0, 0);
+    thr.userData.item.visible = u < 0.3 || u > 0.85;
+    disc.visible = u >= 0.3 && u < 0.85;
+    if (disc.visible) { const w = clamp((u - 0.3) / 0.35, 0, 1); putBall(disc, lerp(tcx, land[0], w), lerp(tcy, land[1], w), 0.05 + (1.6 * (1 - w) + 9 * Math.sin(Math.PI * w)) * (w < 1)); }
+    nxt.userData.arms[0].rotation.z = 0.2 * Math.sin(t); });
+}
 function tickPlay(t) { for (const f of PLAY) f(t); }
 
 // ---------------- viewer ----------------
