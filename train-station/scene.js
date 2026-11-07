@@ -625,6 +625,17 @@ function tree(root, x, y, r = 1.0) {               // trunk + round crown, stand
   const g = lvl(root, LG); cyl(g, x, y, 0.9, 0.13, 1.8, "z", 10, M.white, 0.1);
   ball(g, x, y, 2.6, r * 1.15); ball(g, x - r * 0.55, y + r * 0.2, 2.2, r * 0.75); ball(g, x + r * 0.5, y - r * 0.25, 2.25, r * 0.7);
 }
+function car(root, cx, cy, d = 1) {                 // parked car, nose toward +y when d = 1: body, glasshouse, four wheels
+  const z = LG, Y = (o) => cy + d * o, sy = (a, b) => [Math.min(Y(a), Y(b)), Math.max(Y(a), Y(b))];
+  box(root, cx - 0.88, cx + 0.88, ...sy(-2.15, 2.15), z + 0.3, z + 0.85);
+  const c = [[-1.35, 0.85], [0.95, 0.85], [0.45, 1.42], [-1.05, 1.42]].map(([o, h]) => [Y(o), z + h]);
+  side(root, d > 0 ? c : c.reverse(), cx - 0.78, cx + 0.78);
+  const L = [];
+  for (const xs of [cx - 0.785, cx + 0.785]) L.push([[xs, Y(-1.2), z + 0.93], [xs, Y(0.82), z + 0.93]], [[xs, Y(0.82), z + 0.93], [xs, Y(0.4), z + 1.35]],
+    [[xs, Y(0.4), z + 1.35], [xs, Y(-0.98), z + 1.35]], [[xs, Y(-0.98), z + 1.35], [xs, Y(-1.2), z + 0.93]], [[xs, Y(-0.3), z + 0.93], [xs, Y(-0.3), z + 1.35]]);   // side windows
+  lines(root, L);
+  for (const o of [-1.4, 1.35]) for (const xs of [cx - 0.82, cx + 0.82]) cyl(root, xs, Y(o), z + 0.32, 0.32, 0.22, "x", 18);
+}
 function rail(root, pts, h = 0.9, step = 1.5) {     // handrail: posts and a top bar following the walking surface
   for (let i = 0; i < pts.length - 1; i++) {
     const [a, b] = [pts[i], pts[i + 1]], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(L / step));
@@ -785,8 +796,10 @@ function site(root) {
   { const z = LG + 0.005, L = []; for (let x = EX0 + 1; x < EX1 - 1; x += 6) L.push([[x, 40, z], [x + 3, 40, z]]);
     lines(root, L); }
   shelter(root, 15.5, 19.5, 33.9, 35.3, LG + 0.15);
-  sign(root, 22, 35.3, LG + 2.6, 0.9, 0.45, textTex(["BUS"], 256, 128), "+y"); cyl(root, 22, 35.35, LG + 1.2, 0.04, 2.4, "z", 8);
-  sign(root, 25, 35.3, LG + 2.6, 0.9, 0.45, textTex(["TAXI"], 256, 128), "+y"); cyl(root, 25, 35.35, LG + 1.2, 0.04, 2.4, "z", 8);
+  sign(root, 20.7, 35.3, LG + 2.6, 0.9, 0.45, textTex(["BUS"], 256, 128), "+y"); cyl(root, 20.7, 35.35, LG + 1.2, 0.04, 2.4, "z", 8);   // the two stop signs side by side, just past the shelter
+  sign(root, 22.0, 35.3, LG + 2.6, 0.9, 0.45, textTex(["TAXI"], 256, 128), "+y"); cyl(root, 22.0, 35.35, LG + 1.2, 0.04, 2.4, "z", 8);
+  for (const k of [0, 1, 4, 9, 13]) car(root, -6.25 + 2.5 * k, 20.4, -1);                   // a few cars nosed in toward the walk
+  for (const k of [2, 6, 7, 11]) car(root, -6.25 + 2.5 * k, 30.6, 1);                       // and toward the hedge
   // ---- trees: an orchard either side, two by the court ----
   for (const x of [-17.0, -15.1, -13.2, 36.5, 38.6, 40.7]) for (const y of [11.0, 16.6, 22.2, 27.8]) tree(root, x, y, 0.95);
   for (const [x, y] of [[-4.0, 14.3], [-7.0, 11.6], [-1.2, 11.4], [27.0, 14.3], [24.4, 11.5], [29.6, 11.8]]) tree(root, x, y, 1.0);   // lawns either side of the entrance
