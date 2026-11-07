@@ -21,6 +21,9 @@
     border-radius:999px; padding:9px 16px; cursor:pointer; white-space:nowrap; }
   button:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
   button[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
+  #sound { display:inline-flex; align-items:center; gap:6px; }
+  .ico { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  #sound .on { display:none; } #sound[aria-pressed="true"] .on { display:inline; } #sound[aria-pressed="true"] .off { display:none; }
   .hint { position:fixed; left:0; right:0; bottom:calc(max(16px, env(safe-area-inset-bottom, 0px)) + 52px);
     text-align:center; font-size:13px; color:var(--muted); pointer-events:none; transition:opacity .6s; }
   #status { position:fixed; inset:0; display:grid; place-items:center; font-size:15px; color:var(--muted); }
@@ -36,6 +39,7 @@
   <button id="v-entry">Front</button>
   <button id="v-se">Aerial</button>
   <button id="spin" aria-pressed="false">Spin</button>
+  <button id="sound" aria-pressed="false" aria-label="Sound"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="off" d="M16 9l6 6M22 9l-6 6"/><path class="on" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>Sound</button>
 </div>
 
 <script type="importmap">
@@ -697,13 +701,13 @@ const arm = (a, x, y, z) => a.rotation.set(x, y, z);
 // ---- sound: synthesized in the browser (no files), switched on by the first touch; every field has its own
 // sounds and they only play when the camera is close to that field, fading in and out with distance
 const SND = (() => {
-  let ctx = null, master = null, noiseBuf = null; const loops = [];
+  let ctx = null, master = null, noiseBuf = null, on = false; const loops = [];
   const start = () => { if (ctx) { if (ctx.state === "suspended") ctx.resume(); return; }
+    try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}   // iPhone: play even with the silent switch on
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
     master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     loops.forEach(l => l.make()); };
-  ["pointerdown", "touchstart", "keydown"].forEach(ev => window.addEventListener(ev, start, { passive: true }));
   const near = (x, y, rN, rF) => { if (typeof camera === "undefined") return 0; const d = camera.position.distanceTo(V(x, y, 1));
     const g = clamp((rF - d) / (rF - rN), 0, 1); return g * g; };
   const noise = (t0, dur, type, f, q, g0, att = 0.003) => { const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
@@ -726,7 +730,9 @@ const SND = (() => {
   };
   return {
     // one-shot sound at a plan position (rN: full volume inside this camera distance, rF: silent beyond it)
-    hit(kind, x, y, rN = 18, rF = 90) { if (!ctx || ctx.state !== "running") return; const g = near(x, y, rN, rF); if (g > 0.01) KINDS[kind](ctx.currentTime + 0.01, g); },
+    // the Sound button: off until tapped; the tap itself starts the audio (phones only allow it from a tap)
+    toggle() { on = !on; if (on) start(); if (master) master.gain.setTargetAtTime(on ? 0.9 : 0, ctx.currentTime, 0.05); return on; },
+    hit(kind, x, y, rN = 18, rF = 90) { if (!on || !ctx || ctx.state !== "running") return; const g = near(x, y, rN, rF); if (g > 0.01) KINDS[kind](ctx.currentTime + 0.01, g); },
     // steady crowd murmur around a field
     murmur(x, y, rN, rF, level) { const l = { x, y, rN, rF, level, g: null, make() { const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
       const fl = ctx.createBiquadFilter(); fl.type = "bandpass"; fl.frequency.value = 650; fl.Q.value = 0.5; this.g = ctx.createGain(); this.g.gain.value = 0;
@@ -986,6 +992,8 @@ document.getElementById("status").remove();
 for (const k of Object.keys(VIEWS)) if (document.getElementById("v-" + k)) document.getElementById("v-" + k).onclick = () => setView(k);
 const spinBtn = document.getElementById("spin");
 spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute("aria-pressed", controls.autoRotate); };
+const soundBtn = document.getElementById("sound");
+soundBtn.onclick = () => soundBtn.setAttribute("aria-pressed", SND.toggle());
 const hint = document.getElementById("hint");
 controls.addEventListener("start", () => { hint.style.opacity = 0; }, { once: true });
 renderer.setAnimationLoop(() => { controls.update(); tickPlay(performance.now() / 1000); renderer.render(scene, camera); });
