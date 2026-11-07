@@ -645,7 +645,9 @@ function coach(root, yc, zr, hw, x0, x1) {          // passenger coach: cleresto
   for (const x of [x0, x1]) box(root, x - 0.06, x + 0.06, yc - 0.6, yc + 0.6, zb + 0.1, 2.85);                         // end doors
   for (const x of [x0 - 0.25, x1]) box(root, x, x + 0.25, yc - 0.12, yc + 0.12, 0.6, 0.78);                            // couplers
 }
+export const TRAIN = { group: null };          // the whole train, so a tap on it can blow the whistle
 function train(root) {
+  root = TRAIN.group = (() => { const g = new THREE.Group(); root.add(g); return g; })();
   const yc = D.track[0], zr = D.rail, hw = 0.75;
   locomotive(root, yc, zr, hw);
   const t0 = PX(190) + 0.25;                    // first coach right behind the cab, as on the page
@@ -936,6 +938,7 @@ function buildSmoke(scene) {
   };
   tickSmoke(0);
 }
+export const SMOKE_BEAT = SMOKE.period / SMOKE.n;   // seconds between puffs leaving the stack (the chuff keeps this beat)
 export function tickSmoke(t) {
   if (!SMOKE.path) return;
   for (let i = 0; i < SMOKE.n; i++) {
