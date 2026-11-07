@@ -198,6 +198,7 @@ function hall(root) {
   plane(root, [[R.x0, R.y0, e], [R.x0 + hipIn, mid, rr], [R.x0, R.y1, e]], M.roof, [0, 1, 0]);
   box(root, R.x0, gx, R.y1 - 0.04, R.y1, e - 0.22, e);                                                  // back fascia
   box(root, R.x0, gx, H.y1, R.y1, e - 0.22, e - 0.18);                                                   // back soffit closes the eave
+  box(root, gx - 0.04, gx, H.y1, R.y1, e - 0.22, e + 0.02);                                              // end board where the back eave meets the gable
   box(root, R.x0, R.x0 + 0.04, R.y0, R.y1, e - 0.22, e); box(root, R.x0, H.x0, R.y0, R.y1, e - 0.22, e - 0.18);   // left eave
   // canopy roof from the fascia up to the wall line, hipped at both ends (page)
   const a = 0.6, top = H.eave;
@@ -251,7 +252,7 @@ function hall(root) {
 // ---------- tower: two storeys, bracketed cornice, low hipped roof with a vent, brick chimney ----------
 function tower(root) {
   const T = D.tower, y0 = H.y0, y1 = H.y1, cx = (T.x0 + T.x1) / 2, cy = (y0 + y1) / 2;
-  box(root, T.x0, T.x1, y0, y1, H.eave - 0.01, T.h, M.siding);
+  box(root, T.x0, T.x1, y0, y1, H.eave, T.h, M.siding);
   box(root, T.x0 - 0.05, T.x1 + 0.05, y0 - 0.05, y1 + 0.05, T.h - 0.3, T.h);                                // frieze board
   for (const [x, y] of [[T.x0, y0], [T.x1, y0], [T.x0, y1], [T.x1, y1]]) box(root, x - 0.12, x + 0.12, y - 0.12, y + 0.12, H.eave, T.h - 0.3);   // corner boards
   const o = 0.35, zc = T.h + 0.42;
@@ -295,7 +296,7 @@ function tower(root) {
 // ---------- cross gable on the right (ridge front to back), truss in the front gable ----------
 function crossGable(root) {
   const G = D.gable, y0 = H.y0, y1 = H.y1, mid = (G.x0 + G.x1) / 2, r = (G.x1 - G.x0) / 2 * G.pitch, pk = G.eave + r;
-  elev(root, [[G.x0, H.eave - 0.01], [G.x1, H.eave - 0.01], [G.x1, G.eave], [mid, pk], [G.x0, G.eave]], y0, y1, M.siding);
+  elev(root, [[G.x0, H.eave], [G.x1, H.eave], [G.x1, G.eave], [mid, pk], [G.x0, G.eave]], y0, y1, M.siding);
   const o = 0.5, e0 = G.eave - o * G.pitch, ov = 0.35;
   const xr = H.x1 + 0.35, er = G.eave - (xr - G.x1) * G.pitch;      // the right slope carries on down to cover the hall's right end
   for (const s of [-1, 1]) {           // the two roof slopes, with course lines along the ridge
@@ -310,7 +311,8 @@ function crossGable(root) {
     const f2 = 0.14;
     elev(root, [[G.x0 - o + 0.25, e0 - fz + 0.25 * G.pitch - 0.02], [mid, pk + 0.12 - fz], [xr - 0.25, er - fz + 0.25 * G.pitch - 0.02], [xr - 0.25, er - fz + 0.25 * G.pitch + f2 - 0.02], [mid, pk + 0.12 - fz + f2], [G.x0 - o + 0.25, e0 - fz + 0.25 * G.pitch + f2 - 0.02]].map(([a, z]) => [a, z - f2]), y + sgn * t / 2, y + sgn * (t / 2 + 0.06));
   }
-  for (const x of [G.x0, G.x1]) for (const y of [y0, y1]) box(root, x - 0.12, x + 0.12, y - 0.12, y + 0.12, H.eave, G.eave);   // corner boards (page)
+  for (const y of [y0, y1]) box(root, G.x0 - 0.12, G.x0 + 0.12, y - 0.12, y + 0.12, H.eave, G.eave);   // corner boards (page); the right ones sit under the long slope now
+  box(root, D.tower.x1, G.x0, (y0 + y1) / 2, y1, H.eave, e0 - 0.03, M.siding);   // fills the slot between the tower and the gable at the back
   // truss in the front gable: collar, king post with a drop, X braces (page)
   const yt = y0 - 0.12, zc = 9.32;           // collar just above the window hood (page)
   const wAt = (z) => (pk + 0.12 - 0.46 - z) / G.pitch - 0.05;      // half-width inside the bargeboards at height z
@@ -325,8 +327,8 @@ function crossGable(root) {
     let zu = zc + 0.5; for (let k = 0; k < 20; k++) zu = zc + 0.1 + 0.55 * (wAt(zu) - 0.1);    // brace rises 0.55 per metre out to the rafter
     strut(mid + s * 0.1, zc + 0.1, mid + s * (wAt(zu) + 0.04), zu);
   }
-  archWindow(root, "-y", y0, PX(1110), PX(1185), 6.75, PZ(380));
-  archWindow(root, "+y", y1, PX(1110), PX(1185), 6.75, PZ(380));
+  archWindow(root, "-y", y0, PX(1110), PX(1185), 6.95, PZ(380));
+  archWindow(root, "+y", y1, PX(1110), PX(1185), 6.95, PZ(380));
 }
 
 // ---------- dormer on the left of the roof (page): flat front with corner pilasters, sloped cheeks,
