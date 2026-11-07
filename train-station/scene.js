@@ -625,16 +625,42 @@ function tree(root, x, y, r = 1.0) {               // trunk + round crown, stand
   const g = lvl(root, LG); cyl(g, x, y, 0.9, 0.13, 1.8, "z", 10, M.white, 0.1);
   ball(g, x, y, 2.6, r * 1.15); ball(g, x - r * 0.55, y + r * 0.2, 2.2, r * 0.75); ball(g, x + r * 0.5, y - r * 0.25, 2.25, r * 0.7);
 }
-function car(root, cx, cy, d = 1) {                 // parked car, nose toward +y when d = 1: body, glasshouse, four wheels
-  const z = LG, Y = (o) => cy + d * o, sy = (a, b) => [Math.min(Y(a), Y(b)), Math.max(Y(a), Y(b))];
-  box(root, cx - 0.88, cx + 0.88, ...sy(-2.15, 2.15), z + 0.3, z + 0.85);
-  const c = [[-1.35, 0.85], [0.95, 0.85], [0.45, 1.42], [-1.05, 1.42]].map(([o, h]) => [Y(o), z + h]);
-  side(root, d > 0 ? c : c.reverse(), cx - 0.78, cx + 0.78);
-  const L = [];
-  for (const xs of [cx - 0.785, cx + 0.785]) L.push([[xs, Y(-1.2), z + 0.93], [xs, Y(0.82), z + 0.93]], [[xs, Y(0.82), z + 0.93], [xs, Y(0.4), z + 1.35]],
-    [[xs, Y(0.4), z + 1.35], [xs, Y(-0.98), z + 1.35]], [[xs, Y(-0.98), z + 1.35], [xs, Y(-1.2), z + 0.93]], [[xs, Y(-0.3), z + 0.93], [xs, Y(-0.3), z + 1.35]]);   // side windows
-  lines(root, L);
-  for (const o of [-1.4, 1.35]) for (const xs of [cx - 0.82, cx + 0.82]) cyl(root, xs, Y(o), z + 0.32, 0.32, 0.22, "x", 18);
+function car(root, cx, cy, d = 1) {                 // parked sedan, nose toward +y when d = 1: wheel arches, glasshouse, doors, lights, bumpers
+  const G = new THREE.Group(); G.position.copy(V(cx, cy, LG)); G.rotation.y = d > 0 ? 0 : Math.PI; G.scale.z = 0.92; root.add(G);
+  const S = (f) => { const s = new THREE.Shape(); f(s); return s; };
+  // lower body in side view (o forward, h up), with the two wheel arches cut into the sill
+  sideShape(G, S((s) => { s.moveTo(-2.2, 0.28); s.lineTo(-1.8, 0.28); s.absarc(-1.4, 0.32, 0.4, Math.PI, 0, true); s.lineTo(0.95, 0.28);
+    s.absarc(1.35, 0.32, 0.4, Math.PI, 0, true); s.lineTo(2.15, 0.28); s.quadraticCurveTo(2.3, 0.3, 2.28, 0.55); s.quadraticCurveTo(2.26, 0.78, 2.0, 0.8);
+    s.lineTo(0.85, 0.9); s.lineTo(-1.6, 0.92); s.lineTo(-2.1, 0.9); s.quadraticCurveTo(-2.3, 0.85, -2.28, 0.55); s.quadraticCurveTo(-2.27, 0.3, -2.2, 0.28); }), -0.88, 0.88);
+  // cabin, a little narrower than the body
+  sideShape(G, S((s) => { s.moveTo(-1.65, 0.88); s.lineTo(0.9, 0.88); s.quadraticCurveTo(0.35, 1.3, 0.05, 1.38); s.lineTo(-0.85, 1.4); s.quadraticCurveTo(-1.25, 1.35, -1.65, 0.88); }), -0.74, 0.74);
+  for (const xs of [-0.755, 0.745]) {                                                         // side glass, front and rear, either side of the B-pillar
+    side(G, [[0.66, 0.96], [0.1, 1.31], [-0.3, 1.33], [-0.3, 0.96]], xs, xs + 0.01);
+    side(G, [[-0.42, 0.96], [-0.42, 1.33], [-0.82, 1.33], [-1.4, 0.97]], xs, xs + 0.01);
+  }
+  const Ln = [];
+  for (const xs of [-0.885, 0.885]) {
+    Ln.push([[xs, 0.85, 0.42], [xs, 0.85, 0.89]], [[xs, -0.36, 0.3], [xs, -0.36, 0.91]], [[xs, -1.5, 0.48], [xs, -1.5, 0.92]], [[xs, 2.0, 0.6], [xs, 0.86, 0.6]], [[xs, -1.6, 0.6], [xs, -2.2, 0.6]]);   // door shuts, crease
+    box(G, xs - 0.01, xs + 0.01, 0.02, 0.2, 0.77, 0.81); box(G, xs - 0.01, xs + 0.01, -1.08, -0.9, 0.77, 0.81);   // door handles
+    box(G, Math.sign(xs) * 0.74, Math.sign(xs) * 0.96, 0.58, 0.74, 0.92, 1.03);                                      // mirrors
+    for (const o of [-1.4, 1.35]) { const xw = Math.sign(xs) * 0.79;
+      cyl(G, xw, o, 0.32, 0.32, 0.2, "x", 24); cyl(G, Math.sign(xs) * 0.81, o, 0.32, 0.2, 0.2, "x", 20); cyl(G, Math.sign(xs) * 0.82, o, 0.32, 0.06, 0.2, "x", 10); }   // tyre, rim, hub
+  }
+  for (const [p0, c, p1, sg] of [[[0.9, 0.88], [0.35, 1.3], [0.05, 1.38], 1], [[-1.65, 0.88], [-1.25, 1.35], [-0.85, 1.4], -1]]) {   // windscreen and back light, on the curved cabin
+    const Q = (t) => { const u = 1 - t, o = u * u * p0[0] + 2 * u * t * c[0] + t * t * p1[0], h = u * u * p0[1] + 2 * u * t * c[1] + t * t * p1[1];
+      const to = 2 * u * (c[0] - p0[0]) + 2 * t * (p1[0] - c[0]), th = 2 * u * (c[1] - p0[1]) + 2 * t * (p1[1] - c[1]), n = Math.hypot(to, th) || 1;
+      return [o - sg * Math.abs(th) / n * 0.012 + 0, h + Math.abs(to) / n * 0.012]; };
+    const ts = [0.12, 0.3, 0.5, 0.7, 0.9];
+    for (const xs of [-0.6, 0.6]) for (let i = 0; i < ts.length - 1; i++) { const a = Q(ts[i]), b = Q(ts[i + 1]); Ln.push([[xs, a[0], a[1]], [xs, b[0], b[1]]]); }
+    for (const t of [ts[0], ts[ts.length - 1]]) { const a = Q(t); Ln.push([[-0.6, a[0], a[1]], [0.6, a[0], a[1]]]); }
+  }
+  lines(G, Ln);
+  box(G, -0.92, 0.92, 2.2, 2.36, 0.27, 0.42); box(G, -0.92, 0.92, -2.36, -2.2, 0.27, 0.42);                       // bumpers
+  box(G, -0.42, 0.42, 2.22, 2.29, 0.45, 0.64);                                                                   // grille
+  lines(G, [0.5, 0.55, 0.6].map((h) => [[-0.42, 2.295, h], [0.42, 2.295, h]]));
+  for (const xh of [-0.62, 0.62]) { cyl(G, xh, 2.26, 0.6, 0.11, 0.05, "y", 18); box(G, xh - 0.17, xh + 0.17, -2.3, -2.24, 0.62, 0.74); }   // headlamps, tail lamps
+  box(G, -0.26, 0.26, -2.31, -2.27, 0.46, 0.6);                                                                  // number plate
+  box(G, -0.26, 0.26, 2.36, 2.38, 0.3, 0.4);
 }
 function rail(root, pts, h = 0.9, step = 1.5) {     // handrail: posts and a top bar following the walking surface
   for (let i = 0; i < pts.length - 1; i++) {
