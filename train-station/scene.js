@@ -684,9 +684,6 @@ function site(root) {
       E.push([[...a, g], [...a, 0]]); }
     lines(root, E); }
   slab(root, [[P.x0, P2y0], [SX1, P2y0], [SX1, P2y1 - 2], [rx0, P2y1 - 2], [rx0, P2y1], [P.x0, P2y1]], g, 0);   // platform 2
-  const j = [];
-  for (let x = P.x0 + 3.33; x < rx0; x += 3.33) j.push([[x, P.y0 - 0.01, g], [x, P.y0 - 0.01, 0]], [[x, P2y1 + 0.01, g], [x, P2y1 + 0.01, 0]]);
-  j.push([[P.x0, P.y0 + 0.5, 0.01], [rx0, P.y0 + 0.5, 0.01]], [[P.x0, P2y1 - 0.5, 0.01], [rx0, P2y1 - 0.5, 0.01]]); lines(root, j);   // slab joints, edge strips
   flat(root, [[EX0, P2y1], [EX1, P2y1], [EX1, P.y0], [EX0, P.y0]], g + 0.005, M.ballast);
   for (const yc of D.track) {
     for (let x = EX0 + 0.2; x < EX1 - 0.3; x += 0.75) box(root, x, x + 0.26, yc - 1.3, yc + 1.3, g, g + 0.14);                     // sleepers
