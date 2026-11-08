@@ -92,12 +92,14 @@ function kinds() {
 }
 // stalls: [d0, d1, c, face, along] like the school's park(): depth d0..d1 along x (or y when along = "y"), centre c across,
 // face = +1/-1 toward the aisle. share: how many stalls are taken (0..1). z: the surface the tyres stand on.
-export function parkCars(root, stalls, share = 0.4, z = 0, seed = 4242) {
+export function parkCars(root, stalls, share = 0.4, z = 0, seed = 4242, count = 0) {   // count > 0: exactly that many cars, in stalls picked at random
   const K = kinds(), noEdge = (m) => { m.userData.noEdge = true; return m; };
   const crand = (s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; })(seed);
   const pick = () => { const r = crand(); return r < 0.4 ? "sedan" : r < 0.65 ? "hatch" : "suv"; };
-  for (const [d0, d1, c, face, along] of stalls) {
-    if (crand() > share) continue;
+  let take = null;
+  if (count > 0) { const idx = stalls.map((_, i) => i); for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(crand() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; } take = new Set(idx.slice(0, count)); }
+  for (const [i, [d0, d1, c, face, along]] of stalls.entries()) {
+    if (take ? !take.has(i) : crand() > share) continue;
     const k = K[pick()], L = k.len, f = crand() < 0.85 ? face : -face;   // most drive in nose first
     const gap = Math.min(0.35, d1 - d0 - L - 0.1), mid = face > 0 ? d1 - gap - L / 2 : d0 + gap + L / 2, cc = c + (crand() - 0.5) * 0.25, h = (crand() - 0.5) * 0.06;
     const hd = along === "y" ? (f > 0 ? Math.PI / 2 : -Math.PI / 2) : (f > 0 ? 0 : Math.PI);   // heading in plan; the model's nose points +y

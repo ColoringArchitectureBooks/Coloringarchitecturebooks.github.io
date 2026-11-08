@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { FontLoader } from "three/addons/loaders/FontLoader.js";
 import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
-import { parkCars } from "./cars.js?v=1";
+import { parkCars } from "./cars.js?v=2";
 
 export const V = (x, y, z) => new THREE.Vector3(x, z, -y);
 
@@ -102,15 +102,29 @@ function gableRoof(root, x0, x1, y0, y1, z, r, along, mat = M.roof) {
   if (along === "x") side(root, [[y0, z], [y1, z], [(y0 + y1) / 2, z + r]], x0, x1, mat);
   else elev(root, [[x0, z], [x1, z], [(x0 + x1) / 2, z + r]], y0, y1, mat);
 }
+// roof courses (the roofing shows, like the train station's roof): a line every 0.4 m up each slope, parallel to the ridge.
+// The slope runs from (a0, z0) at the eave to (am, zr) at the ridge and on down to (a1, z0); b0..b1 is its length along the ridge.
+// Where a slope runs under another roof the lines are simply hidden by it.
+function roofCourses(root, along, a0, am, a1, z0, zr, b0, b1, step = 0.4) {
+  const s = [], L = Math.hypot(am - a0, zr - z0), n = Math.floor(L / step);
+  for (const ae of [a0, a1]) for (let k = 1; k < n; k++) {
+    const t = k / n, a = ae + (am - ae) * t, z = z0 + (zr - z0) * t + 0.015;
+    s.push(along === "y" ? [[a, b0, z], [a, b1, z]] : [[b0, a, z], [b1, a, z]]);
+  }
+  lines(root, s);
+}
 // a gabled block: walls and gable triangles are one brick extrusion (no seam at the eave), the roof is one folded strip with overhangs
+let HOUSE = 1;   // id per gabled block, so its own wall/roof contact is not drawn as a meeting line
 function house(root, x0, x1, y0, y1, e, pitch, along, emblems = [], ends = [0.35, 0.35]) {   // ends: roof overhang at each gable end (0 where it dies into a wall)
   const o = 0.5, t = 0.3, [e0, e1] = ends;
   const [a0, a1, b0, b1] = along === "y" ? [x0, x1, y0, y1] : [y0, y1, x0, x1];
   const mid = (a0 + a1) / 2, r = (a1 - a0) / 2 * pitch, k = pitch;
   const body = [[a0, 0], [a1, 0], [a1, e], [mid, e + r], [a0, e]];
   const roof = [[a0 - o, e - o * k], [mid, e + r], [a1 + o, e - o * k], [a1 + o, e - o * k + t], [mid, e + r + t], [a0 - o, e - o * k + t]];
-  if (along === "y") { elev(root, body, y0, y1, M.brick); elev(root, roof, y0 - e0, y1 + e1, M.roof); }
-  else { side(root, body, x0, x1, M.brick); side(root, roof, x0 - e0, x1 + e1, M.roof); }
+  if (along === "y") { elev(root, body, y0, y1, M.brick).userData.house = HOUSE; elev(root, roof, y0 - e0, y1 + e1, M.roof).userData.house = HOUSE; }
+  else { side(root, body, x0, x1, M.brick).userData.house = HOUSE; side(root, roof, x0 - e0, x1 + e1, M.roof).userData.house = HOUSE; }
+  HOUSE++;
+  roofCourses(root, along, a0 - o, mid, a1 + o, e - o * k + t, e + r + t, along === "y" ? y0 - e0 : x0 - e0, along === "y" ? y1 + e1 : x1 + e1);
   const size = Math.min(r * 0.8, 2.0), ez = e + r * 0.38;
   for (const f of emblems) {
     if (f === "+x" || f === "-x") emblem(root, f === "+x" ? x1 + 0.05 : x0 - 0.05, mid, ez, size, f);
@@ -215,6 +229,7 @@ function hall(root) {
   }
   { const k = (G.peak - G.z0) / ((G.x1 - G.x0) / 2), o = 0.35, t = 0.4, mid = (G.x0 + G.x1) / 2, zl = G.z0 - o * k;
     elev(root, [[G.x0 - o, zl], [mid, G.peak], [G.x1 + o, zl], [G.x1 + o, zl + t], [mid, G.peak + t], [G.x0 - o, zl + t]], -0.4, G.depth + 0.3, M.roof);   // roof + rake in one piece
+    roofCourses(root, "y", G.x0 - o, mid, G.x1 + o, zl + t, G.peak + t, -0.4, G.depth + 0.3);
     elev(root, [[G.x0, H.h], [G.x1, H.h], [G.x1, G.z0], [mid, G.peak], [G.x0, G.z0]], 0.4, G.depth - 0.4, M.brick);
     // the whole back (towers + hall + gable) is one wall, so there are no seams across it
     const tw = D.tower.w, th = D.tower.h;
@@ -334,7 +349,7 @@ function garage(root) {
 }
 
 // ---------- site ----------
-const SITE = {"walk":[{"o":[[0.0,29.0],[-5.0,29.0],[-5.0,-0.6],[0.0,-0.6],[0.0,-1.6],[-6.0,-1.6],[-6.0,30.0],[0.0,30.0]],"h":[]},{"o":[[41.0,49.0],[41.0,30.0],[63.0,30.0],[63.0,11.082],[63.224,11.345],[63.471,11.586],[63.739,11.804],[64.026,11.997],[64.33,12.163],[64.647,12.301],[64.975,12.409],[65.312,12.487],[65.655,12.534],[66.0,12.55],[66.345,12.534],[66.688,12.487],[67.025,12.409],[67.353,12.301],[67.67,12.163],[67.974,11.997],[68.261,11.804],[68.529,11.586],[68.776,11.345],[69.001,11.082],[69.2,10.799],[69.373,10.5],[72.5,10.5],[72.5,62.0],[26.0,62.0],[26.0,65.0],[72.5,65.0],[72.5,90.0],[76.0,90.0],[76.0,10.5],[112.0,10.5],[112.0,7.0],[69.373,7.0],[69.2,6.701],[69.001,6.418],[68.776,6.155],[68.529,5.914],[68.261,5.696],[67.974,5.503],[67.67,5.337],[67.353,5.199],[67.025,5.091],[66.688,5.013],[66.345,4.966],[66.0,4.95],[65.655,4.966],[65.312,5.013],[64.975,5.091],[64.647,5.199],[64.33,5.337],[64.026,5.503],[63.739,5.696],[63.471,5.914],[63.224,6.155],[62.999,6.418],[62.8,6.701],[62.627,7.0],[56.5,7.0],[56.5,4.5],[50.0,4.5],[50.0,-0.5],[31.0,-0.5],[31.0,-1.6],[25.0,-1.6],[25.0,-0.6],[30.0,-0.6],[30.0,0.5],[49.0,0.5],[49.0,5.5],[55.5,5.5],[55.5,12.0],[62.0,12.0],[62.0,29.0],[40.0,29.0],[40.0,48.0],[26.0,48.0],[26.0,29.0],[25.0,29.0],[25.0,49.0]],"h":[[[56.5,11.0],[56.5,10.5],[62.627,10.5],[62.8,10.799],[62.942,11.0]]]},{"o":[[5.0,89.0],[5.0,86.5],[4.0,86.5],[4.0,88.0],[-11.0,88.0],[-11.0,66.0],[4.0,66.0],[4.0,68.0],[5.0,68.0],[5.0,65.0],[-12.0,65.0],[-12.0,89.0]],"h":[]}],"trees":[[-16.8,-18.6,1.96,4.56],[-5.97,-18.49,1.79,5.04],[28.05,-17.14,1.82,4.88],[37.03,-19.36,1.71,5.07],[46.59,-17.23,2.16,5.51],[56.03,-18.44,1.91,5.14],[64.32,-17.25,2.08,5.37],[73.11,-16.66,1.65,4.53],[83.83,-16.75,1.8,5.14],[92.64,-18.56,1.79,4.53],[100.23,-19.05,2.01,5.41],[-10.72,-9.02,1.87,4.81],[-3.33,-8.75,1.62,4.61],[35.03,-10.62,1.87,5.27],[44.06,-8.57,1.87,4.86],[52.69,-10.06,1.77,4.7],[59.94,-10.37,2.19,5.56],[70.38,-10.0,1.8,4.47],[78.32,-9.15,2.12,5.01],[88.86,-9.18,2.02,5.15],[97.78,-10.41,2.02,4.85],[105.96,-9.19,2.01,4.85],[-14.16,-1.55,1.95,4.56],[57.81,-2.07,2.01,5.19],[66.19,-2.98,2.07,5.13],[75.0,-2.24,1.97,5.19],[83.91,-1.34,1.62,4.34],[92.32,-1.55,1.73,4.88],[101.89,-3.37,1.88,4.66],[109.16,-3.1,1.79,4.54],[-11.36,6.34,1.95,4.74],[-14.08,13.64,2.18,5.51],[107.44,23.5,2.02,4.66],[50.92,38.37,1.81,4.6],[60.5,38.34,1.81,4.72],[68.91,38.99,1.99,5.23],[-15.56,46.78,1.6,4.58],[48.77,45.61,2.16,5.31],[57.02,45.92,2.17,4.86],[66.01,45.37,2.0,5.19],[41.65,53.69,1.64,4.44],[51.72,53.42,1.63,4.26],[62.41,53.04,1.91,4.83],[32.54,70.25,2.1,5.28],[41.79,70.09,1.7,4.87],[51.84,71.32,2.08,4.77],[60.45,71.24,1.88,4.82],[-15.82,77.15,1.77,4.53],[30.5,77.97,1.62,4.36],[37.3,78.65,2.14,4.9],[48.39,77.47,2.01,5.3],[56.87,78.9,1.83,4.43],[65.54,78.26,1.71,4.62],[83.15,77.93,2.02,4.94],[93.95,78.95,2.15,5.31],[102.01,78.11,2.08,4.97],[34.72,86.33,1.73,4.74],[44.19,85.22,2.18,5.22],[51.68,84.51,1.83,4.58],[79.57,86.16,2.03,4.93],[89.16,85.14,1.78,4.6],[97.37,87.19,1.7,4.81],[106.8,85.17,1.64,4.69],[25.13,101.63,1.67,4.75]]};
+const SITE = {"walk":[{"o":[[0.0,29.0],[-5.0,29.0],[-5.0,-0.6],[0.0,-0.6],[0.0,-1.6],[-6.0,-1.6],[-6.0,30.0],[0.0,30.0]],"h":[]},{"o":[[41.0,49.0],[41.0,30.0],[63.0,30.0],[63.0,11.082],[63.224,11.345],[63.471,11.586],[63.739,11.804],[64.026,11.997],[64.33,12.163],[64.647,12.301],[64.975,12.409],[65.312,12.487],[65.655,12.534],[66.0,12.55],[66.345,12.534],[66.688,12.487],[67.025,12.409],[67.353,12.301],[67.67,12.163],[67.974,11.997],[68.261,11.804],[68.529,11.586],[68.776,11.345],[69.001,11.082],[69.2,10.799],[69.373,10.5],[72.5,10.5],[72.5,62.0],[26.0,62.0],[26.0,65.0],[72.5,65.0],[72.5,90.0],[76.0,90.0],[76.0,10.5],[112.0,10.5],[112.0,7.0],[69.373,7.0],[69.2,6.701],[69.001,6.418],[68.776,6.155],[68.529,5.914],[68.261,5.696],[67.974,5.503],[67.67,5.337],[67.353,5.199],[67.025,5.091],[66.688,5.013],[66.345,4.966],[66.0,4.95],[65.655,4.966],[65.312,5.013],[64.975,5.091],[64.647,5.199],[64.33,5.337],[64.026,5.503],[63.739,5.696],[63.471,5.914],[63.224,6.155],[62.999,6.418],[62.8,6.701],[62.627,7.0],[56.5,7.0],[56.5,4.5],[50.0,4.5],[50.0,-0.5],[31.0,-0.5],[31.0,-1.6],[25.0,-1.6],[25.0,-0.6],[30.0,-0.6],[30.0,0.5],[49.0,0.5],[49.0,5.5],[55.5,5.5],[55.5,12.0],[62.0,12.0],[62.0,29.0],[40.0,29.0],[40.0,48.0],[26.0,48.0],[26.0,29.0],[25.0,29.0],[25.0,49.0]],"h":[[[56.5,11.0],[56.5,10.5],[62.627,10.5],[62.8,10.799],[62.942,11.0]]]},{"o":[[5.0,89.0],[5.0,86.5],[4.0,86.5],[4.0,88.0],[-11.0,88.0],[-11.0,66.0],[4.0,66.0],[4.0,68.0],[5.0,68.0],[5.0,65.0],[-12.0,65.0],[-12.0,89.0]],"h":[]}],"trees":[[32.6,-20.07,1.49,4.58,2],[32.57,-14.31,1.52,4.83,2],[27.93,-21.46,1.48,4.67,2],[28.87,-13.91,1.39,4.23,2],[31.22,-22.29,1.53,4.21,2],[40.68,-7.65,2.27,5.55,0],[39.37,-11.04,1.82,4.43,0],[35.75,-6.94,1.58,4.19,2],[95.23,-17.93,1.91,4.67,0],[99.71,-21.52,1.68,4.62,1],[100.84,-15.46,1.42,4.73,2],[103.23,-19.22,1.61,4.69,1],[102.1,-22.81,1.38,4.49,2],[103.88,-15.83,1.6,4.51,2],[84.66,-6.18,1.51,4.85,2],[89.41,-8.2,1.99,5.27,1],[87.42,-5.14,1.85,5.17,0],[105.56,-5.54,1.44,4.29,2],[107.58,-2.97,1.65,4.69,0],[-16.23,-21.84,2.16,5.49,0],[-13.92,-18.6,1.56,4.47,2],[-18.14,-19.25,1.34,3.95,2],[-15.03,7.73,1.56,4.55,2],[-17.71,9.52,1.35,4.35,2],[-17.51,5.77,1.74,4.72,0],[-15.87,48.28,1.97,4.6,1],[-17.83,45.98,1.38,4.49,2],[-15.06,45.43,1.56,4.58,2],[-16.67,79.4,1.47,4.19,2],[-15.45,83.88,1.69,4.34,2],[-18.01,82.7,1.32,4.48,2],[48.11,39.52,2.06,5.41,1],[55.37,35.89,2.21,5.14,1],[51.96,37.34,2.0,5.32,1],[55.35,43.1,1.52,4.88,2],[53.96,40.01,1.62,4.35,1],[63.5,52.98,1.36,4.51,2],[66.27,54.2,2.23,5.08,1],[67.25,49.97,1.61,4.72,1],[58.9,36.63,1.83,5.2,0],[61.81,35.71,1.59,4.59,2],[33.97,83.51,1.65,4.73,2],[30.27,81.86,1.32,4.4,2],[32.12,79.1,2.29,4.92,0],[38.34,77.87,2.15,5.16,1],[28.78,78.23,1.62,4.7,1],[33.84,74.83,1.83,4.91,0],[55.52,74.17,1.59,4.87,2],[60.66,77.33,2.0,5.03,0],[55.28,78.88,1.61,4.82,2],[59.04,80.52,1.61,4.26,2],[43.47,70.96,1.69,4.32,2],[47.4,68.52,1.92,4.84,0],[109.02,38.46,1.89,4.69,0],[107.24,40.9,1.7,4.49,1],[109.66,41.05,1.32,4.23,2],[92.0,85.73,1.36,4.29,2],[91.58,82.38,1.96,5.16,0],[98.5,79.05,1.4,4.69,2],[97.52,83.47,1.5,4.57,2],[89.61,78.12,1.53,4.88,2],[108.32,77.65,2.03,4.68,1],[105.98,81.78,1.82,4.7,1],[43.56,101.44,1.46,4.18,2],[37.0,101.18,1.41,4.61,2],[40.61,101.56,1.85,4.88,1],[83.74,101.82,1.46,4.61,2],[81.12,100.84,1.58,4.37,2],[87.51,100.88,1.58,4.98,2]]};
 function slabH(root, pts, holes, z0, z1, mat = M.white) {
   const sh = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
   for (const h of holes) sh.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y))));
@@ -427,8 +442,9 @@ function site(root) {
   // parked cars (the school's models), about 40% of the stalls taken, noses toward the aisle
   { const st = [], has = (y) => !(y > 12 && y < 21) && !(y > 61 && y < 70);
     for (let y = 14; y + 3 <= 68; y += 3) { st.push([76.2, 82, y + 1.5, 1]); if (has(y) && has(y + 3)) st.push([98, 103.8, y + 1.5, -1]); }
-    for (let y = 36; y + 3 <= 60; y += 3) st.push([-11.8, -6.5, y + 1.5, 1]);
-    parkCars(root, st, 0.4, 0.04); }
+    parkCars(root, st, 0.4, 0.04);
+    const yard = []; for (let y = 36; y + 3 <= 60; y += 3) yard.push([-11.8, -6.5, y + 1.5, 1]);
+    parkCars(root, yard, 0.4, 0.04, 77, 5); }   // the yard by the garage: five cars
   // walks, plaza, flagpoles with flags
   { const pc = [66, 8.75], pr = 3.8, h = Math.atan2(1.75, Math.sqrt(pr * pr - 1.75 * 1.75)), arc = (t0, t1) => { const r = []; for (let k = 0; k <= 24; k++) { const t = t0 + (t1 - t0) * k / 24; r.push([pc[0] + pr * Math.cos(t), pc[1] + pr * Math.sin(t)]); } return r; };
     for (const p of SITE.walk) slabH(root, p.o, p.h, 0, 0.12);   // walks, plaza and the 1 m sidewalk round every building (not where the trucks drive), one piece (layout-scripts/fire-site.py)
@@ -439,7 +455,7 @@ function site(root) {
     lines(root, [10.85, 11.1, 11.35, 11.6].map(z => [[x + 0.9, 3.45, z], [x + 2.0, 3.45, z]]).concat([[[x + 0.9, 3.45, 11.1], [x + 0.9, 3.45, 11.8]]]));
   }
   plotFence(root);
-  SITE.trees.forEach(([x, y, r, h], i) => tree(root, x, y, r, h, i % 3));   // the school's trees, on the open ground
+  for (const [x, y, r, h, kind] of SITE.trees) tree(root, x, y, r, h, kind);   // planted in groups (layout-scripts/fire-site.py)   // the school's trees, on the open ground
 }
 
 // builds everything; resolves when the 3D letters are in
@@ -455,9 +471,48 @@ export function buildScene(scene) {
   scene.add(new THREE.HemisphereLight(0xffffff, 0xdddddd, 2.3));
   const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(-50, 80, 90); scene.add(sun);
   const signRoot = new THREE.Group(); root.add(signRoot);
-  const finish = (font) => { sign(signRoot, font); brickUV(root); outline(root); };
+  const finish = (font) => { sign(signRoot, font); brickUV(root); outline(root); meetLines(root); };
   return new Promise((res) => new FontLoader().load(new URL("./helvetiker_bold.typeface.json", import.meta.url).href,
     (font) => { finish(font); res(root); }, undefined, () => { finish(null); res(root); }));
+}
+// lines where a roof meets another roof or a wall of another block (valleys, roofs dying into a taller wall): separate solids
+// that pass through each other have no shared edge, so these are found by intersecting their triangles
+function meetLines(root) {
+  const roofs = [], solids = [];
+  root.updateMatrixWorld(true);
+  root.traverse(o => { if (!o.isMesh || o.parent !== root) return; if (o.material === M.roof) roofs.push(o); if (o.material === M.roof || o.material === M.brick) solids.push(o); });
+  const tris = (m) => { const g = m.geometry, p = g.attributes.position, idx = g.index, out = [], n = idx ? idx.count : p.count;
+    for (let i = 0; i < n; i += 3) { const v = [0, 1, 2].map(k => new THREE.Vector3().fromBufferAttribute(p, idx ? idx.getX(i + k) : i + k).applyMatrix4(m.matrixWorld)); out.push(v); } return out; };
+  const T = new Map(), B = new Map(), get = (m) => { if (!T.has(m)) { T.set(m, tris(m)); B.set(m, new THREE.Box3().setFromObject(m).expandByScalar(0.01)); } return T.get(m); };
+  const seg = [], E = 1e-6;
+  function cut(a, b) {              // segment where triangle a crosses the plane of b, clipped to b's plane: returns [p, q] or null
+    const n = new THREE.Vector3().subVectors(b[1], b[0]).cross(new THREE.Vector3().subVectors(b[2], b[0])); if (n.lengthSq() < E) return null; n.normalize();
+    const d = a.map(v => n.dot(v) - n.dot(b[0])); if ((d[0] > E && d[1] > E && d[2] > E) || (d[0] < -E && d[1] < -E && d[2] < -E)) return null;
+    const pts = []; for (let i = 0; i < 3; i++) { const j = (i + 1) % 3; if ((d[i] > E) !== (d[j] > E) && Math.abs(d[i] - d[j]) > E) pts.push(a[i].clone().lerp(a[j], d[i] / (d[i] - d[j]))); }
+    return pts.length >= 2 ? [pts[0], pts[1]] : null;
+  }
+  function inTri(p, t) { const [a, b, c] = t, n = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a));
+    for (const [u, v] of [[a, b], [b, c], [c, a]]) if (new THREE.Vector3().subVectors(v, u).cross(new THREE.Vector3().subVectors(p, u)).dot(n) < -1e-7) return false; return true; }
+  for (const r of roofs) for (const o of solids) {
+    if (o === r || (r.userData.house && r.userData.house === o.userData.house)) continue;
+    get(r); get(o); if (!B.get(r).intersectsBox(B.get(o))) continue;
+    if (o.material === M.roof && roofs.indexOf(o) < roofs.indexOf(r)) continue;    // each roof pair once
+    for (const a of T.get(r)) for (const b of T.get(o)) {
+      const na = new THREE.Vector3().subVectors(a[1], a[0]).cross(new THREE.Vector3().subVectors(a[2], a[0])).normalize();
+      const nb = new THREE.Vector3().subVectors(b[1], b[0]).cross(new THREE.Vector3().subVectors(b[2], b[0])).normalize();
+      if (Math.abs(na.dot(nb)) > 0.999) continue;                                    // parallel faces: they touch, not cross
+      const s1 = cut(a, b), s2 = cut(b, a); if (!s1 || !s2) continue;
+      // overlap of the two segments along their common line
+      const dir = new THREE.Vector3().crossVectors(na, nb).normalize(), P = [...s1, ...s2].map(p => [p, p.dot(dir)]);
+      const [a0, a1] = [P[0][1], P[1][1]].sort((x, y) => x - y), [b0, b1] = [P[2][1], P[3][1]].sort((x, y) => x - y);
+      const lo = Math.max(a0, b0), hi = Math.min(a1, b1); if (hi - lo < 0.05) continue;
+      const base = P[0][0], t0 = P[0][1], p = base.clone().addScaledVector(dir, lo - t0), q = base.clone().addScaledVector(dir, hi - t0);
+      // keep only the part that lies on the outside of the other solid's surface (both ends on real faces)
+      if (!inTri(p, b) && !inTri(p, a)) continue;
+      seg.push(p, q);
+    }
+  }
+  if (seg.length) root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(seg), M.line));
 }
 // black outlines on every edge where faces meet at an angle (like the page)
 function outline(root) {
