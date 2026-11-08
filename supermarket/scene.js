@@ -191,7 +191,7 @@ function mats() {
   M.frame = L({ color: 0xc9cdd1 }); M.dark = L({ color: 0x2b2f33 }); M.metal = L({ color: 0xb8bcbf });
   M.asphalt = L({ map: TEX.asphalt }); M.walk = L({ color: 0xd8d2c4 }); M.grass = M.plant = L({ color: 0x7fae5a });
   M.mulch = L({ color: 0x8a6a4a }); M.line = L({ color: 0xffffff }); M.tree = L({ color: 0x6d9e4f }); M.trunk = L({ color: 0x6b4f37 });
-  M.trailer = L({ color: 0xf4f4f2 }); M.concrete = L({ color: 0xc8c6c0 }); M.logo = L({ map: TEX.logo, transparent: true, alphaTest: 0.5 });
+  M.panelPV = L({ color: 0x24324a }); M.trailer = L({ color: 0xf4f4f2 }); M.concrete = L({ color: 0xc8c6c0 }); M.logo = L({ map: TEX.logo, transparent: true, alphaTest: 0.5 });
   M.ballRed = new THREE.MeshPhongMaterial({ color: 0xd42e2a, shininess: 60 });
 }
 function box(root, x0, x1, y0, y1, z0, z1, mat) {
@@ -378,7 +378,8 @@ function building(root) {
 // Front street: road y -174..-159 (dashes at -166.5), sidewalks -177..-174 and -159..-156. Side street: road x 181..196, sidewalks 178..181 and 196..199.
 // Road top -0.03, sidewalks 0..0.15, the lot 0.
 const PLOT = { x0: -14, x1: 178, y0: -156, y1: 120 };
-const DRIVES = { front: [[85, 92.5], [115.5, 122]], side: [[-25, -17], [80, 88]] };   // gaps in the fence, kerb and front planting
+const DRIVES = { front: [[85, 92.1], [115.5, 122]], side: [[-25, -17], [80, 88]] };   // gaps in the fence, kerb and front planting
+const WALK = [92.1, 96.1];   // the walk to the entrance, on the entrance axis, with a gate in the front fence
 const minus = (a, b, gaps) => { const out = []; let s = a; for (const [g0, g1] of gaps) { if (g0 > s) out.push([s, g0]); s = g1; } if (b > s) out.push([s, b]); return out; };
 function segs(root, list) {   // thin black lines, same weight as the model's edges
   const pts = []; for (const [a, b] of list) pts.push(V(...a), V(...b));
@@ -395,7 +396,9 @@ function fenceRun(root, a, b, h = 1.6) {
 }
 function plotFence(root) {
   const P = PLOT;
-  for (const [a, b] of minus(P.x0, P.x1, DRIVES.front)) fenceRun(root, [a, P.y0], [b, P.y0]);
+  const FG = [...DRIVES.front, WALK].sort((a, b) => a[0] - b[0]);
+  for (const [a, b] of minus(P.x0, P.x1, FG)) fenceRun(root, [a, P.y0], [b, P.y0]);
+  box(root, WALK[1] - 0.08, WALK[1] + 0.08, P.y0 - 0.08, P.y0 + 0.08, 0, 1.8, M.white);   // the walk gate's far post (the near one is the drive's)
   for (const [a, b] of minus(P.y0, P.y1, DRIVES.side)) fenceRun(root, [P.x1, a], [P.x1, b]);
   fenceRun(root, [P.x1, P.y1], [P.x0, P.y1]); fenceRun(root, [P.x0, P.y1], [P.x0, P.y0]);
   for (const [g0, g1] of DRIVES.front) for (const x of [g0, g1]) box(root, x - 0.08, x + 0.08, P.y0 - 0.08, P.y0 + 0.08, 0, 1.8, M.white);   // drive posts
@@ -416,6 +419,120 @@ function streets(root) {
   segs(root, d);
   plotFence(root);
 }
+
+// ---------- parking (Ahmed: cart corrals, accessible stalls, working aisles) ----------
+// Front lot: 9 double rows (bx .. bx+11, centre line bx+5.5), stalls 2.7 wide x 5.5 deep. Upper block y -83..-26, lower -148..-91;
+// the cross aisle between them is -91..-83 (8 m, was 3.8 m). The walk (WALK) runs from the front gate to the store, with
+// zebra crossings over the cross aisle and the fire lane. 18 accessible stalls (2% of ~850), 4 of them van stalls, on the two
+// rows either side of the walk nearest the door. A cart corral in the middle of every row block (one per ~45 stalls).
+const ACC = [['S', 2.5], ['A', 2.5], ['S', 2.5], ['S', 2.5], ['A', 1.5], ['S', 2.5], ['S', 2.5], ['A', 1.5], ['S', 2.5], ['S', 2.5], ['A', 1.5], ['S', 2.5], ['S', 2.5], ['A', 1.5]];   // from the store end: 2 van + 7 stalls
+let ISA = null;
+function isaMat() {   // the wheelchair symbol, black on clear (BW) / white on blue (colour)
+  if (ISA) return ISA;
+  const t = canvasTex(256, 256, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    if (!BW) { g.fillStyle = "#1f5fbf"; g.fillRect(8, 8, w - 16, h - 16); }
+    const c = BW ? "#111" : "#ffffff"; g.strokeStyle = c; g.fillStyle = c; g.lineWidth = 16; g.lineCap = "round"; g.lineJoin = "round";
+    if (BW) { g.lineWidth = 8; g.strokeRect(10, 10, w - 20, h - 20); g.lineWidth = 16; }
+    g.beginPath(); g.arc(118, 52, 17, 0, 7); g.fill();                                   // head
+    g.beginPath(); g.moveTo(112, 80); g.lineTo(104, 150); g.lineTo(160, 150); g.lineTo(178, 206); g.lineTo(198, 198); g.stroke();   // body, seat, leg
+    g.beginPath(); g.moveTo(108, 112); g.lineTo(156, 112); g.stroke();                    // arm
+    g.beginPath(); g.arc(112, 170, 46, -0.6, 3.6); g.stroke();                             // wheel
+  }, false);
+  ISA = new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
+  return ISA;
+}
+function groundSymbol(root, x, y, z, size) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), isaMat()); m.rotation.x = -Math.PI / 2; m.rotation.z = Math.PI / 2;
+  m.position.copy(V(x, y, z)); m.userData.noEdge = true; root.add(m);
+}
+function stallSign(root, x, y, face) {   // post at the head of an accessible stall, plate facing the aisle (face +1 = +x)
+  box(root, x - 0.03, x + 0.03, y - 0.03, y + 0.03, 0, 2.1, M.white);
+  box(root, x - 0.015, x + 0.015, y - 0.23, y + 0.23, 1.45, 2.05, M.white);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4), isaMat()); m.position.copy(V(x + face * 0.02, y, 1.8)); m.rotation.y = face * Math.PI / 2; m.userData.noEdge = true; root.add(m);
+}
+// a shopping cart standing on the surface at height z0, pointing +x (handle at the -x end) or -x (dir -1)
+function cart(root, x, y, z0 = 0, dir = 1) {
+  const L = 0.9, W = 0.55, x0 = dir > 0 ? x : x - L, x1 = x0 + L, hx = dir > 0 ? x0 : x1;
+  box(root, x0 + 0.05, x1, y - W / 2, y + W / 2, z0 + 0.45, z0 + 0.9, M.white);           // basket
+  box(root, x0 + 0.12, x1 - 0.05, y - 0.22, y + 0.22, z0 + 0.14, z0 + 0.17, M.white);       // bottom tray
+  box(root, hx - 0.03, hx + 0.03, y - W / 2, y + W / 2, z0 + 0.98, z0 + 1.02, M.white);     // handle
+  for (const yy of [y - W / 2 + 0.03, y + W / 2 - 0.03]) box(root, hx - 0.015, hx + 0.015, yy - 0.015, yy + 0.015, z0 + 0.9, z0 + 1.0, M.white);
+  for (const xx of [x0 + 0.12, x1 - 0.08]) for (const yy of [y - 0.2, y + 0.2]) {          // wheels touch the surface
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.03, 12), M.metal); w.rotation.x = Math.PI / 2; w.position.copy(V(xx, yy, z0 + 0.06)); root.add(w);
+    box(root, xx - 0.01, xx + 0.01, yy - 0.01, yy + 0.01, z0 + 0.12, z0 + 0.45, M.white);
+  }
+}
+// cart corral in one stall slot: open to the aisle (side aisleX), closed at the head, rails at 0.5 and 1.0 m, a sign on the closed end
+function corral(root, xa, xb, y0, open) {   // xa..xb along the stall depth, y0..y0+2.7 across; open: -1 = open at xa, +1 = open at xb
+  const ya = y0 + 0.25, yb = y0 + 2.45, xs = open < 0 ? xa + 0.3 : xa + 0.6, xe = open < 0 ? xb - 0.6 : xb - 0.3, xh = open < 0 ? xe : xs;
+  for (const yy of [ya, yb]) {
+    for (const z of [0.5, 1.0]) box(root, xs, xe, yy - 0.025, yy + 0.025, z - 0.025, z + 0.025, M.white);
+    for (const xx of [xs, (xs + xe) / 2, xe]) box(root, xx - 0.04, xx + 0.04, yy - 0.04, yy + 0.04, 0, 1.05, M.white);
+  }
+  for (const z of [0.5, 1.0]) box(root, xh - 0.025, xh + 0.025, ya, yb, z - 0.025, z + 0.025, M.white);   // closed end
+  box(root, xh - 0.015, xh + 0.015, ya + 0.3, yb - 0.3, 1.15, 1.65, M.white);                              // "cart return" sign plate
+  box(root, xh - 0.03, xh + 0.03, ya + 0.3 - 0.03, ya + 0.3 + 0.03, 1.0, 1.65, M.white); box(root, xh - 0.03, xh + 0.03, yb - 0.3 - 0.03, yb - 0.3 + 0.03, 1.0, 1.65, M.white);
+  const yc = y0 + 1.35, d = -open;                                                                          // three nested carts, handles to the aisle
+  for (let k = 0; k < 3; k++) { const hx = (open < 0 ? xs + 0.25 : xe - 0.25) + d * k * 0.32; cart(root, hx, yc, 0, d); }
+}
+function parking(root) {
+  const lineAt = (x0, y0, x1, y1, w = 0.12) => flat(root, x0 === x1 ? [[x0 - w, y0], [x0 + w, y0], [x0 + w, y1], [x0 - w, y1]] : [[x0, y0 - w], [x1, y0 - w], [x1, y0 + w], [x0, y0 + w]], 0.02, M.line);
+  const hatch = (xa, xb, y0, y1) => { const s = []; for (let t = 0; t < (xb - xa) + (y1 - y0); t += 0.6) {   // diagonal no-parking stripes inside a rectangle
+      const p0 = [xa + Math.max(0, t - (y1 - y0)), y0 + Math.min(t, y1 - y0)], p1 = [xa + Math.min(t, xb - xa), y0 + Math.max(0, t - (xb - xa))];
+      s.push([[p0[0], p0[1], 0.025], [p1[0], p1[1], 0.025]]); } segs(root, s); };
+  // one double row: centre line, stall lines per half; acc = { half: -1|+1 } puts the accessible run at the store end of that half
+  const rowsAt = (cx, ya, yb, acc, cor) => {
+    lineAt(cx, ya, cx, yb);
+    for (const h of [-1, 1]) {
+      const xa = h < 0 ? cx - 5.5 : cx, xb = h < 0 ? cx : cx + 5.5;
+      if (acc && acc.half === h) {
+        let y = yb; lineAt(xa, y, xb, y);
+        for (const [k, w] of ACC) {
+          const y1 = y - w;
+          if (k === 'A') hatch(xa, xb, y1, y); else { groundSymbol(root, (xa + xb) / 2 + h * 0.6, y - w / 2, 0.03, 1.6); stallSign(root, h < 0 ? xb - 0.05 : xa + 0.05, y - w / 2, h); }
+          lineAt(xa, y1, xb, y1); y = y1;
+        }
+        let k = 0; for (let yy = y - 2.7; yy >= ya - 0.01; yy -= 2.7) { lineAt(xa, yy, xb, yy); k++; }
+        const last = y - k * 2.7; if (last - ya > 0.3) hatch(xa, xb, ya, last);
+      } else for (let y = ya; y <= yb + 0.01; y += 2.7) lineAt(xa, y, xb, y);
+      if (cor && cor.half === h) corral(root, xa, xb, cor.y0, h < 0 ? -1 : 1);
+    }
+  };
+  const BAYS = [0, 18.3, 36.6, 54.9, 73.2, 104, 122.3, 140.6, 158.9];
+  for (const bx of BAYS) {
+    for (const [ya, yb] of [[-83, -26], [-148, -91]]) {
+      const acc = yb === -26 && bx === 73.2 ? { half: 1 } : yb === -26 && bx === 104 ? { half: -1 } : null;   // the halves facing the walk's aisles
+      const cor = { half: bx === 73.2 ? -1 : bx === 104 ? 1 : -1, y0: ya + 10 * 2.7 };
+      rowsAt(bx + 5.5, ya, yb, acc, cor);
+      if (yb !== -26) { slab(root, [[bx, ya - 3.2], [bx + 11, ya - 3.2], [bx + 11, ya], [bx, ya]], 0, 0.15, M.plant); tree(root, bx + 5.5, ya - 1.6, 5.5, 1.6); }   // planted head by the street
+      if (yb === -26) slab(root, [[bx, yb], [bx + 11, yb], [bx + 11, yb + 3.2], [bx, yb + 3.2]], 0, 0.15, M.plant);   // planted head of the row, by the store
+    }
+  }
+  for (const bx of [138, 156.3]) rowsAt(bx + 5.5, -6, 70, null, { half: -1, y0: -6 + 13 * 2.7 });
+  // the walk: from the front gate to the fire lane, cut where it crosses the cross aisle; zebra crossings on both crossings
+  slab(root, [[WALK[0], -156], [WALK[1], -156], [WALK[1], -91], [WALK[0], -91]], 0, 0.15, M.walk);
+  slab(root, [[WALK[0], -83], [WALK[1], -83], [WALK[1], -20], [WALK[0], -20]], 0, 0.15, M.walk);
+  for (const [y0, y1] of [[-91, -83], [-20, -15]]) for (let y = y0 + 0.4; y < y1 - 0.3; y += 1.0) flat(root, [[WALK[0] + 0.2, y], [WALK[1] - 0.2, y], [WALK[1] - 0.2, y + 0.5], [WALK[0] + 0.2, y + 0.5]], 0.02, M.line);
+  // carts kept by the door, on the sidewalk in front of the SUPERMARKET block
+  for (let k = 0; k < 8; k++) cart(root, 79.6 + k * 0.32, -9.6, 0.15, 1);
+  solar(root);
+}
+// ---------- rooftop solar (Ahmed: like the real store's roof, four arrays in a 2 x 2 block in the middle) ----------
+// measured off the aerial (reference/ahmed-outline-1.jpg): x 29..55 and 59..89, y 23..58 and 62..90. Rows run along x,
+// tilted 10 degrees toward the street (south), 2 m deep on low racks, 3.2 m apart; module joints every 1 m.
+function solar(root) {
+  const R = D.roof, tilt = 10 * Math.PI / 180, dep = 2.0, zl = R + 0.35, zh = zl + dep * Math.sin(tilt), dy = dep * Math.cos(tilt), s = [];
+  for (const [x0, x1] of [[29, 55], [59, 89]]) for (const [y0, y1] of [[23, 58], [62, 90]]) {
+    for (let y = y0; y + dy <= y1 + 0.01; y += 3.2) {
+      root.add(quad(V(x0, y, zl), V(x1, y, zl), V(x1, y + dy, zh), V(x0, y + dy, zh), M.panelPV || M.white));
+      for (const [yy, z] of [[y + 0.1, zl], [y + dy - 0.1, zh]]) box(root, x0 + 0.3, x1 - 0.3, yy - 0.04, yy + 0.04, R, z - 0.02, M.white);   // racks
+      for (let x = x0 + 1; x < x1 - 0.01; x += 1) s.push([[x, y, zl + 0.01], [x, y + dy, zh + 0.01]]);
+      s.push([[x0, y + dy / 2, (zl + zh) / 2 + 0.01], [x1, y + dy / 2, (zl + zh) / 2 + 0.01]]);
+    }
+  }
+  segs(root, s);
+}
 function site(root) {
   flat(root, [[PLOT.x0, PLOT.y0], [PLOT.x1, PLOT.y0], [PLOT.x1, PLOT.y1], [PLOT.x0, PLOT.y1]], 0.0, M.asphalt, 6);   // the plot only: no ground around it
   streets(root);
@@ -427,21 +544,10 @@ function site(root) {
   const n = foot.length;
   { const pts = []; for (let i = 0; i < n - 1; i++) pts.push(V(foot[i][0], foot[i][1], 0.16), V(foot[i + 1][0], foot[i + 1][1], 0.16));   // a plain 1 px line, same weight as the other edges (Ahmed)
     root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x000000 }))); }
-  // parking: double rows perpendicular to the front, stalls 2.7 x 5.5, aisles 7.3
-  const lineAt = (x0, y0, x1, y1) => { const w = 0.12; flat(root, x0 === x1 ? [[x0 - w, y0], [x0 + w, y0], [x0 + w, y1], [x0 - w, y1]] : [[x0, y0 - w], [x1, y0 - w], [x1, y0 + w], [x0, y0 + w]], 0.02, M.line); };
-  const rowsAt = (cx, ya, yb) => { lineAt(cx, ya, cx, yb); for (let y = ya; y <= yb + 0.01; y += 2.7) lineAt(cx - 5.5, y, cx + 5.5, y); };
-  for (const bx of [0, 18.3, 36.6, 54.9, 73.2, 104, 122.3, 140.6, 158.9]) {
-    for (const [ya, yb] of [[-83, -26], [-148, -90]]) {
-      rowsAt(bx + 5.5, ya, yb);
-      slab(root, [[bx, ya - 3.2], [bx + 11, ya - 3.2], [bx + 11, ya], [bx, ya]], 0, 0.15, M.plant);
-      tree(root, bx + 5.5, ya - 1.6, 5.5, 1.6);
-      if (yb === -26) slab(root, [[bx, yb], [bx + 11, yb], [bx + 11, yb + 3.2], [bx, yb + 3.2]], 0, 0.15, M.plant);   // planted head of the row, by the store
-    }
-  }
-  for (const bx of [138, 156.3]) rowsAt(bx + 5.5, -6, 70);
-  slab(root, [[93.5, -152], [99.5, -152], [99.5, -20], [93.5, -20]], 0, 0.15, M.walk);
+  // parking: double rows perpendicular to the front, stalls 2.7 x 5.5, aisles 7.3+ (see parking() below)
+  parking(root);
   if (!BW) for (let y = -30; y > -146; y -= 14) { tree(root, 92, y, 6, 1.8); tree(root, 101, y, 6, 1.8); }   // the page keeps this aisle open
-  for (const [a, b] of minus(-14, 178, DRIVES.front)) slab(root, [[a, -156], [b, -156], [b, -151], [a, -151]], 0, 0.15, M.plant);   // front planting, cut at the drives
+  for (const [a, b] of minus(-14, 178, [...DRIVES.front, WALK].sort((a, b) => a[0] - b[0]))) slab(root, [[a, -156], [b, -156], [b, -151], [a, -151]], 0, 0.15, M.plant);   // front planting, cut at the drives
   for (let x = -8; x < 178; x += 16) tree(root, x, -153.5, 8, 2.6);
   slab(root, [[136, 72], [178, 72], [178, 76], [136, 76]], 0, 0.15, M.plant);
   for (let x = 140; x < 178; x += 10) tree(root, x, 74, 7, 2.2);
