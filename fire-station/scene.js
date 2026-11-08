@@ -370,14 +370,25 @@ function fenceRun(root, a, b, h = 1.6) {
   for (let d = 0.5; d < L - 0.1; d += 0.5) { const x = x0 + (x1 - x0) * d / L, y = y0 + (y1 - y0) * d / L; s.push([[x, y, 0.15], [x, y, h - 0.05]]); }
   lines(root, s);
 }
-function gate(root, a, b, swing, h = 1.6) {   // two light leaves (lines, like the fence) hung at a and b, swung open into the plot
-  const [ax, ay] = a, [bx, by] = b, L = Math.hypot(bx - ax, by - ay) / 2 - 0.05, phi = Math.atan2(by - ay, bx - ax), s = [];
-  for (const [x, y, f] of [[ax, ay, phi + swing], [bx, by, phi + Math.PI - swing]]) {
-    const ex = x + L * Math.cos(f), ey = y + L * Math.sin(f);
-    s.push([[x, y, h], [ex, ey, h]], [[x, y, 0.15], [ex, ey, 0.15]], [[ex, ey, 0.15], [ex, ey, h]]); box(root, x - 0.07, x + 0.07, y - 0.07, y + 0.07, 0, h + 0.15);
-    const n = Math.max(2, Math.round(L / 0.5));
-    for (let k = 1; k < n; k++) { const t = k / n; s.push([[x + (ex - x) * t, y + (ey - y) * t, 0.15], [x + (ex - x) * t, y + (ey - y) * t, h]]); }
-  }
+function walkGate(root, a, b, swing, h = 1.6) {   // one light leaf hung at a, swung open into the plot; a latch post at b
+  const [ax, ay] = a, [bx, by] = b, L = Math.hypot(bx - ax, by - ay) - 0.1, f = Math.atan2(by - ay, bx - ax) + swing, s = [];
+  const ex = ax + L * Math.cos(f), ey = ay + L * Math.sin(f);
+  s.push([[ax, ay, h], [ex, ey, h]], [[ax, ay, 0.15], [ex, ey, 0.15]], [[ex, ey, 0.15], [ex, ey, h]], [[ax, ay, 0.15], [ex, ey, h]]);
+  const n = Math.max(2, Math.round(L / 0.5)); for (let k = 1; k < n; k++) { const t = k / n; s.push([[ax + (ex - ax) * t, ay + (ey - ay) * t, 0.15], [ax + (ex - ax) * t, ay + (ey - ay) * t, h]]); }
+  for (const [x, y] of [a, b]) box(root, x - 0.07, x + 0.07, y - 0.07, y + 0.07, 0, h + 0.15);
+  lines(root, s);
+}
+// a sliding gate across a drive on the fence line x: a framed leaf on two wheels with pickets and a brace, gate posts at both sides
+// of the opening and a guide post at the far end of its track. slide: how far it is pushed open along the inside of the fence (+y).
+function slideGate(root, x, y0, y1, slide, h = 1.6) {
+  const xg = slide ? x - 0.18 : x, a = y0 - 0.25 + slide, b = y1 + 0.25 + slide, t = 0.03, s = [];
+  box(root, xg - t, xg + t, a, b, h - 0.06, h); box(root, xg - t, xg + t, a, b, 0.1, 0.18);          // top and bottom rails
+  for (const y of [a, b]) box(root, xg - t, xg + t, y - 0.04, y + 0.04, 0.1, h);                     // end stiles
+  for (let y = a + 0.5; y < b - 0.1; y += 0.5) s.push([[xg, y, 0.18], [xg, y, h - 0.06]]);           // pickets like the fence
+  s.push([[xg, a + 0.05, 0.18], [xg, (a + b) / 2, h - 0.06]], [[xg, (a + b) / 2, h - 0.06], [xg, b - 0.05, 0.18]]);   // braces
+  for (const y of [a + 0.5, b - 0.5]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.05, 14), M.white); w.rotation.z = Math.PI / 2; w.position.copy(V(xg, y, 0.08)); root.add(w); }
+  for (const y of [y0, y1]) box(root, x - 0.08, x + 0.08, y - 0.08, y + 0.08, 0, h + 0.2);          // gate posts
+  const gy = y1 + slide + 0.4; box(root, xg - 0.22, xg - 0.08, gy - 0.05, gy + 0.05, 0, h + 0.1);      // guide post, inside the leaf's track
   lines(root, s);
 }
 function plotFence(root) {
@@ -385,8 +396,9 @@ function plotFence(root) {
   // gaps: the apron (the trucks drive straight out), the entrance walk, the two parking drives and the yard drive
   for (const [a, b] of [[[P.x0, P.y0], [0, P.y0]], [[25, P.y0], [E, P.y0]], [[E, P.y0], [E, 7]], [[E, 10.5], [E, 13]], [[E, 20], [E, 62]], [[E, 69], [E, 90]], [[E, 98], [E, P.y1]],
     [[E, P.y1], [P.x0, P.y1]], [[P.x0, P.y1], [P.x0, P.y0]]]) fenceRun(root, a, b);
-  // gates open inward (toward -x: the leaves swing past the fence line into the plot)
-  gate(root, [E, 7], [E, 10.5], 1.2); gate(root, [E, 13], [E, 20], 1.3); gate(root, [E, 62], [E, 69], 1.3); gate(root, [E, 90], [E, 98], 1.3);
+  // the walk gate: one hinged leaf, open into the plot; the drives: sliding gates (parking ones slid open behind the fence, the yard one shut)
+  walkGate(root, [E, 7], [E, 10.5], 1.25);
+  slideGate(root, E, 13, 20, 7.0); slideGate(root, E, 62, 69, 7.0); slideGate(root, E, 90, 98, 0);
 }
 function site(root) {
   // only the plot shows; the two streets run on past it with their sidewalks
@@ -433,8 +445,8 @@ function site(root) {
   lines(root, stalls);
   // parked cars (the school's models), about 40% of the stalls taken, noses toward the aisle
   { const st = [], has = (y) => !(y > 12 && y < 21) && !(y > 61 && y < 70);
-    for (let y = 14; y + 3 <= 68; y += 3) { st.push([76.2, 82, y + 1.5, 1]); if (has(y) && has(y + 3)) st.push([98, 103.8, y + 1.5, -1]); }
-    parkCars(root, st, 0.4, 0.04);
+    const rt = []; for (let y = 14; y + 3 <= 68; y += 3) { st.push([76.2, 82, y + 1.5, 1]); if (has(y) && has(y + 3)) rt.push([98, 103.8, y + 1.5, -1]); }
+    parkCars(root, st, 0.4, 0.04); parkCars(root, rt, 0.4, 0.04, 515, 7);   // the right-hand row: seven cars
     const yard = []; for (let y = 36; y + 3 <= 60; y += 3) yard.push([-11.8, -6.5, y + 1.5, 1]);
     parkCars(root, yard, 0.4, 0.04, 77, 5); }   // the yard by the garage: five cars
   // walks, plaza, flagpoles with flags
@@ -487,6 +499,92 @@ FIRE.tick = (dt) => {
 };
 
 // builds everything; resolves when the 3D letters are in
+// ---------- the streets: traffic signals at the junction, the fire station's emergency signal, warning and speed signs,
+// street name signs, street lights, fire hydrants and the markings on the road (stop lines, KEEP CLEAR in front of the apron).
+// Airway Blvd: westbound lane y -37.5..-30 (plot side), eastbound y -45..-37.5. Side street: southbound x 115..123, northbound 123..131.
+// Sidewalk tops are at 0.15, the road at -0.03.
+function streets(root, font) {
+  const SW = 0.15, RD = -0.03;
+  const B = (x0, x1, y0, y1, z0, z1) => box(root, Math.min(x0, x1), Math.max(x0, x1), Math.min(y0, y1), Math.max(y0, y1), z0, z1);
+  const P = (a) => new THREE.Vector3(a[0], a[2], -a[1]);           // plan vector -> three
+  // put a flat geometry (x right, y up, z out of its face) into the plan with right R, up U, normal N at plan point o
+  const place = (geo, R, U, N, o) => { geo.applyMatrix4(new THREE.Matrix4().makeBasis(P(R), P(U), P(N))); const m = new THREE.Mesh(geo, M.white); m.position.copy(V(...o)); root.add(m); return m; };
+  const rightOf = (n) => [-n[1], n[0], 0];                         // seen from in front of a face with normal n, the reader's right
+  const text = (str, size, o, n, up = [0, 0, 1], R = null) => { if (!font) return;
+    const g = new TextGeometry(str, { font, size, height: 0.015, curveSegments: 4 }); g.computeBoundingBox(); const bb = g.boundingBox;
+    g.translate(-(bb.max.x + bb.min.x) / 2, -(bb.max.y + bb.min.y) / 2, 0); place(g, R || rightOf(n), up, n, o); };
+  const plate = (shape, o, n, d = 0.04) => place(new THREE.ExtrudeGeometry(shape, { depth: d, bevelEnabled: false, curveSegments: 6 }), rightOf(n), [0, 0, 1], n, o);
+  const rect = (w, h, r = 0.04) => { const s = new THREE.Shape(), a = w / 2, b = h / 2; s.moveTo(-a + r, -b); s.lineTo(a - r, -b); s.quadraticCurveTo(a, -b, a, -b + r); s.lineTo(a, b - r); s.quadraticCurveTo(a, b, a - r, b);
+    s.lineTo(-a + r, b); s.quadraticCurveTo(-a, b, -a, b - r); s.lineTo(-a, -b + r); s.quadraticCurveTo(-a, -b, -a + r, -b); return s; };
+  const diamond = (d) => { const s = new THREE.Shape(); s.moveTo(0, -d); s.lineTo(d, 0); s.lineTo(0, d); s.lineTo(-d, 0); s.lineTo(0, -d); return s; };
+  const post = (x, y, h) => cyl(root, x, y, SW, h, 0.035, 8);
+  const off = (o, n, d) => [o[0] + n[0] * d, o[1] + n[1] * d, o[2]];
+  // a sign on a post: the panel faces n (toward the drivers it is for)
+  const signPost = (x, y, n, z, panel, lines2) => { post(x, y, z + 0.4 - SW); const o = off([x, y, z], n, 0.05); panel(o, n);
+    for (const [str, size, dz] of lines2) text(str, size, off([x, y, z + dz], n, 0.1), n); };
+  // traffic signal head: housing, three lamps with visors, a backplate; faces n
+  const head = (x, y, z, n) => { const t = [Math.abs(n[1]) * 0.36 + Math.abs(n[0]) * 0.3, Math.abs(n[0]) * 0.36 + Math.abs(n[1]) * 0.3];
+    B(x - t[0] / 2, x + t[0] / 2, y - t[1] / 2, y + t[1] / 2, z - 0.5, z + 0.5);
+    plate(rect(0.6, 1.2, 0.05), off([x, y, z], n, -0.17), n, 0.02);   // backplate
+    for (const dz of [0.3, 0, -0.3]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.04, 16), M.white); c.rotation.copy(new THREE.Euler(n[1] ? Math.PI / 2 : 0, 0, n[0] ? Math.PI / 2 : 0));
+      const q = off([x, y, z + dz], n, 0.17); c.position.copy(V(...q)); root.add(c);
+      const v = off([x, y, z + dz + 0.12], n, 0.26); B(v[0] - (n[1] ? 0.13 : 0.09), v[0] + (n[1] ? 0.13 : 0.09), v[1] - (n[0] ? 0.13 : 0.09), v[1] + (n[0] ? 0.13 : 0.09), z + dz + 0.11, z + dz + 0.14); } };
+  // signal mast: pole on the corner, an arm reaching over the lanes, heads over each lane facing the traffic
+  const mast = (x, y, dir, len, n, heads, name = null) => {
+    cyl(root, x, y, SW, 7.0, 0.16, 14); cyl(root, x, y, SW, 0.4, 0.3, 14);
+    const ex = x + dir[0] * len, ey = y + dir[1] * len; B(x, ex + dir[1] * 0.0 + (dir[0] ? 0 : 0.07), y, ey + (dir[1] ? 0 : 0.07), 6.3, 6.45);
+    B(x - (dir[0] ? 0 : 0.03), x + dir[0] * len * 0.35 + (dir[0] ? 0 : 0.03), y - (dir[1] ? 0 : 0.03), y + dir[1] * len * 0.35 + (dir[1] ? 0 : 0.03), 6.45, 6.5);
+    lines(root, [[[x, y, 7.0], [x + dir[0] * len * 0.45, y + dir[1] * len * 0.45, 6.45]]]);   // tie rod
+    for (const d of heads) head(x + dir[0] * d, y + dir[1] * d, 5.75, n);
+    if (name) { const o = [x + dir[0] * len * 0.55, y + dir[1] * len * 0.55, 6.85]; plate(rect(2.0, 0.42), off(o, n, 0.02), n, 0.03); text(name, 0.2, off(o, n, 0.06), n); B(o[0] - 0.02, o[0] + 0.02, o[1] - 0.02, o[1] + 0.02, 6.5, 6.65); }
+  };
+  // the junction of Airway Blvd and the side street
+  mast(113.6, -28.6, [0, -1], 8.2, [1, 0], [3.2, 6.6], "AIRWAY BLVD");     // for westbound traffic
+  mast(132.4, -46.4, [0, 1], 8.2, [-1, 0], [3.2, 6.6], "AIRWAY BLVD");     // eastbound
+  mast(132.4, -28.6, [-1, 0], 8.6, [0, -1], [3.4, 6.8], "STATION ST");     // northbound
+  mast(113.6, -46.4, [1, 0], 8.6, [0, 1], [3.4, 6.8], "STATION ST");       // southbound
+  // street name blades on two corner poles, both names, readable from both sides
+  for (const [x, y] of [[113.6, -28.6], [132.4, -46.4]]) {
+    for (const [str, n] of [["AIRWAY BLVD", [0, 1]], ["STATION ST", [1, 0]]]) { const z = str[0] === "A" ? 7.35 : 7.7;
+      plate(rect(1.7, 0.3, 0.03), off([x, y, z], n, -0.02), n, 0.04); text(str, 0.15, off([x, y, z], n, 0.04), n); text(str, 0.15, off([x, y, z], n, -0.04), [-n[0], -n[1], 0]); }
+    cyl(root, x, y, 7.0, 0.95, 0.05, 8);
+  }
+  // stop lines at the junction and the fire station's signal
+  const bar = (x0, x1, y0, y1) => B(x0, x1, y0, y1, RD, RD + 0.012);
+  bar(137.3, 137.7, -37.4, -30.1); bar(108.3, 108.7, -44.9, -37.6); bar(123.1, 130.9, -52.2, -51.8); bar(115.1, 122.9, -23.4, -23.0);
+  bar(29.0, 29.4, -37.4, -30.1); bar(-4.4, -4.0, -44.9, -37.6);
+  // the fire station's emergency signal: it stops the street when the trucks go out
+  mast(27.4, -28.6, [0, -1], 13.5, [1, 0], [3.6], "FIRE STATION");
+  for (const d of [12.2]) head(27.4, -28.6 - d, 5.75, [-1, 0]);
+  B(27.32, 27.48, -28.6 - 12.25, -28.6 - 12.15, 6.25, 6.3);
+  signPost(31, -28.9, [1, 0], 2.2, (o, n) => plate(rect(0.6, 0.75), o, n), [["STOP", 0.12, 0.2], ["HERE ON", 0.09, 0.02], ["RED", 0.12, -0.18]]);
+  signPost(-6, -46.1, [-1, 0], 2.2, (o, n) => plate(rect(0.6, 0.75), o, n), [["STOP", 0.12, 0.2], ["HERE ON", 0.09, 0.02], ["RED", 0.12, -0.18]]);
+  // KEEP CLEAR painted in each lane in front of the apron, read by the drivers coming toward it
+  if (font) for (const [y, fw] of [[-33.75, [-1, 0, 0]], [-41.25, [1, 0, 0]]]) {
+    const g = new TextGeometry("KEEP CLEAR", { font, size: 0.85, height: 0.01, curveSegments: 4 }); g.computeBoundingBox(); const bb = g.boundingBox;
+    g.translate(-(bb.max.x + bb.min.x) / 2, -(bb.max.y + bb.min.y) / 2, 0); place(g, [-fw[1], fw[0], 0].map(v => -v), fw, [0, 0, 1], [12.5, y, RD + 0.002]);
+  }
+  // yellow-diamond style warning signs ahead of the station, both directions, and the speed limit
+  signPost(82, -28.9, [1, 0], 2.4, (o, n) => plate(diamond(0.62), o, n), [["FIRE", 0.13, 0.1], ["STATION", 0.11, -0.12]]);
+  signPost(-42, -46.1, [-1, 0], 2.4, (o, n) => plate(diamond(0.62), o, n), [["FIRE", 0.13, 0.1], ["STATION", 0.11, -0.12]]);
+  for (const [x, y, n] of [[98, -28.9, [1, 0]], [-24, -46.1, [-1, 0]], [133.1, -60, [0, -1]]])
+    signPost(x, y, n, 2.2, (o, nn) => plate(rect(0.6, 0.78), o, nn), [["SPEED", 0.1, 0.26], ["LIMIT", 0.1, 0.12], [n[1] ? "25" : "35", 0.26, -0.13]]);
+  // street lights along both streets (pole, arm out over the road, lamp head)
+  const light = (x, y, n) => { cyl(root, x, y, SW, 8.0, 0.09, 10); cyl(root, x, y, SW, 0.5, 0.16, 10);
+    const ex = x + n[0] * 1.9, ey = y + n[1] * 1.9; B(x, ex + (n[0] ? 0 : 0.05), y, ey + (n[1] ? 0 : 0.05), 7.9, 7.98);
+    B(ex - (n[0] ? 0.45 : 0.17), ex + (n[0] ? 0.15 : 0.17), ey - (n[1] ? 0.45 : 0.17), ey + (n[1] ? 0.15 : 0.17), 7.75, 7.95); };
+  for (const x of [-45, -15, 45, 70, 105]) light(x, -29.6, [0, -1]);
+  for (const x of [-30, 5, 35, 65, 95, 150]) light(x, -45.4, [0, 1]);
+  for (const y of [-60, 40, 80, 120]) light(114.6, y, [1, 0]);
+  for (const y of [-62, 0, 40, 80, 120]) light(131.4, y, [-1, 0]);
+  // fire hydrants on the sidewalks
+  const hydrant = (x, y) => { cyl(root, x, y, SW, 0.08, 0.2, 12); cyl(root, x, y, SW + 0.08, 0.55, 0.13, 14); cyl(root, x, y, SW + 0.63, 0.06, 0.17, 14);
+    const d = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), M.white); d.position.copy(V(x, y, SW + 0.69)); root.add(d);
+    cyl(root, x, y, SW + 0.8, 0.06, 0.03, 6);
+    for (const s of [-1, 1]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.3, 10), M.white); c.rotation.z = Math.PI / 2; c.position.copy(V(x, y, SW + 0.45)); root.add(c); }
+    const f = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.14, 12), M.white); f.rotation.x = Math.PI / 2; f.position.copy(V(x, y - 0.17, SW + 0.42)); root.add(f); };
+  for (const [x, y] of [[33, -28.4], [-30, -28.4], [113.5, -22], [113.5, 45], [132.6, -51], [60, -46.6]]) hydrant(x, y);
+}
 export function buildScene(scene) {
   mats();
   const root = new THREE.Group();
@@ -500,7 +598,7 @@ export function buildScene(scene) {
   scene.add(new THREE.HemisphereLight(0xffffff, 0xdddddd, 2.3));
   const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(-50, 80, 90); scene.add(sun);
   const signRoot = new THREE.Group(); root.add(signRoot);
-  const finish = (font) => { sign(signRoot, font); brickUV(root); roofUV(root); outline(root); meetLines(root); };
+  const finish = (font) => { sign(signRoot, font); streets(signRoot, font); brickUV(root); roofUV(root); outline(root); meetLines(root); };
   return new Promise((res) => new FontLoader().load(new URL("./helvetiker_bold.typeface.json", import.meta.url).href,
     (font) => { finish(font); res(root); }, undefined, () => { finish(null); res(root); }));
 }
