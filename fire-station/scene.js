@@ -341,10 +341,19 @@ function slabH(root, pts, holes, z0, z1, mat = M.white) {
   const g = new THREE.ExtrudeGeometry(sh, { depth: z1 - z0, bevelEnabled: false, curveSegments: 32 });
   g.rotateX(-Math.PI / 2); const m = new THREE.Mesh(g, mat); m.position.y = z0; root.add(m); return m;
 }
-// low-poly tree like the school's: trunk + faceted crown (street-tree size: crown about 3.5-4.5 m wide, 5-6 m tall)
-function tree(root, x, y, r, h) {
-  const t = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.17, h, 6), M.white); t.position.copy(V(x, y, h / 2)); root.add(t);   // trunk runs up into the crown, so the crown sits on it
-  const c = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), M.white); c.scale.set(r, r * 1.1, r); c.position.copy(V(x, y, h)); c.rotation.y = (x * 7 + y * 3) % 6.28; root.add(c);
+// low-poly trees, mixed: the school's tree (one faceted ball), Ahmed's #3 oak (three balls) and #6 small round tree
+function tree(root, x, y, r, h, kind = 0) {
+  const T = (r0, r1, th) => { const t = new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, th, 6), M.white); t.position.copy(V(x, y, th / 2)); root.add(t); };
+  const ball = (geo, cx, cy, cz, sx, sz, ry) => { const c = new THREE.Mesh(geo, M.white); c.scale.set(sx, sz, sx); c.position.copy(V(cx, cy, cz)); c.rotation.y = ry; root.add(c); };
+  const ry = (x * 7 + y * 3) % 6.28;
+  if (kind === 1) {            // oak: a cluster of three balls, trunk up into the middle one
+    const q = r * 0.75, I = new THREE.IcosahedronGeometry(1, 0); T(0.15, 0.22, h);
+    ball(I, x, y, h, q, q, ry); ball(I, x - q * 0.9, y + q * 0.3, h - 0.7, q * 0.8, q * 0.8, ry + 1.1); ball(I, x + q * 0.85, y - q * 0.35, h - 0.6, q * 0.85, q * 0.8, ry + 2.3);
+  } else if (kind === 2) {     // small round tree: short trunk, rounded crown low down
+    const q = r * 0.85, hz = h * 0.65; T(0.12, 0.16, hz); ball(new THREE.DodecahedronGeometry(1, 0), x, y, hz, q, q * 0.95, ry);
+  } else {                     // the school's tree; the trunk runs up into the crown so the two touch
+    T(0.12, 0.17, h); ball(new THREE.IcosahedronGeometry(1, 0), x, y, h, r, r * 1.1, ry);
+  }
 }
 // plot fence, between the school's line fence and a solid one: slim posts every 3 m, a slim top rail, a bottom wire, pickets every 0.5 m
 function fenceRun(root, a, b, h = 1.6) {
@@ -430,7 +439,7 @@ function site(root) {
     lines(root, [10.85, 11.1, 11.35, 11.6].map(z => [[x + 0.9, 3.45, z], [x + 2.0, 3.45, z]]).concat([[[x + 0.9, 3.45, 11.1], [x + 0.9, 3.45, 11.8]]]));
   }
   plotFence(root);
-  for (const [x, y, r, h] of SITE.trees) tree(root, x, y, r, h);   // the school's trees, on the open ground
+  SITE.trees.forEach(([x, y, r, h], i) => tree(root, x, y, r, h, i % 3));   // the school's trees, on the open ground
 }
 
 // builds everything; resolves when the 3D letters are in
