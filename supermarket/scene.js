@@ -218,6 +218,22 @@ function slab(root, pts, z0, z1, mat) {
   const g = new THREE.ExtrudeGeometry(s, { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2);
   const m = new THREE.Mesh(g, mat); m.position.y = z0; m.castShadow = m.receiveShadow = true; root.add(m); return m;
 }
+// a tractor-trailer parked nose to +y, the trailer's back at yRear on the centre line x; every wheel stands on the ground (z 0)
+function truck(root, x, yRear) {
+  const y = yRear, wheel = (wx, wy, r = 0.5) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.32, 18), M.dark); m.rotation.z = Math.PI / 2; m.position.copy(V(wx, wy, r)); m.castShadow = true; root.add(m); };
+  // trailer: box body, rear bumper, landing legs, tandem axles at the back
+  box(root, x - 1.3, x + 1.3, y, y + 15.2, 1.25, 4.05, M.trailer);
+  box(root, x - 1.2, x + 1.2, y + 0.1, y + 0.3, 0.55, 0.75, M.metal);
+  for (const s of [-1, 1]) box(root, x + s * 0.95 - 0.07, x + s * 0.95 + 0.07, y + 11.8, y + 11.95, 0, 1.25, M.metal);
+  for (const ay of [y + 1.5, y + 2.8]) for (const s of [-1, 1]) wheel(x + s * 1.0, ay);
+  // tractor: chassis under the trailer's nose, cab with a windscreen, hood and bumper, steer axle and two drive axles
+  box(root, x - 0.5, x + 0.5, y + 12.3, y + 18.6, 0.55, 1.05, M.metal);
+  box(root, x - 1.25, x + 1.25, y + 15.4, y + 18.0, 1.05, 3.8, M.white);
+  box(root, x - 1.1, x + 1.1, y + 17.98, y + 18.04, 2.3, 3.5, M.glass);
+  box(root, x - 1.25, x + 1.25, y + 18.0, y + 18.6, 0.55, 1.8, M.white);
+  for (const s of [-1, 1]) { box(root, x + s * 1.3 - 0.06, x + s * 1.3 + 0.06, y + 15.7, y + 16.9, 1.5, 3.0, M.metal); box(root, x + s * 0.95 - 0.35, x + s * 0.95 + 0.35, y + 13.4, y + 15.3, 0.6, 1.2, M.metal); }   // mirrors, fuel tanks
+  for (const ay of [y + 12.9, y + 14.3, y + 17.4]) for (const s of [-1, 1]) wheel(x + s * 1.0, ay);
+}
 const TREES = [];   // (x, y, height): in BW each becomes the page's tree cut-out
 function tree(root, x, y, h = 7, r = 2.4) {
   TREES.push([x, y, h]);
@@ -366,10 +382,11 @@ function building(root) {
 
   // (7) dock: 2 doors on the east-facing wall of the notch, trailers, compactor, brick screen wall
   // (Ahmed) reversed: the doors face the service road behind the store, so a truck drives along the road, pulls past and backs straight in
-  for (const xx of [102.5, 109]) { box(root, xx - 1.5, xx + 1.5, 90.42, 90.5, 1.2, 4.0, M.dark); box(root, xx - 1.3, xx + 1.3, 90.7, 106.7, 1.2, 4.1, M.trailer); }
+  for (const xx of [102.5, 109]) { box(root, xx - 1.5, xx + 1.5, 90.42, 90.5, 1.2, 4.0, M.dark); truck(root, xx, 90.7); }   // two tractor-trailers backed onto the doors
   box(root, 94, 98.5, 90.6, 94.4, 0, 2.6, M.beige);   // compactor
-  wall(root, [96, 105.4], [82.7, 105.4], 0, 4.0, M.brick); wall(root, [82.7, 105.0], [96, 105.0], 0, 4.0, M.brick);   // screen wall behind the compactor
-  box(root, 82.7, 96, 105.0, 105.4, 4.0, 4.15, M.cap); box(root, 95.6, 96, 105, 105.4, 0, 4.0, M.brick);
+  // (Ahmed) a long screen wall on the side facing the green area, hiding the trucks; the drive stays open to the service road
+  wall(root, [117.4, 90.5], [117.4, 108], 0, 4.0, M.brick); wall(root, [117.8, 108], [117.8, 90.5], 0, 4.0, M.brick);
+  box(root, 117.4, 117.8, 90.5, 108, 4.0, 4.15, M.cap); box(root, 117.4, 117.8, 107.6, 108, 0, 4.0, M.brick);
 
 }
 
@@ -385,7 +402,8 @@ const PLOT = { x0: -14, x1: 183, y0: -156, y1: 120 };
 // fire brigade can drive all the way round the building and trucks never cross the customers' lot. US right-hand traffic.
 // Ahmed's mark-up: the front drive by the walk is exit only, the other one entry only; a second exit at the west corner on the
 // aisle along the west fence; side drives on the fire lane, the cross aisle and the side lot's top aisle; trucks at the back.
-const DRIVES = { front: [[-8.5, 0], [84.2, 92.1], [115, 122.3]], side: [[-91, -83], [-22.8, -15], [67.2, 74.5], [110, 117.3]] };
+const DRIVES = { front: [[-8.5, 0], [84.2, 92.1], [115, 122.3]], side: [[-91, -83], [-21.3, -13.5], [67.2, 74.5], [110, 117.3]] };   // the fire-lane drive is centred on the aisle between the front lot and the side lot (Ahmed)
+const GATE_SLIDE = { front: [1, -1, 1], side: [-1, -1, 1, -1] };   // sliding gates (Ahmed): which way each one rolls open along the fence
 const FRONT_KIND = ["exit", "exit", "entry"];   // gaps in the fence, kerb and front planting
 const SRV = { w0: -12, w1: -4.7, b0: 110, b1: 117.3 };   // service road: west leg x w0..w1 (y -22.8..b1), back leg y b0..b1 (x w0..178)
 const WALK = [92.1, 96.1];   // the walk to the entrance, on the entrance axis, with a gate in the front fence
@@ -403,8 +421,16 @@ function fenceRun(root, a, b, h = 1.6) {
   for (let d = 0.5; d < L - 0.1; d += 0.5) { const x = x0 + (x1 - x0) * d / L, y = y0 + (y1 - y0) * d / L; s.push([[x, y, 0.15], [x, y, h - 0.05]]); }
   segs(root, s);
 }
+// sliding gate: a fence panel as long as the opening, rolled open along the inside of the fence (dir +1/-1), and its track across the opening
+function slidingGate(root, along, g0, g1, dir) {
+  const P = PLOT, w = g1 - g0, a = g0 + dir * w, b = g1 + dir * w;
+  if (along === "x") { const y = P.y0 + 0.35; fenceRun(root, [a, y], [b, y], 1.8); box(root, a, b, y - 0.03, y + 0.03, 0.08, 0.16, M.white); segs(root, [[[g0, P.y0 + 0.35, 0.01], [g1, P.y0 + 0.35, 0.01]]]); }
+  else { const x = P.x1 - 0.35; fenceRun(root, [x, a], [x, b], 1.8); box(root, x - 0.03, x + 0.03, a, b, 0.08, 0.16, M.white); segs(root, [[[x, g0, 0.01], [x, g1, 0.01]]]); }
+}
 function plotFence(root) {
   const P = PLOT;
+  DRIVES.front.forEach(([a, b], k) => slidingGate(root, "x", a, b, GATE_SLIDE.front[k]));
+  DRIVES.side.forEach(([a, b], k) => slidingGate(root, "y", a, b, GATE_SLIDE.side[k]));
   const FG = [...DRIVES.front, WALK].sort((a, b) => a[0] - b[0]);
   for (const [a, b] of minus(P.x0, P.x1, FG)) fenceRun(root, [a, P.y0], [b, P.y0]);
   box(root, WALK[1] - 0.08, WALK[1] + 0.08, P.y0 - 0.08, P.y0 + 0.08, 0, 1.8, M.white);   // the walk gate's far post (the near one is the drive's)
@@ -597,22 +623,23 @@ function parking(root) {
   }
   // side lot: rows on the same lines as the front lot's (Ahmed): bay 122.3 east half only (its west half is the aisle by the store), 140.6, 158.9
   for (const bx of [122.3, 140.6, 158.9]) {
-    rowsAt(bx + 5.5, -2.8, 64, null, { half: 1, y0: -2.8 + 12 * 2.7 }, bx === 122.3 ? 1 : 0);
+    rowsAt(bx + 5.5, -8.8, 64, null, { half: 1, y0: -8.8 + 12 * 2.7 }, bx === 122.3 ? 1 : 0);   // starts on the line of the end of the store sidewalk, y -12 (Ahmed)
     const x0 = bx === 122.3 ? bx + 5.5 : bx;
-    for (const [y0, y1] of [[-6, -2.8], [64, 67.2]]) slab(root, [[x0, y0], [bx + 11, y0], [bx + 11, y1], [x0, y1]], 0, 0.15, M.plant);
+    for (const [y0, y1] of [[-12, -8.8], [64, 67.2]]) slab(root, [[x0, y0], [bx + 11, y0], [bx + 11, y1], [x0, y1]], 0, 0.15, M.plant);
   }
   // single row along the east fence (plot widened 5 m for it), on the same lines as the blocks and the side lot
-  for (const [ya, yb] of [[-80.3, -26], [-148, -93.7], [-2.8, 64]]) {
+  for (const [ya, yb] of [[-80.3, -26], [-148, -93.7], [-8.8, 64]]) {
     for (let y = ya; y <= yb + 0.01; y += 2.7) lineAt(177.5, y, 183, y);
     lineAt(177.5, ya, 177.5, yb, 0.06);
   }
-  for (const [y0, y1] of [[-83, -80.3], [-93.7, -91], [-26, -22.8], [-6, -2.8], [64, 67.2]]) slab(root, [[177.5, y0], [183, y0], [183, y1], [177.5, y1]], 0, 0.15, M.plant);
+  for (const [y0, y1] of [[-83, -80.3], [-93.7, -91], [-26, -22.8], [-12, -8.8], [64, 67.2]]) slab(root, [[177.5, y0], [183, y0], [183, y1], [177.5, y1]], 0, 0.15, M.plant);
   // single row along the west fence, on the same lines as the blocks
   for (const [ya, yb] of [[-80.3, -26], [-148, -93.7]]) {
     for (let y = ya; y <= yb + 0.01; y += 2.7) lineAt(-14, y, -8.5, y);
     lineAt(-8.5, ya, -8.5, yb, 0.06);
   }
-  for (const [y0, y1] of [[-83, -80.3], [-93.7, -91], [-26, -22.8]]) slab(root, [[-14, y0], [-8.5, y0], [-8.5, y1], [-14, y1]], 0, 0.15, M.plant);
+  for (const [y0, y1] of [[-93.7, -80.3], [-26, -22.8]]) slab(root, [[-14, y0], [-8.5, y0], [-8.5, y1], [-14, y1]], 0, 0.15, M.plant);
+  tree(root, -11.25, -87, 7, 2.2);   // the cross aisle ends on a planted island with a tree, not an empty corner (Ahmed)
   // the walk: from the front gate to the fire lane, cut where it crosses the cross aisle; zebra crossings on both crossings
   // curb ramps (ADA: 1:12, 1.8 m for the 0.15 m kerb, 1.2 m wide minimum, a band of truncated domes at the foot) at both ends
   // of each crossing: cut into the walk, and into the store sidewalk in front of the walk
