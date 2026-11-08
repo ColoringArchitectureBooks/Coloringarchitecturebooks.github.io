@@ -45,8 +45,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { mapTouch } from "./touch.js?v=4";
-import { buildScene, V, FIRE } from "./scene.js?v=10";
-import { sirenStart, sirenUpdate, sirenStop } from "./siren.js?v=1";
+import { buildScene, V, FIRE } from "./scene.js?v=11";
+import { sirenStart, sirenUpdate, sirenStop } from "./siren.js?v=2";
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -88,7 +88,11 @@ FIRE.onEnd = () => { sirenStop(); callBtn.setAttribute("aria-pressed", "false");
 let last = performance.now();
 renderer.setAnimationLoop(() => {
   const now = performance.now(), dt = Math.min(0.05, (now - last) / 1000); last = now;
-  const p = FIRE.tick(dt); if (p) sirenUpdate(camera.position.distanceTo(p), FIRE.v);
+  const p = FIRE.tick(dt);
+  if (p) {   // how far the truck is, and whether it is to the left or right of the view, for the sound
+    const d = camera.position.distanceTo(p), right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+    sirenUpdate(d, FIRE.v, right.dot(p.clone().sub(camera.position)) / Math.max(1, d));
+  }
   controls.update(); renderer.render(scene, camera);
 });
 </script>

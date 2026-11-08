@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { FontLoader } from "three/addons/loaders/FontLoader.js";
 import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
 import { parkCars } from "./cars.js?v=2";
+import { fireTruck, flashLights, lightsOff } from "./firetruck.js?v=1";
 
 export const V = (x, y, z) => new THREE.Vector3(x, z, -y);
 
@@ -490,11 +491,10 @@ function site(root) {
 // Airway Blvd, then west along the street until it is out of sight; a moment later it is back in its bay.
 export const FIRE = { group: null, s: -1, v: 0, t: 0, lights: null, onEnd: null };
 function callOut(root, cx) {
-  const L = [new THREE.MeshBasicMaterial({ color: 0xffffff }), new THREE.MeshBasicMaterial({ color: 0xffffff })];
-  const g = new THREE.Group(); truck(g, 0, -4.5, "engine", L); root.add(g);
-  const R = 7.75, y1 = -26, lane = y1 - R, L1 = 5.7 - y1, L2 = Math.PI * R / 2, END = L1 + L2 + (cx - R + 80);
+  const T = fireTruck("engine"), g = T.group; root.add(g);
+  const y0 = 6.6, R = 7.75, y1 = -26, lane = y1 - R, L1 = y0 - y1, L2 = Math.PI * R / 2, END = L1 + L2 + (cx - R + 80);
   const at = (s) => {        // position (plan) and heading at distance s along the path
-    if (s <= L1) return [cx, 5.7 - s, -Math.PI / 2];
+    if (s <= L1) return [cx, y0 - s, -Math.PI / 2];
     if (s <= L1 + L2) { const th = -(s - L1) / R; return [cx - R + R * Math.cos(th), y1 + R * Math.sin(th), Math.atan2(-Math.cos(th), Math.sin(th))]; }
     return [cx - R - (s - L1 - L2), lane, Math.PI];
   };
@@ -502,21 +502,21 @@ function callOut(root, cx) {
     const z = y > -29.5 ? 0 : y < -30.5 ? -0.09 : -0.09 * (-29.5 - y);   // the apron top is 0.06, the street -0.03: tyres stay on the surface
     g.position.copy(V(x, y, z)); g.rotation.y = h + Math.PI / 2; };
   place(0);
-  Object.assign(FIRE, { group: g, lights: L, END, place, L1, L2 });
+  Object.assign(FIRE, { group: g, lights: T.lights, wheels: T.wheels, wr: T.r, END, place, L1, L2 });
 }
 FIRE.start = () => { if (FIRE.s >= 0) return false; FIRE.s = 0; FIRE.v = 0; FIRE.t = 0; return true; };
 // advance by dt seconds; returns the truck's world position while it is out, or null when it is home
 FIRE.tick = (dt) => {
   if (!FIRE.group || FIRE.s < 0) return null;
   FIRE.t += dt;
-  const flash = Math.floor(FIRE.t / 0.18) % 2;                       // light bar: the two halves swap black and white
-  FIRE.lights[0].color.setHex(flash ? 0x111111 : 0xffffff); FIRE.lights[1].color.setHex(flash ? 0xffffff : 0x111111);
+  flashLights(FIRE.lights, FIRE.t);                                  // all the warning lamps double-flash, left and right in turn
   if (FIRE.t > 1.2) {                                                // a moment with the siren on before it pulls out
     const target = FIRE.s < FIRE.L1 - 4 ? 6 : FIRE.s < FIRE.L1 + FIRE.L2 ? 5 : 13;
     FIRE.v += Math.max(-4 * dt, Math.min(2.5 * dt, target - FIRE.v)); FIRE.s += FIRE.v * dt;
+    for (const w of FIRE.wheels) w.rotation.x -= FIRE.v * dt / FIRE.wr;   // the wheels roll
   }
   if (FIRE.s > FIRE.END + 40) {                                      // gone: back home in its bay, lights off
-    FIRE.s = -1; FIRE.place(0); FIRE.group.visible = true; for (const m of FIRE.lights) m.color.setHex(0xffffff); if (FIRE.onEnd) FIRE.onEnd(); return null;
+    FIRE.s = -1; FIRE.place(0); FIRE.group.visible = true; lightsOff(FIRE.lights); if (FIRE.onEnd) FIRE.onEnd(); return null;
   }
   FIRE.group.visible = FIRE.s < FIRE.END; FIRE.place(Math.min(FIRE.s, FIRE.END));
   return FIRE.group.position;
@@ -528,7 +528,9 @@ export function buildScene(scene) {
   const root = new THREE.Group();
   hall(root);
   const bc = D.bays.map(([a, b]) => (a + b) / 2);
-  callOut(root, bc[0]); truck(root, bc[1], 1.2, "ladder"); truck(root, bc[2], 1.2, "engine"); truck(root, bc[3], 1.6, "ambulance");
+  callOut(root, bc[0]);
+  for (const [x, kind, y] of [[bc[1], "ladder", 7.4], [bc[2], "engine", 6.6]]) { const t = fireTruck(kind); t.group.position.copy(V(x, y, 0)); root.add(t.group); }   // noses just inside the bays
+  truck(root, bc[3], 1.6, "ambulance");
   wings(root); garage(root); site(root);
   scene.add(root);
   scene.background = new THREE.Color(0xffffff);
