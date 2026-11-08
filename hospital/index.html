@@ -63,11 +63,11 @@ const sun = new THREE.DirectionalLight(0xffffff, 0.6);
 sun.position.set(-20, 40, 35);
 scene.add(sun);
 
-const camera = new THREE.PerspectiveCamera(45, 1, 0.5, 700);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.5, 1500);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.minDistance = 8;
-controls.maxDistance = 200;
+controls.maxDistance = 400;
 controls.maxPolarAngle = Math.PI / 2 - 0.03;   // stay above the ground
 controls.autoRotateSpeed = 1.2;
 
@@ -103,8 +103,8 @@ resize();
 setView(VIEWS.start);
 
 // Plain ground that fades into the white page, with no outline.
-scene.fog = new THREE.Fog(0xffffff, 170, 380);
-const ground = new THREE.Mesh(new THREE.CircleGeometry(400, 64), new THREE.MeshBasicMaterial({ color: 0xf3f3f1 }));
+scene.fog = new THREE.Fog(0xffffff, 380, 800);
+const ground = new THREE.Mesh(new THREE.CircleGeometry(900, 64), new THREE.MeshBasicMaterial({ color: 0xf3f3f1 }));
 ground.rotation.x = -Math.PI / 2;
 ground.position.y = -0.02;
 scene.add(ground);
