@@ -43,9 +43,37 @@ function brickTexture() {   // 4 m wide x 16 m high tile: stone base 0..1 m, bri
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping;
   t.anisotropy = 8; t.repeat.set(1 / 4, 1 / 16); return t;
 }
+function roofTexture() {   // 4 m along the ridge x 2.4 m up the slope: a thin course line every 0.4 m, tile joints staggered every 0.6 m (light, like the brick)
+  const pm = 64, w = 4 * pm, h = 2.4 * pm, c = document.createElement("canvas"); c.width = w; c.height = h;
+  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.strokeStyle = "#000"; g.lineWidth = 1.2;
+  for (let r = 0; r < 6; r++) { const y = h - r * 0.4 * pm - 0.5;
+    g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke();
+    g.lineWidth = 0.8; for (let x = (r % 2) * 0.3; x < 4; x += 0.6) { g.beginPath(); g.moveTo(x * pm, y); g.lineTo(x * pm, y - 0.4 * pm); g.stroke(); } g.lineWidth = 1.2; }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 8; t.repeat.set(1 / 4, 1 / 2.4); return t;
+}
+// roof UVs in world metres on every sloped face: u along the ridge, v up the slope (so the courses run parallel to the eave);
+// flat, vertical and underside faces get a blank spot between two courses
+function roofUV(root) {
+  root.updateMatrixWorld(true);
+  const up = new THREE.Vector3(0, 1, 0), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3(), r = new THREE.Vector3(), sl = new THREE.Vector3();
+  root.traverse(o => {
+    if (!o.isMesh || o.material !== M.roof) return;
+    if (o.geometry.index) o.geometry = o.geometry.toNonIndexed();
+    const pos = o.geometry.attributes.position, uv = new THREE.BufferAttribute(new Float32Array(pos.count * 2), 2);
+    for (let i = 0; i < pos.count; i += 3) {
+      a.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld); b.fromBufferAttribute(pos, i + 1).applyMatrix4(o.matrixWorld); c.fromBufferAttribute(pos, i + 2).applyMatrix4(o.matrixWorld);
+      n.subVectors(b, a).cross(c.clone().sub(a)).normalize();
+      const slope = n.y > 0.15 && n.y < 0.97;
+      if (slope) { r.crossVectors(up, n).normalize(); sl.copy(up).addScaledVector(n, -n.dot(up)).normalize(); }
+      [a, b, c].forEach((p, k) => slope ? uv.setXY(i + k, p.dot(r), p.dot(sl)) : uv.setXY(i + k, 0.31, 0.2));
+    }
+    o.geometry.setAttribute("uv", uv);
+  });
+}
 function mats() {
   const L = (o) => new THREE.MeshLambertMaterial({ side: THREE.DoubleSide, color: 0xffffff, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, ...o });
-  M.white = L({}); M.roof = L({}); M.ground = L({}); M.brick = L({ map: brickTexture() });
+  M.white = L({}); M.roof = L({ map: roofTexture() }); M.ground = L({}); M.brick = L({ map: brickTexture() });
   M.line = new THREE.LineBasicMaterial({ color: 0x000000 });
 }
 // brick UVs in world metres: u along the wall, v = height (so courses line up all round the building)
@@ -124,7 +152,6 @@ function house(root, x0, x1, y0, y1, e, pitch, along, emblems = [], ends = [0.35
   if (along === "y") { elev(root, body, y0, y1, M.brick).userData.house = HOUSE; elev(root, roof, y0 - e0, y1 + e1, M.roof).userData.house = HOUSE; }
   else { side(root, body, x0, x1, M.brick).userData.house = HOUSE; side(root, roof, x0 - e0, x1 + e1, M.roof).userData.house = HOUSE; }
   HOUSE++;
-  roofCourses(root, along, a0 - o, mid, a1 + o, e - o * k + t, e + r + t, along === "y" ? y0 - e0 : x0 - e0, along === "y" ? y1 + e1 : x1 + e1);
   const size = Math.min(r * 0.8, 2.0), ez = e + r * 0.38;
   for (const f of emblems) {
     if (f === "+x" || f === "-x") emblem(root, f === "+x" ? x1 + 0.05 : x0 - 0.05, mid, ez, size, f);
@@ -229,7 +256,6 @@ function hall(root) {
   }
   { const k = (G.peak - G.z0) / ((G.x1 - G.x0) / 2), o = 0.35, t = 0.4, mid = (G.x0 + G.x1) / 2, zl = G.z0 - o * k;
     elev(root, [[G.x0 - o, zl], [mid, G.peak], [G.x1 + o, zl], [G.x1 + o, zl + t], [mid, G.peak + t], [G.x0 - o, zl + t]], -0.4, G.depth + 0.3, M.roof);   // roof + rake in one piece
-    roofCourses(root, "y", G.x0 - o, mid, G.x1 + o, zl + t, G.peak + t, -0.4, G.depth + 0.3);
     elev(root, [[G.x0, H.h], [G.x1, H.h], [G.x1, G.z0], [mid, G.peak], [G.x0, G.z0]], 0.4, G.depth - 0.4, M.brick);
     // the whole back (towers + hall + gable) is one wall, so there are no seams across it
     const tw = D.tower.w, th = D.tower.h;
@@ -258,7 +284,7 @@ function hall(root) {
 // ---------- fire trucks in the bays (page): engine, ladder truck, engine, ambulance ----------
 function wheel(root, x, y) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.35, 24), M.white); w.rotation.z = Math.PI / 2; w.position.copy(V(x, y, 0.56)); root.add(w);   // tyres touch the hall floor (top 0.06)
   const h = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.38, 16), M.white); h.rotation.z = Math.PI / 2; h.position.copy(V(x, y, 0.56)); root.add(h); }
-function truck(root, cx, y0, kind) {
+function truck(root, cx, y0, kind, lights = null) {   // lights: two materials for the two halves of the light bar (they flash on a call-out)
   const amb = kind === "ambulance", hw = amb ? 1.12 : 1.22, top = amb ? 3.2 : 3.0;
   if (amb) {
     box(root, cx - hw, cx + hw, y0 + 0.9, y0 + 2.4, 0.45, 2.6);                  // cab
@@ -274,7 +300,8 @@ function truck(root, cx, y0, kind) {
     opening(root, "-y", y0, cx - hw + 0.15, cx + hw - 0.15, 1.75, 2.75, 2, 1, false);   // windscreen
     box(root, cx - 0.6, cx + 0.6, y0 - 0.06, y0, 0.75, 1.55);                     // grille
     lines(root, [0.95, 1.15, 1.35].map(z => [[cx - 0.5, y0 - 0.07, z], [cx + 0.5, y0 - 0.07, z]]));
-    box(root, cx - 0.9, cx + 0.9, y0 + 0.3, y0 + 1.2, top, top + 0.22);          // light bar
+    if (lights) { box(root, cx - 0.9, cx - 0.02, y0 + 0.3, y0 + 1.2, top, top + 0.22, lights[0]); box(root, cx + 0.02, cx + 0.9, y0 + 0.3, y0 + 1.2, top, top + 0.22, lights[1]); }
+    else box(root, cx - 0.9, cx + 0.9, y0 + 0.3, y0 + 1.2, top, top + 0.22);          // light bar
     for (const s of [-1, 1]) {
       lines(root, [2.6, 4.3, 6.0, 7.7].map(y => [[cx + s * (hw + 0.01), y0 + y, 0.9], [cx + s * (hw + 0.01), y0 + y, 2.6]]));   // locker doors
       lines(root, [[[cx + s * (hw + 0.01), y0 + 2.6, 2.6], [cx + s * (hw + 0.01), y0 + 9, 2.6]], [[cx + s * (hw + 0.01), y0 + 2.6, 0.9], [cx + s * (hw + 0.01), y0 + 9, 0.9]]]);
@@ -349,7 +376,7 @@ function garage(root) {
 }
 
 // ---------- site ----------
-const SITE = {"walk":[{"o":[[0.0,29.0],[-5.0,29.0],[-5.0,-0.6],[0.0,-0.6],[0.0,-1.6],[-6.0,-1.6],[-6.0,30.0],[0.0,30.0]],"h":[]},{"o":[[41.0,49.0],[41.0,30.0],[63.0,30.0],[63.0,11.082],[63.224,11.345],[63.471,11.586],[63.739,11.804],[64.026,11.997],[64.33,12.163],[64.647,12.301],[64.975,12.409],[65.312,12.487],[65.655,12.534],[66.0,12.55],[66.345,12.534],[66.688,12.487],[67.025,12.409],[67.353,12.301],[67.67,12.163],[67.974,11.997],[68.261,11.804],[68.529,11.586],[68.776,11.345],[69.001,11.082],[69.2,10.799],[69.373,10.5],[72.5,10.5],[72.5,62.0],[26.0,62.0],[26.0,65.0],[72.5,65.0],[72.5,90.0],[76.0,90.0],[76.0,10.5],[112.0,10.5],[112.0,7.0],[69.373,7.0],[69.2,6.701],[69.001,6.418],[68.776,6.155],[68.529,5.914],[68.261,5.696],[67.974,5.503],[67.67,5.337],[67.353,5.199],[67.025,5.091],[66.688,5.013],[66.345,4.966],[66.0,4.95],[65.655,4.966],[65.312,5.013],[64.975,5.091],[64.647,5.199],[64.33,5.337],[64.026,5.503],[63.739,5.696],[63.471,5.914],[63.224,6.155],[62.999,6.418],[62.8,6.701],[62.627,7.0],[56.5,7.0],[56.5,4.5],[50.0,4.5],[50.0,-0.5],[31.0,-0.5],[31.0,-1.6],[25.0,-1.6],[25.0,-0.6],[30.0,-0.6],[30.0,0.5],[49.0,0.5],[49.0,5.5],[55.5,5.5],[55.5,12.0],[62.0,12.0],[62.0,29.0],[40.0,29.0],[40.0,48.0],[26.0,48.0],[26.0,29.0],[25.0,29.0],[25.0,49.0]],"h":[[[56.5,11.0],[56.5,10.5],[62.627,10.5],[62.8,10.799],[62.942,11.0]]]},{"o":[[5.0,89.0],[5.0,86.5],[4.0,86.5],[4.0,88.0],[-11.0,88.0],[-11.0,66.0],[4.0,66.0],[4.0,68.0],[5.0,68.0],[5.0,65.0],[-12.0,65.0],[-12.0,89.0]],"h":[]}],"trees":[[32.6,-20.07,1.49,4.58,2],[32.57,-14.31,1.52,4.83,2],[27.93,-21.46,1.48,4.67,2],[28.87,-13.91,1.39,4.23,2],[31.22,-22.29,1.53,4.21,2],[40.68,-7.65,2.27,5.55,0],[39.37,-11.04,1.82,4.43,0],[35.75,-6.94,1.58,4.19,2],[95.23,-17.93,1.91,4.67,0],[99.71,-21.52,1.68,4.62,1],[100.84,-15.46,1.42,4.73,2],[103.23,-19.22,1.61,4.69,1],[102.1,-22.81,1.38,4.49,2],[103.88,-15.83,1.6,4.51,2],[84.66,-6.18,1.51,4.85,2],[89.41,-8.2,1.99,5.27,1],[87.42,-5.14,1.85,5.17,0],[105.56,-5.54,1.44,4.29,2],[107.58,-2.97,1.65,4.69,0],[-16.23,-21.84,2.16,5.49,0],[-13.92,-18.6,1.56,4.47,2],[-18.14,-19.25,1.34,3.95,2],[-15.03,7.73,1.56,4.55,2],[-17.71,9.52,1.35,4.35,2],[-17.51,5.77,1.74,4.72,0],[-15.87,48.28,1.97,4.6,1],[-17.83,45.98,1.38,4.49,2],[-15.06,45.43,1.56,4.58,2],[-16.67,79.4,1.47,4.19,2],[-15.45,83.88,1.69,4.34,2],[-18.01,82.7,1.32,4.48,2],[48.11,39.52,2.06,5.41,1],[55.37,35.89,2.21,5.14,1],[51.96,37.34,2.0,5.32,1],[55.35,43.1,1.52,4.88,2],[53.96,40.01,1.62,4.35,1],[63.5,52.98,1.36,4.51,2],[66.27,54.2,2.23,5.08,1],[67.25,49.97,1.61,4.72,1],[58.9,36.63,1.83,5.2,0],[61.81,35.71,1.59,4.59,2],[33.97,83.51,1.65,4.73,2],[30.27,81.86,1.32,4.4,2],[32.12,79.1,2.29,4.92,0],[38.34,77.87,2.15,5.16,1],[28.78,78.23,1.62,4.7,1],[33.84,74.83,1.83,4.91,0],[55.52,74.17,1.59,4.87,2],[60.66,77.33,2.0,5.03,0],[55.28,78.88,1.61,4.82,2],[59.04,80.52,1.61,4.26,2],[43.47,70.96,1.69,4.32,2],[47.4,68.52,1.92,4.84,0],[109.02,38.46,1.89,4.69,0],[107.24,40.9,1.7,4.49,1],[109.66,41.05,1.32,4.23,2],[92.0,85.73,1.36,4.29,2],[91.58,82.38,1.96,5.16,0],[98.5,79.05,1.4,4.69,2],[97.52,83.47,1.5,4.57,2],[89.61,78.12,1.53,4.88,2],[108.32,77.65,2.03,4.68,1],[105.98,81.78,1.82,4.7,1],[43.56,101.44,1.46,4.18,2],[37.0,101.18,1.41,4.61,2],[40.61,101.56,1.85,4.88,1],[83.74,101.82,1.46,4.61,2],[81.12,100.84,1.58,4.37,2],[87.51,100.88,1.58,4.98,2]]};
+const SITE = {"walk":[{"o":[[0.0,29.0],[-5.0,29.0],[-5.0,-0.6],[0.0,-0.6],[0.0,-1.6],[-6.0,-1.6],[-6.0,30.0],[0.0,30.0]],"h":[]},{"o":[[41.0,49.0],[41.0,30.0],[63.0,30.0],[63.0,11.082],[63.224,11.345],[63.471,11.586],[63.739,11.804],[64.026,11.997],[64.33,12.163],[64.647,12.301],[64.975,12.409],[65.312,12.487],[65.655,12.534],[66.0,12.55],[66.345,12.534],[66.688,12.487],[67.025,12.409],[67.353,12.301],[67.67,12.163],[67.974,11.997],[68.261,11.804],[68.529,11.586],[68.776,11.345],[69.001,11.082],[69.2,10.799],[69.373,10.5],[72.5,10.5],[72.5,62.0],[26.0,62.0],[26.0,65.0],[72.5,65.0],[72.5,90.0],[76.0,90.0],[76.0,10.5],[112.0,10.5],[112.0,7.0],[69.373,7.0],[69.2,6.701],[69.001,6.418],[68.776,6.155],[68.529,5.914],[68.261,5.696],[67.974,5.503],[67.67,5.337],[67.353,5.199],[67.025,5.091],[66.688,5.013],[66.345,4.966],[66.0,4.95],[65.655,4.966],[65.312,5.013],[64.975,5.091],[64.647,5.199],[64.33,5.337],[64.026,5.503],[63.739,5.696],[63.471,5.914],[63.224,6.155],[62.999,6.418],[62.8,6.701],[62.627,7.0],[56.5,7.0],[56.5,4.5],[50.0,4.5],[50.0,-0.5],[31.0,-0.5],[31.0,-1.6],[25.0,-1.6],[25.0,-0.6],[30.0,-0.6],[30.0,0.5],[49.0,0.5],[49.0,5.5],[55.5,5.5],[55.5,12.0],[62.0,12.0],[62.0,29.0],[40.0,29.0],[40.0,48.0],[26.0,48.0],[26.0,29.0],[25.0,29.0],[25.0,49.0]],"h":[[[56.5,11.0],[56.5,10.5],[62.627,10.5],[62.8,10.799],[62.942,11.0]]]},{"o":[[5.0,89.0],[5.0,86.5],[4.0,86.5],[4.0,88.0],[-11.0,88.0],[-11.0,66.0],[4.0,66.0],[4.0,68.0],[5.0,68.0],[5.0,65.0],[-12.0,65.0],[-12.0,89.0]],"h":[]}],"trees":[[95.0,-17.46,1.92,5.2,1],[102.31,-13.17,1.55,4.29,2],[99.5,-20.34,2.28,5.4,1],[103.16,-23.97,1.39,4.22,2],[105.54,-16.38,1.64,4.55,2],[106.22,-20.68,1.38,4.71,2],[84.11,-7.26,1.33,4.43,2],[88.37,-10.04,1.82,4.43,0],[90.72,-7.81,1.57,4.32,2],[105.03,-4.17,2.05,4.74,1],[109.21,-2.41,1.54,4.81,2],[-16.62,-18.46,2.01,4.8,0],[-13.77,-20.32,1.46,4.26,2],[-16.83,-21.14,1.31,3.93,2],[-13.88,6.66,2.02,4.68,0],[-17.31,6.69,1.54,4.21,2],[-16.78,10.34,1.37,4.69,2],[-17.07,46.32,1.88,4.68,1],[-17.71,49.52,1.35,4.35,2],[-14.4,46.29,1.36,4.39,2],[-16.3,84.09,1.35,3.95,2],[-15.41,80.19,1.5,4.37,2],[-17.83,79.98,1.38,4.49,2],[48.18,36.66,1.53,4.24,2],[55.09,37.58,1.37,4.45,2],[52.96,42.19,1.78,4.46,0],[47.6,44.24,1.58,4.69,2],[56.18,40.8,1.49,4.24,2],[67.25,53.1,2.29,5.63,0],[62.86,54.12,2.14,5.35,1],[64.83,49.99,2.0,5.03,1],[57.69,35.92,2.13,5.52,0],[62.33,34.34,1.91,4.91,1],[35.4,74.38,1.4,4.22,2],[32.22,84.33,1.51,4.79,2],[38.78,82.73,1.54,4.75,2],[41.48,81.89,1.49,4.22,2],[29.53,80.15,1.68,4.61,2],[32.06,75.66,1.59,4.42,2],[61.47,77.22,2.04,4.97,0],[59.7,81.18,1.6,4.24,2],[60.58,73.45,1.55,4.51,2],[57.78,78.42,1.92,4.73,1],[43.31,69.04,1.63,4.34,2],[47.08,68.34,1.79,4.88,1],[107.61,37.52,1.41,4.2,2],[108.72,40.18,1.78,4.4,1],[106.41,42.18,1.35,4.35,2],[94.55,80.48,1.67,4.59,2],[96.26,77.65,2.18,5.49,1],[98.63,80.74,1.58,4.83,2],[90.57,83.84,1.6,4.99,2],[94.64,83.35,1.61,4.6,1],[108.52,78.41,1.73,4.5,0],[108.23,82.53,1.39,4.14,2],[42.06,100.91,1.32,4.38,2],[37.28,101.34,1.52,4.52,2],[82.11,101.63,1.53,4.56,2],[87.21,101.42,1.68,4.91,1],[84.76,102.14,1.32,4.07,2]]};
 function slabH(root, pts, holes, z0, z1, mat = M.white) {
   const sh = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
   for (const h of holes) sh.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y))));
@@ -458,20 +485,57 @@ function site(root) {
   for (const [x, y, r, h, kind] of SITE.trees) tree(root, x, y, r, h, kind);   // planted in groups (layout-scripts/fire-site.py)   // the school's trees, on the open ground
 }
 
+// ---------- call-out: the engine in bay 1 drives out with its siren on and the light bar flashing ----------
+// Its path (centre of the truck): straight out of the bay and across the apron, a right turn into the near lane of
+// Airway Blvd, then west along the street until it is out of sight; a moment later it is back in its bay.
+export const FIRE = { group: null, s: -1, v: 0, t: 0, lights: null, onEnd: null };
+function callOut(root, cx) {
+  const L = [new THREE.MeshBasicMaterial({ color: 0xffffff }), new THREE.MeshBasicMaterial({ color: 0xffffff })];
+  const g = new THREE.Group(); truck(g, 0, -4.5, "engine", L); root.add(g);
+  const R = 7.75, y1 = -26, lane = y1 - R, L1 = 5.7 - y1, L2 = Math.PI * R / 2, END = L1 + L2 + (cx - R + 80);
+  const at = (s) => {        // position (plan) and heading at distance s along the path
+    if (s <= L1) return [cx, 5.7 - s, -Math.PI / 2];
+    if (s <= L1 + L2) { const th = -(s - L1) / R; return [cx - R + R * Math.cos(th), y1 + R * Math.sin(th), Math.atan2(-Math.cos(th), Math.sin(th))]; }
+    return [cx - R - (s - L1 - L2), lane, Math.PI];
+  };
+  const place = (s) => { const [x, y, h] = at(Math.max(0, s));
+    const z = y > -29.5 ? 0 : y < -30.5 ? -0.09 : -0.09 * (-29.5 - y);   // the apron top is 0.06, the street -0.03: tyres stay on the surface
+    g.position.copy(V(x, y, z)); g.rotation.y = h + Math.PI / 2; };
+  place(0);
+  Object.assign(FIRE, { group: g, lights: L, END, place, L1, L2 });
+}
+FIRE.start = () => { if (FIRE.s >= 0) return false; FIRE.s = 0; FIRE.v = 0; FIRE.t = 0; return true; };
+// advance by dt seconds; returns the truck's world position while it is out, or null when it is home
+FIRE.tick = (dt) => {
+  if (!FIRE.group || FIRE.s < 0) return null;
+  FIRE.t += dt;
+  const flash = Math.floor(FIRE.t / 0.18) % 2;                       // light bar: the two halves swap black and white
+  FIRE.lights[0].color.setHex(flash ? 0x111111 : 0xffffff); FIRE.lights[1].color.setHex(flash ? 0xffffff : 0x111111);
+  if (FIRE.t > 1.2) {                                                // a moment with the siren on before it pulls out
+    const target = FIRE.s < FIRE.L1 - 4 ? 6 : FIRE.s < FIRE.L1 + FIRE.L2 ? 5 : 13;
+    FIRE.v += Math.max(-4 * dt, Math.min(2.5 * dt, target - FIRE.v)); FIRE.s += FIRE.v * dt;
+  }
+  if (FIRE.s > FIRE.END + 40) {                                      // gone: back home in its bay, lights off
+    FIRE.s = -1; FIRE.place(0); FIRE.group.visible = true; for (const m of FIRE.lights) m.color.setHex(0xffffff); if (FIRE.onEnd) FIRE.onEnd(); return null;
+  }
+  FIRE.group.visible = FIRE.s < FIRE.END; FIRE.place(Math.min(FIRE.s, FIRE.END));
+  return FIRE.group.position;
+};
+
 // builds everything; resolves when the 3D letters are in
 export function buildScene(scene) {
   mats();
   const root = new THREE.Group();
   hall(root);
   const bc = D.bays.map(([a, b]) => (a + b) / 2);
-  truck(root, bc[0], 1.2, "engine"); truck(root, bc[1], 1.2, "ladder"); truck(root, bc[2], 1.2, "engine"); truck(root, bc[3], 1.6, "ambulance");
+  callOut(root, bc[0]); truck(root, bc[1], 1.2, "ladder"); truck(root, bc[2], 1.2, "engine"); truck(root, bc[3], 1.6, "ambulance");
   wings(root); garage(root); site(root);
   scene.add(root);
   scene.background = new THREE.Color(0xffffff);
   scene.add(new THREE.HemisphereLight(0xffffff, 0xdddddd, 2.3));
   const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(-50, 80, 90); scene.add(sun);
   const signRoot = new THREE.Group(); root.add(signRoot);
-  const finish = (font) => { sign(signRoot, font); brickUV(root); outline(root); meetLines(root); };
+  const finish = (font) => { sign(signRoot, font); brickUV(root); roofUV(root); outline(root); meetLines(root); };
   return new Promise((res) => new FontLoader().load(new URL("./helvetiker_bold.typeface.json", import.meta.url).href,
     (font) => { finish(font); res(root); }, undefined, () => { finish(null); res(root); }));
 }

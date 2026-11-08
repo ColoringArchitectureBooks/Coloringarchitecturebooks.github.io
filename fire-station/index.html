@@ -35,6 +35,7 @@
   <button id="v-front">Front</button>
   <button id="v-obl">Aerial</button>
   <button id="spin" aria-pressed="false">Spin</button>
+  <button id="call">Fire call</button>
 </div>
 
 <script type="importmap">
@@ -44,7 +45,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { mapTouch } from "./touch.js?v=4";
-import { buildScene, V } from "./scene.js?v=9";
+import { buildScene, V, FIRE } from "./scene.js?v=10";
+import { sirenStart, sirenUpdate, sirenStop } from "./siren.js?v=1";
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -79,6 +81,15 @@ const spinBtn = document.getElementById("spin");
 spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute("aria-pressed", controls.autoRotate); };
 const hint = document.getElementById("hint");
 controls.addEventListener("start", () => { hint.style.opacity = 0; }, { once: true });
-renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+// fire call: the engine in bay 1 drives out with the siren on and its lights flashing; it comes back to its bay afterwards
+const callBtn = document.getElementById("call");
+callBtn.onclick = () => { if (!FIRE.start()) return; sirenStart(); callBtn.setAttribute("aria-pressed", "true"); };
+FIRE.onEnd = () => { sirenStop(); callBtn.setAttribute("aria-pressed", "false"); };
+let last = performance.now();
+renderer.setAnimationLoop(() => {
+  const now = performance.now(), dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const p = FIRE.tick(dt); if (p) sirenUpdate(camera.position.distanceTo(p), FIRE.v);
+  controls.update(); renderer.render(scene, camera);
+});
 </script>
 </html>
