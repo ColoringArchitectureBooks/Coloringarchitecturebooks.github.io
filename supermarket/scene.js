@@ -402,7 +402,7 @@ function plotFence(root) {
   for (const [g0, g1] of DRIVES.side) for (const y of [g0, g1]) box(root, P.x1 - 0.08, P.x1 + 0.08, y - 0.08, y + 0.08, 0, 1.8, M.white);
 }
 function streets(root) {
-  const E = 320, W = -120, N = 260, S = -320;
+  const E = 225, W = -40, N = 150, S = -200;   // the streets end a little past the plot and the junction (Ahmed)
   flat(root, [[W, -177], [178, -177], [178, S], [199, S], [199, -177], [E, -177], [E, -156], [199, -156], [199, N], [178, N], [178, -156], [W, -156]], -0.03, M.asphalt, 6);   // both roads in one piece
   const kerb = (pts) => slab(root, pts, 0, 0.15, M.walk);
   for (const [a, b] of minus(W, 181, DRIVES.front)) kerb([[a, -159], [b, -159], [b, -156], [a, -156]]);       // plot-side sidewalks, cut at the drives
