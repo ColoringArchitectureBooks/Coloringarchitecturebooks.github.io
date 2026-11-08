@@ -1,0 +1,1629 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="3D model of the school coloring page">
+<title>School 3D Model</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Single-theme on purpose: the model is a white coloring page. */
+  :root { --paper:#ffffff; --ink:#1a1a1a; --muted:#6b6b6b; color-scheme: light; }
+  html, body { margin:0; height:100%; background:var(--paper); color:var(--ink); overflow:hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  header { position:fixed; top:0; left:0; right:0; padding-top:max(14px, env(safe-area-inset-top, 0px));
+    padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); pointer-events:none; }
+  h1 { margin:0; font-size:17px; font-weight:700; }
+  .sub { margin-top:2px; font-size:13px; color:var(--muted); }
+  .bar { position:fixed; left:50%; transform:translateX(-50%); bottom:max(16px, env(safe-area-inset-bottom, 0px));
+    display:flex; gap:8px; flex-wrap:wrap; justify-content:center; width:max-content; max-width:calc(100% - 32px); }
+  button { font:inherit; font-size:14px; border:1.5px solid var(--ink); background:var(--paper); color:var(--ink);
+    border-radius:999px; padding:9px 16px; cursor:pointer; white-space:nowrap; }
+  button:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+  button[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
+  #sound { display:inline-flex; align-items:center; gap:6px; }
+  .ico { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  #sound .on { display:none; } #sound[aria-pressed="true"] .on { display:inline; } #sound[aria-pressed="true"] .off { display:none; }
+  .hint { position:fixed; left:0; right:0; bottom:calc(max(16px, env(safe-area-inset-bottom, 0px)) + 52px);
+    text-align:center; font-size:13px; color:var(--muted); pointer-events:none; transition:opacity .6s; }
+  #status { position:fixed; inset:0; display:grid; place-items:center; font-size:15px; color:var(--muted); }
+</style>
+
+<canvas id="c"></canvas>
+<header>
+  <h1>School 3D Model</h1>
+</header>
+<div id="status">Loading the building…</div>
+<div class="hint" id="hint">Drag to turn the school, pinch to zoom</div>
+<div class="bar">
+  <button id="v-entry">Front</button>
+  <button id="v-se">Aerial</button>
+  <button id="spin" aria-pressed="false">Spin</button>
+  <button id="sound" aria-pressed="false" aria-label="Sound"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="off" d="M16 9l6 6M22 9l-6 6"/><path class="on" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>Sound</button>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { FontLoader } from "three/addons/loaders/FontLoader.js";
+import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
+const SCHOOL_FONT = {"glyphs":{"S":{"x_min":0,"x_max":826,"ha":915,"o":"m 826 306 q 701 55 826 148 q 423 -29 587 -29 q 138 60 255 -29 q 0 318 13 154 l 208 318 q 288 192 216 238 q 437 152 352 152 q 559 181 506 152 q 623 282 623 217 q 466 411 623 372 q 176 487 197 478 q 18 719 18 557 q 136 958 18 869 q 399 1040 244 1040 q 670 956 561 1040 q 791 713 791 864 l 591 713 q 526 826 583 786 q 393 866 469 866 q 277 838 326 866 q 218 742 218 804 q 374 617 218 655 q 667 542 646 552 q 826 306 826 471 "},"C":{"x_min":0,"x_max":970.828125,"ha":1043,"o":"m 970 345 q 802 70 933 169 q 490 -29 672 -29 q 130 130 268 -29 q 0 506 0 281 q 134 885 0 737 q 502 1040 275 1040 q 802 939 668 1040 q 965 679 936 838 l 745 679 q 649 809 716 761 q 495 857 582 857 q 283 747 361 857 q 214 508 214 648 q 282 267 214 367 q 493 154 359 154 q 651 204 584 154 q 752 345 718 255 l 970 345 "},"H":{"x_min":0,"x_max":838,"ha":953,"o":"m 838 0 l 628 0 l 628 450 l 210 450 l 210 0 l 0 0 l 0 1013 l 210 1013 l 210 635 l 628 635 l 628 1013 l 838 1013 l 838 0 "},"L":{"x_min":0,"x_max":704.171875,"ha":763,"o":"m 704 0 l 0 0 l 0 1013 l 208 1013 l 208 186 l 704 186 l 704 0 "},"O":{"x_min":0,"x_max":994,"ha":1094,"o":"m 497 -29 q 133 127 272 -29 q 0 505 0 277 q 131 883 0 733 q 497 1040 270 1040 q 860 883 721 1040 q 994 505 994 733 q 862 127 994 277 q 497 -29 723 -29 m 497 154 q 710 266 631 154 q 780 506 780 365 q 710 745 780 647 q 497 857 631 857 q 283 747 361 857 q 213 506 213 647 q 282 266 213 365 q 497 154 361 154 "}},"cssFontWeight":"bold","ascender":1216,"underlinePosition":-100,"cssFontStyle":"normal","boundingBox":{"yMin":-333,"xMin":-162,"yMax":1216,"xMax":1681},"resolution":1000,"original_font_information":{"postscript_name":"Helvetiker-Bold","version_string":"Version 1.00 2004 initial release","vendor_url":"http://www.magenta.gr","full_font_name":"Helvetiker Bold","font_family_name":"Helvetiker","copyright":"Copyright (c) Magenta ltd, 2004.","description":"","trademark":"","designer":"","designer_url":"","unique_font_identifier":"Magenta ltd:Helvetiker Bold:22-10-104","license_url":"http://www.ellak.gr/fonts/MgOpen/license.html","license_description":"Copyright (c) 2004 by MAGENTA Ltd. All Rights Reserved.\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of the fonts accompanying this license (\"Fonts\") and associated documentation files (the \"Font Software\"), to reproduce and distribute the Font Software, including without limitation the rights to use, copy, merge, publish, distribute, and/or sell copies of the Font Software, and to permit persons to whom the Font Software is furnished to do so, subject to the following conditions: \r\n\r\nThe above copyright and this permission notice shall be included in all copies of one or more of the Font Software typefaces.\r\n\r\nThe Font Software may be modified, altered, or added to, and in particular the designs of glyphs or characters in the Fonts may be modified and additional glyphs or characters may be added to the Fonts, only if the fonts are renamed to names not containing the word \"MgOpen\", or if the modifications are accepted for inclusion in the Font Software itself by the each appointed Administrator.\r\n\r\nThis License becomes null and void to the extent applicable to Fonts or Font Software that has been modified and is distributed under the \"MgOpen\" name.\r\n\r\nThe Font Software may be sold as part of a larger software package but no copy of one or more of the Font Software typefaces may be sold by itself. \r\n\r\nTHE FONT SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL MAGENTA OR PERSONS OR BODIES IN CHARGE OF ADMINISTRATION AND MAINTENANCE OF THE FONT SOFTWARE BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM OTHER DEALINGS IN THE FONT SOFTWARE.","manufacturer_name":"Magenta ltd","font_sub_family_name":"Bold"},"descender":-334,"familyName":"Helvetiker","lineHeight":1549,"underlineThickness":50};   // helvetiker bold, only S C H O L
+
+// plan coords (m): x east, y north, z up. Three is y-up: (x, z, -y)
+const V = (x, y, z) => new THREE.Vector3(x, z, -y);
+// aerial photo pixels -> metres (0.16 m/px, building SW corner = origin)
+const PX = (X) => (X - 80) * 0.16, PY = (Y) => (1110 - Y) * 0.16;
+
+const M = {
+  wall: new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }),
+  roof: new THREE.MeshLambertMaterial({ color: 0xf1f1f1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }),
+  ground: new THREE.MeshLambertMaterial({ color: 0xffffff }),
+  line: new THREE.LineBasicMaterial({ color: 0x111111 }),
+};
+const root = new THREE.Group();
+
+// a planar polygon from 3D plan points
+function face(pts, mat, uvf) {
+  const v = pts.map(p => V(...p));
+  const n = new THREE.Vector3().crossVectors(v[1].clone().sub(v[0]), v[2].clone().sub(v[0])).normalize();
+  const ax = Math.abs(n.x) > Math.abs(n.y) && Math.abs(n.x) > Math.abs(n.z) ? "x" : Math.abs(n.y) > Math.abs(n.z) ? "y" : "z";
+  const p2 = v.map(p => ax === "x" ? new THREE.Vector2(p.y, p.z) : ax === "y" ? new THREE.Vector2(p.x, p.z) : new THREE.Vector2(p.x, p.y));
+  const tri = THREE.ShapeUtils.triangulateShape(p2, []);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(v.flatMap(p => [p.x, p.y, p.z]), 3));
+  g.setIndex(tri.flat()); g.computeVertexNormals();
+  if (uvf) g.setAttribute("uv", new THREE.Float32BufferAttribute(pts.flatMap(p => uvf(p)), 2));
+  const m = new THREE.Mesh(g, mat); root.add(m);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), M.line); root.add(e);
+  return m;
+}
+const O = 0.8; // roof overhang
+// plain roof material (no seam lines) and a roof slab with real thickness: top, soffit and fascia edges
+M.roof = new THREE.MeshLambertMaterial({ color: 0xf4f4f4, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+M.soffit = new THREE.MeshBasicMaterial({ color: 0xc4c4c4, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+const RT = 0.45; // roof thickness (m)
+function slab(pts) {
+  const b = pts, t = pts.map(([x, y, z]) => [x, y, z + RT]);   // slab sits on top of the walls
+  face(t, M.roof); face([...b].reverse(), M.soffit);   // underside in shade, so the eave reads as roof, not as a gap
+  for (let i = 0; i < t.length; i++) { const j = (i + 1) % t.length; face([t[i], t[j], b[j], b[i]], M.roof); }
+  soffit(b);
+}
+// boxed eave: a flat soffit board under every level eave edge, from the fascia back to the wall line (overhang O)
+function soffit(b, O = 0.8) {
+  const n = b.length; let nx = 0, ny = 0, nz = 0;
+  for (let i = 0; i < n; i++) { const [x0, y0, z0] = b[i], [x1, y1, z1] = b[(i + 1) % n];
+    nx += (y0 - y1) * (z0 + z1); ny += (z0 - z1) * (x0 + x1); nz += (x0 - x1) * (y0 + y1); }
+  if (Math.abs(nz) < 1e-9) return;
+  let ga = -nx / nz, gb = -ny / nz; const gl = Math.hypot(ga, gb); if (gl < 0.02) return;   // flat slab: no eave
+  ga /= gl; gb /= gl;
+  const inside = (px, py) => { let c = false; for (let i = 0, j = n - 1; i < n; j = i++) { const [xi, yi] = b[i], [xj, yj] = b[j];
+    if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) c = !c; } return c; };
+  for (let i = 0; i < n; i++) { const p = b[i], q = b[(i + 1) % n];
+    if (Math.abs(p[2] - q[2]) > 1e-3 || Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.5) continue;
+    const mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2;
+    if (!inside(mx + ga * 0.05, my + gb * 0.05)) continue;   // ridge / top edge: not an eave
+    const z = p[2] - 0.01;
+    face([[p[0], p[1], z], [q[0], q[1], z], [q[0] + ga * O, q[1] + gb * O, z], [p[0] + ga * O, p[1] + gb * O, z]], M.soffit);
+  }
+}
+// standing-seam metal roof: one seam line every 0.6 m, running down the slope
+const seamTex = (() => { const c = document.createElement("canvas"); c.width = 32; c.height = 4; const g = c.getContext("2d");
+  g.fillStyle = "#f3f3f3"; g.fillRect(0, 0, 32, 4); g.fillStyle = "#555"; g.fillRect(0, 0, 2, 4);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace; return t; })();
+M.seam = new THREE.MeshLambertMaterial({ map: seamTex, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+const uvX = p => [p[0] / 0.6, p[1] / 0.6], uvY = p => [p[1] / 0.6, p[0] / 0.6];
+
+// gabled block, ridge along x (E-W). y0 south edge, y1 north edge, yr ridge line, eave heights zs/zn, ridge zr
+// ---------- textured walls: block coursing, punched windows, high ribbon glazing ----------
+function drawWall(W, H, outline, o) {
+  const ppm = 20, c = document.createElement("canvas"); c.width = Math.max(8, Math.ceil(W * ppm)); c.height = Math.max(8, Math.ceil(H * ppm));
+  const g = c.getContext("2d"), X = s => s * ppm, Y = z => (H - z) * ppm;
+  const ln = (s0, z0, s1, z1, lw = 1, col = "#111") => { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo(X(s0), Y(z0)); g.lineTo(X(s1), Y(z1)); g.stroke(); };
+  const rect = (s0, s1, z0, z1, lw = 1.5) => { g.fillStyle = "#fff"; g.fillRect(X(s0), Y(z1), X(s1) - X(s0), Y(z0) - Y(z1)); g.strokeStyle = "#111"; g.lineWidth = lw; g.strokeRect(X(s0), Y(z1), X(s1) - X(s0), Y(z0) - Y(z1)); };
+  g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+  g.save(); g.beginPath(); outline.forEach(([a, z], i) => i ? g.lineTo(X(a), Y(z)) : g.moveTo(X(a), Y(z))); g.closePath(); g.clip();
+  const eave = Math.min(...outline.map(p => p[1]).filter(z => z > 0.01));
+  if (o.kind === "plain") { }
+  else if (o.kind === "gym") { for (let a = 0.6; a < W; a += 0.6) ln(a, 0, a, H, 1, "#555"); }
+  else {
+    for (let r = 0, z = 0.6; z < H; r++, z += 0.6) { ln(0, z, W, z, 0.8, "#666"); for (let a = (r % 2) * 0.6; a < W; a += 1.2) ln(a, z - 0.6, a, z, 0.6, "#888"); }
+  }
+  const win = (s0, s1, z0, z1, cols = 2) => {
+    { const F = 0.85, sc = (s0 + s1) / 2, zc = (z0 + z1) / 2; s0 = sc + (s0 - sc) * F; s1 = sc + (s1 - sc) * F; z0 = zc + (z0 - zc) * F; z1 = zc + (z1 - zc) * F; } // windows at 85%
+    rect(s0 - 0.1, s1 + 0.1, z0 - 0.1, z1 + 0.1, 2); rect(s0, s1, z0, z1, 1.2);
+    for (let k = 1; k < cols; k++) ln(s0 + (s1 - s0) * k / cols, z0, s0 + (s1 - s0) * k / cols, z1, 1.5);
+    ln(s0, z0 + (z1 - z0) * 0.62, s1, z0 + (z1 - z0) * 0.62, 1.5); ln(s0 - 0.2, z0 - 0.1, s1 + 0.2, z0 - 0.1, 3);
+  };
+  if (o.ends && o.isEnd) {                                // dark board cladding in the middle of the gable end (photos)
+    const p0 = W * 0.33, p1 = W * 0.67; rect(p0, p1, 0, H + 1, 2);
+    for (let a = p0 + 0.3; a < p1; a += 0.3) ln(a, 0, a, H + 1, 0.8, "#555");
+    for (const z of (eave >= 7.5 ? [1.6, 4.8] : [1.6])) for (let k = 0; k < 3; k++) { const w = (p1 - p0 - 2) / 3; win(p0 + 0.5 + k * (w + 0.5), p0 + 0.5 + k * (w + 0.5) + w - 0.3, z, z + (z < 2 ? 2.3 : 1.6)); }   // ground sill/head 1.6-3.9 like the entrance
+  }
+  // windows follow the real photos instead of one stacked grid on every wall:
+  //   win "band": 2-storey classroom side — per bay: ground trio + curtain-wall strip above
+  //   win "row" : one row of small square windows (single-storey wings)
+  //   clere     : high ribbon glazing under the eave (raised roof monitors only)
+  if (o.win === "band" && !o.isEnd && W > 8) {
+    // one repeating module per 8 m bay: a trio of tall windows on the ground floor,
+    // and above it one rectangular curtain-wall strip the same width (mullions + one transom)
+    const bay = 8, n = Math.max(1, Math.floor((W - 2) / bay)), st = (W - n * bay) / 2;
+    const off = ((n % 4) + 1) % 4;   // rhythm: three modules, one blank bay, repeat (offset so both ends land on full modules where possible)
+    for (let k = 0; k < n; k++) { if ((k + off) % 4 === 3) continue; const a = st + k * bay + (bay - 5.2) / 2;
+      for (let j = 0; j < 3; j++) win(a + j * 2.0, a + j * 2.0 + 1.2, 1.6, 3.9, 1);
+      win(a - 0.3, a + 5.5, 4.8, 6.6, 6); }
+  }
+  if (o.win === "curtain") {   // full glass facade: one curtain wall from the plinth to the eave, mullion + transom grid
+    // glazed gable between two brick end piers, over a brick plinth; 3 m fin bays (3D, built in wall()), one light
+    // mullion in each bay, a single transom at door-head height, and the entrance doors on the ridge axis
+    const P = 3.0, z0 = 0.6, zt = 3.2, s0 = P, s1 = W - P;
+    g.fillStyle = "#e6e6e6"; g.fillRect(X(s0), 0, X(s1 - s0), Y(z0));
+    g.strokeStyle = "#111"; g.lineWidth = 3; g.strokeRect(X(s0), -10, X(s1 - s0), Y(z0) + 10);
+    const nb = Math.max(1, Math.round((s1 - s0) / 3)), bw = (s1 - s0) / nb;
+    for (let k = 0; k < nb; k++) ln(s0 + (k + 0.5) * bw, z0, s0 + (k + 0.5) * bw, H, 1);
+    ln(s0, zt, s1, zt, 2.5);
+    const dm = W / 2; rect(dm - 2.2, dm + 2.2, z0, zt - 0.2, 2.5); ln(dm, z0, dm, zt - 0.2, 2); ln(dm - 1.1, z0, dm - 1.1, zt - 0.2, 1); ln(dm + 1.1, z0, dm + 1.1, zt - 0.2, 1);
+  }
+  if (o.win === "row" && W > 4) {
+    // one motif only: trios of tall windows side by side, one trio per 8 m bay
+    const bay = 8, n = Math.max(1, Math.floor((W - 2) / bay)), st = (W - n * bay) / 2, zt = Math.min(3.9, eave - 0.6), zs = Math.min(1.6, zt - 1.4);   // one sill line with the entrance windows
+    for (let k = 0; k < n; k++) { const a = st + k * bay + (bay - 5.2) / 2;
+      for (let j = 0; j < 3; j++) win(a + j * 2.0, a + j * 2.0 + 1.2, zs, zt, 1); }
+  }
+  if (o.riser) {   // clerestory ribbon on the roof-monitor riser: equal windows along its length
+    const lo = eave, hi = H, n = Math.max(1, Math.floor((W - 1) / 2.6)), st = (W - n * 2.6) / 2;
+    for (let k = 0; k < n; k++) { const a = st + k * 2.6 + 0.3; win(a, a + 2.0, lo + 0.3, hi - 0.3, 2); }
+  }
+  if (o.clere && eave >= 9.5 && W > 4) {
+    rect(1, W - 1, eave - 1.7, eave - 0.5, 2);
+    for (let a = 1 + 1.2; a < W - 1; a += 1.2) ln(a, eave - 1.7, a, eave - 0.5, 1.2);
+  }
+  g.restore();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+}
+const ROT = { S: 0, N: Math.PI, E: Math.PI / 2, W: -Math.PI / 2 };
+function wall(dir, ox, oy, outline, o = {}) {
+  const W = Math.max(...outline.map(p => p[0])), H = Math.max(...outline.map(p => p[1]));
+  const geo = new THREE.ShapeGeometry(new THREE.Shape(outline.map(([a, b]) => new THREE.Vector2(a, b))));
+  const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / W, uv.getY(i) / H);
+  const mat = new THREE.MeshLambertMaterial({ ...(o.kind === "plain" ? { color: 0xffffff } : { map: drawWall(W, H, outline, o) }), side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+  const m = new THREE.Mesh(geo, mat); m.rotation.y = ROT[dir]; m.position.copy(V(ox, oy, 0)); root.add(m);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), M.line); e.rotation.copy(m.rotation); e.position.copy(m.position); root.add(e);
+  if (o.win === "curtain") {   // glazed gable: deep brick-edge frame at the piers, vertical sun fins every bay up to the rake, a sun shelf at door head
+    const top = s => { let z = 0; outline.forEach((p, i) => { const q = outline[(i + 1) % outline.length]; const a = Math.min(p[0], q[0]), b = Math.max(p[0], q[0]);
+      if (p[1] > 0.01 && q[1] > 0.01 && s >= a - 1e-6 && s <= b + 1e-6 && b - a > 1e-6) z = Math.max(z, p[1] + (q[1] - p[1]) * (s - p[0]) / (q[0] - p[0])); }); return z; };
+    const P = 3.0, s0 = P, s1 = W - P, nb = Math.max(1, Math.round((s1 - s0) / 3)), bw = (s1 - s0) / nb, gs = [];
+    const bx = (a0, a1, z0, z1, d0, d1) => { const b = new THREE.BoxGeometry(a1 - a0, z1 - z0, d1 - d0); b.translate((a0 + a1) / 2, (z0 + z1) / 2, (d0 + d1) / 2); gs.push(b.toNonIndexed()); };
+    for (let k = 0; k <= nb; k++) { const s = s0 + k * bw, edge = k === 0 || k === nb, t = top(s) - 0.05;
+      edge ? bx(s - (k === 0 ? 0.6 : 0), s + (k === 0 ? 0 : 0.6), 0, t, 0, 1.2) : bx(s - 0.09, s + 0.09, 0.6, t, 0, 0.9); }
+    bx(s0, s1, 3.15, 3.3, 0, 1.4);                                    // sun shelf / canopy line across the glass
+    const fm = mergeGeometries(gs), fmesh = new THREE.Mesh(fm, M.wall); fmesh.rotation.copy(m.rotation); fmesh.position.copy(m.position); root.add(fmesh);
+    const fe = new THREE.LineSegments(new THREE.EdgesGeometry(fm, 20), M.line); fe.rotation.copy(m.rotation); fe.position.copy(m.position); root.add(fe);
+  }
+  { const base = []; outline.forEach((p, i) => { const q = outline[(i + 1) % outline.length]; if (p[1] < 0.01 && q[1] < 0.01) base.push(new THREE.Vector3(p[0], 0.17, 0.01), new THREE.Vector3(q[0], 0.17, 0.01)); });
+    if (base.length) { const bl = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(base), M.line); bl.rotation.copy(m.rotation); bl.position.copy(m.position); root.add(bl); } }   // where the wall meets the paving
+}
+const rectO = (W, h) => [[0, 0], [W, 0], [W, h], [0, h]];
+// gabled block, ridge along x (E-W). y0 south edge, y1 north edge, yr ridge line, eave heights zs/zn, ridge zr
+function gableX(x0, x1, y0, y1, yr, zs, zr, zn, skip = [], o = {}) {
+  const O = o.ov ?? 0.8;
+  const W = x1 - x0, D = y1 - y0, mid = yr > y0 + 0.01 && yr < y1 - 0.01;
+  if (!o.noS) wall("S", x0, y0, rectO(W, zs), o);
+  if (!skip.includes("north")) wall("N", x1, y1, rectO(W, zn), o);
+  const eo = { ...o, isEnd: true };
+  if (!skip.includes("east")) wall("E", x1, y0, mid ? [[0, 0], [D, 0], [D, zn], [yr - y0, zr], [0, zs]] : [[0, 0], [D, 0], [D, zn], [0, zs]], eo);
+  if (!skip.includes("west")) wall("W", x0, y1, mid ? [[0, 0], [D, 0], [D, zs], [y1 - yr, zr], [0, zn]] : [[0, 0], [D, 0], [D, zs], [0, zn]], o.glassW ? { ...eo, win: "curtain" } : eo);
+  const sS = (zr - zs) / Math.max(yr - y0, 0.01), sN = (zr - zn) / Math.max(y1 - yr, 0.01);
+  const SO = o.flushS ? 0 : O; // flushS: south slope continues a lower roof, so no lip at its foot
+  if (o.noRoof) return;
+  const OW = o.ovW ?? O, OE = o.ovE ?? O;   // 0 where the block butts a neighbour, so the roofs meet without overlapping
+  if (yr > y0 + 0.01) slab([[x0 - OW, y0 - SO, zs - sS * SO], [x1 + OE, y0 - SO, zs - sS * SO], [x1 + OE, yr, zr], [x0 - OW, yr, zr]]);
+  if (yr < y1 - 0.01) slab([[x0 - OW, yr, zr], [x1 + OE, yr, zr], [x1 + OE, y1 + O, zn - sN * O], [x0 - OW, y1 + O, zn - sN * O]]);
+}
+// gabled block, ridge along y (N-S). xr ridge line, eave heights zw/ze
+function gableY(x0, x1, y0, y1, xr, zw, zr, ze, o = {}) {
+  const W = x1 - x0, D = y1 - y0;
+  wall("W", x0, y1, rectO(D, zw), o);
+  wall("E", x1, y0, rectO(D, ze), o);
+  wall("S", x0, y0, [[0, 0], [W, 0], [W, ze], [xr - x0, zr], [0, zw]], { ...o, isEnd: true });
+  wall("N", x1, y1, [[0, 0], [W, 0], [W, zw], [x1 - xr, zr], [0, ze]], { ...o, isEnd: true });
+  if (o.noRoof) return;
+  const sW = (zr - zw) / (xr - x0), sE = (zr - ze) / (x1 - xr);
+  slab([[x0 - O, y0 - O, zw - sW * O], [x0 - O, y1 + O, zw - sW * O], [xr, y1 + O, zr], [xr, y0 - O, zr]]);
+  slab([[xr, y0 - O, zr], [xr, y1 + O, zr], [x1 + O, y1 + O, ze - sE * O], [x1 + O, y0 - O, ze - sE * O]]);
+}
+function flatBox(x0, x1, y0, y1, z0, z1) {
+  const g = new THREE.BoxGeometry(x1 - x0, z1 - z0, y1 - y0);
+  const m = new THREE.Mesh(g, M.wall); m.position.copy(V((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)); root.add(m);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(g), M.line); e.position.copy(m.position); root.add(e);
+  if (Math.min(z0, z1) < 0.01) groundLine([[x0, y0], [x1, y0], [x1, y1], [x0, y1]], true);
+}
+// line where something stands on the ground, drawn just above the 0.15 m paving so it is never hidden
+function groundLine(pts, closed = false) {
+  const v = []; for (let i = 0; i < pts.length - (closed ? 0 : 1); i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; v.push(V(a[0], a[1], 0.17), V(b[0], b[1], 0.17)); }
+  root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(v), M.line));
+}
+// helpers in aerial pixels: X range, Y range (Y top = north), ridge pixel, heights south / ridge / north
+const GX = (X0, X1, Ytop, Ybot, Yr, zs, zr, zn, o = {}) => gableX(PX(X0), PX(X1), PY(Ybot), PY(Ytop), PY(Yr), zs, zr, zn, [], o);
+const GY = (X0, X1, Ytop, Ybot, Xr, zw, zr, ze, o = {}) => gableY(PX(X0), PX(X1), PY(Ybot), PY(Ytop), PX(Xr), zw, zr, ze, o);
+const FB = (X0, X1, Ytop, Ybot, h, z0 = 0) => flatBox(PX(X0), PX(X1), PY(Ybot), PY(Ytop), z0, h);
+
+
+// ---------------- entrance facade, drawn like the coloring page ----------------
+// s = metres along the east face from its south end (y = EY0), z = height
+function facadeTexture(W, H, outline) {
+  const ppm = 48, c = document.createElement("canvas"); c.width = Math.ceil(W * ppm); c.height = Math.ceil(H * ppm);
+  const g = c.getContext("2d"), X = s => s * ppm, Y = z => (H - z) * ppm;
+  const rect = (s0, s1, z0, z1, fill = "#fff", lw = 2) => { g.fillStyle = fill; g.fillRect(X(s0), Y(z1), X(s1) - X(s0), Y(z0) - Y(z1)); g.lineWidth = lw; g.strokeRect(X(s0), Y(z1), X(s1) - X(s0), Y(z0) - Y(z1)); };
+  const ln = (s0, z0, s1, z1, lw = 1.5) => { g.lineWidth = lw; g.beginPath(); g.moveTo(X(s0), Y(z0)); g.lineTo(X(s1), Y(z1)); g.stroke(); };
+  g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.strokeStyle = "#111";
+  g.save(); g.beginPath(); outline.forEach(([s, z], i) => i ? g.lineTo(X(s), Y(z)) : g.moveTo(X(s), Y(z))); g.closePath(); g.clip();
+  // horizontal siding
+  for (let z = 0.35; z < H; z += 0.35) ln(0, z, W, z, 1);
+  // brick piers
+  const brick = (s0, s1, z0, z1) => {
+    rect(s0, s1, z0, z1, "#fff", 2.5);
+    for (let r = 0, z = z0; z < z1; r++, z += 0.3) { ln(s0, z, s1, z, 1); for (let s = s0 + (r % 2) * 0.45; s < s1; s += 0.9) ln(s, z, s, Math.min(z + 0.3, z1), 1); }
+  };
+  rect(25.8, 27.7, 0, 16, "#fff", 2.5);   // plain white wall: the divider between the glass bay and the SCHOOL panel (photo)
+  brick(39.4, EREC, 0, 16);
+  // wood-plank bay left of the glass (photo): narrow horizontal boards with staggered joints
+  rect(WB0, WB1, 0, 16, "#fff", 2.5);
+  for (let z = 0.35; z < 16; z += 0.35) ln(WB0, z, WB1, z, 1);   // plain horizontal siding like the coloring page (no joints, so it doesn't read as brick)
+  // window: frame + 2x2 panes
+  const win = (s0, s1, z0, z1, cols = 2) => {
+    { const F = 0.85, sc = (s0 + s1) / 2, zc = (z0 + z1) / 2; s0 = sc + (s0 - sc) * F; s1 = sc + (s1 - sc) * F; z0 = zc + (z0 - zc) * F; z1 = zc + (z1 - zc) * F; } // windows at 85%
+    rect(s0 - 0.12, s1 + 0.12, z0 - 0.12, z1 + 0.12, "#fff", 3); rect(s0, s1, z0, z1, "#fff", 2);
+    for (let k = 1; k < cols; k++) ln(s0 + (s1 - s0) * k / cols, z0, s0 + (s1 - s0) * k / cols, z1, 2.5);
+    const tz = z0 + (z1 - z0) * 0.74; ln(s0, tz, s1, tz, 2.5);   // transom high up: small top lights over tall panes (coloring page)
+    ln(s0 - 0.25, z0 - 0.12, s1 + 0.25, z0 - 0.12, 4);
+  };
+  // windows raised to sit well above the planting, as on the coloring page: sill 1.6 m, head 3.9 m
+  for (const s0 of [1.4, 4.2, 7.0, 9.7]) win(s0, s0 + 1.7, 1.6, 3.9);
+  for (const s0 of [28.7, 31.5, 34.2]) win(s0, s0 + 1.8, 1.6, 3.9);
+  for (const s0 of [46.6, 49.8, 53.0]) win(s0, s0 + 1.8, 4.4, 5.7, 2); // three small high windows on the long white wall (photo)
+  win(WB0 + 0.3, WB1 - 0.3, 1.6, 3.9, 5);                          // long window band along the wood bay, same sill/head as the rest
+  // entry portal: 4 glass doors + transom
+  rect(20.0, 25.8, 0, 4.3, "#fff", 3);
+  for (let k = 0; k < 4; k++) {
+    const a = 20.0 + k * 1.45; rect(a, a + 1.45, 0.05, 2.9, "#fff", 2.5); rect(a + 0.25, a + 1.2, 0.5, 2.6, "#fff", 1.5);
+    ln(a + (k % 2 ? 0.15 : 1.3), 1.3, a + (k % 2 ? 0.15 : 1.3), 1.9, 4);
+  }
+  for (let k = 0; k < 4; k++) rect(20.0 + k * 1.45, 20.0 + k * 1.45 + 1.45, 3.2, 4.05, "#fff", 2);
+  // tall glazing above the canopy, up to the roof, with hanging lights
+  g.save(); g.beginPath(); g.moveTo(X(20), Y(6.6)); g.lineTo(X(25.8), Y(6.6)); g.lineTo(X(25.8), Y(roofZ(25.8))); g.lineTo(X(20), Y(roofZ(20))); g.closePath(); g.clip();
+  g.fillStyle = "#fff"; g.fillRect(X(20), Y(16), X(5.8), Y(6.6) - Y(16));
+  for (let s = 20.0; s <= 25.81; s += 1.45) ln(s, 6.6, s, 16, 2.5);
+  ln(20, 9.4, 25.8, 9.4, 2.5); ln(20, 6.6, 25.8, 6.6, 3);
+  for (const [s, len] of [[21.6, 1.6], [22.4, 2.4], [23.1, 2.0], [23.9, 1.4]]) {
+    const top = roofZ(s) - 0.3; ln(s, top, s, top - len, 1.5); rect(s - 0.12, s + 0.12, top - len - 0.6, top - len, "#fff", 1.5);
+  }
+  g.restore();
+  // SCHOOL letters on the siding panel
+  g.font = `bold ${1.9 * ppm}px "Arial Rounded MT Bold", Arial, Helvetica, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#fff"; g.lineWidth = 5; g.lineJoin = "round";
+  g.restore();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+}
+function entranceFacade() {
+  const W = EREC, H = EZR + 0.5;
+  const outline = [[0, 0], [W, 0], [W, roofZ(W)], [EAPX, EZR], [ESTEP, EGL], [ESTEP, ESH1], [0, ESH0]];
+  // the face steps back 2 m at the north end: a return wall and a dark recessed wall under the long eave
+  const r0 = roofZ(EREC), r1 = roofZ(EY1 - EY0);
+  if (EREC < EY1 - EY0 - 0.01) {
+    wall("N", EX, EY0 + EREC, [[0, 0], [2, 0], [2, r0], [0, r0]], {});
+    wall("E", EX - 2, EY0 + EREC, [[0, 0], [EY1 - EY0 - EREC, 0], [EY1 - EY0 - EREC, r1], [0, r0]], { kind: "gym" });
+  }
+  // the glass bay, the doors and the white pier beside them sit back RD m; the roof keeps its slope above them (photo)
+  const RB = FRB, RD = FRD;
+  const mat = new THREE.MeshBasicMaterial({ map: facadeTexture(W, H, outline), side: THREE.DoubleSide });
+  const roofPts = [[EREC, roofZ(EREC)], [EAPX, EZR], [ESTEP, EGL], [ESTEP, ESH1], [0, ESH0]];
+  const seg = (a, b, x, hole) => {
+    const pts = [[a, 0], [b, 0], [b, roofZ(b)], ...roofPts.filter(p => p[0] > a + 0.01 && p[0] < b - 0.01), [a, roofZ(a)]];
+    const shp = new THREE.Shape(pts.map(([p, q]) => new THREE.Vector2(p, q)));
+    if (hole) { const [h0, h1, z0, z1] = hole; shp.holes.push(new THREE.Path([new THREE.Vector2(h0, z0), new THREE.Vector2(h0, z1), new THREE.Vector2(h1, z1), new THREE.Vector2(h1, z0)])); }
+    const geo = new THREE.ShapeGeometry(shp);
+    const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / W, uv.getY(i) / H);
+    const m = new THREE.Mesh(geo, mat); m.rotation.y = Math.PI / 2; m.position.copy(V(x, EY0, 0)); root.add(m);
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), M.line); e.rotation.copy(m.rotation); e.position.copy(m.position); root.add(e);
+    groundLine([[x, EY0 + a], [x, EY0 + b]]);   // facade meets the ground
+  };
+  // everything left of the SCHOOL pier line (glass, doors and the whole low wing) sits back RD m in one plane
+  // planes: white wall | wood bay -0.6 | glass + doors -1.5 more (deep) | white divider | SCHOOL face
+  const GB1 = 25.8, GD = 1.5;
+  seg(0, WB0, EX - RD); seg(WB0, WB1, EX - RD - WD); seg(WB1, GB1, EX - RD - GD, [20.0, 22.85, 0.03, 2.9]); seg(GB1, RB, EX + PP); seg(RB, W, EX);   // (a hole at the open south door)
+  wall("N", EX - RD, EY0 + WB0, rectO(WD, roofZ(WB0)), {});              // wood-bay step
+  wall("N", EX - RD - WD, EY0 + WB1, rectO(GD - WD, roofZ(WB1)), { kind: "plain" });    // glass bay: left return
+  wall("S", EX - RD - GD, EY0 + GB1, rectO(RD + GD + PP, roofZ(GB1)), { kind: "plain" });   // white pier side, full depth
+  wall("N", EX + PP, EY0 + RB, rectO(PP, roofZ(RB)), { kind: "plain" });         // glass bay: white return wall
+       // return wall where the face steps forward
+  // canopy: flat slab, columns at its front edge, horizontal beams from the wall out to each column
+  const cy0 = EY0 + CN, cy1 = EY0 + 39.4, D = 5.0;   // ends at the right edge of the SCHOOL panel
+  flatBox(EX - RD - 1.5, EX + D, cy0, cy1, 5.7, 6.5);
+  { // lines where the canopy slab meets the stepped facade (top and underside), so the junction reads in the drawing
+    const PR = [[0, WB0, EX - RD], [WB0, WB1, EX - RD - WD], [WB1, GB1, EX - RD - GD], [GB1, RB, EX + PP], [RB, 1e9, EX]], pts = [], o = 0.02;
+    for (const z of [6.5 + o, 5.7 - o]) {
+      PR.forEach(([a, b, x], i) => { const s0 = Math.max(a, CN), s1 = Math.min(b, 39.4); if (s1 > s0) pts.push(V(x + o, EY0 + s0, z), V(x + o, EY0 + s1, z));
+        const nx = PR[i + 1]; if (nx && b > CN && b < 39.4) pts.push(V(x + o, EY0 + b + (nx[2] > x ? -o : o), z), V(nx[2] + o, EY0 + b + (nx[2] > x ? -o : o), z)); });
+    }
+    root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), M.line)); }
+  for (const s of [18.9, 26.75, 33.0, 38.9]) {   // 26.75 = middle of the white pier
+    flatBox(EX + D - 0.7, EX + D - 0.35, EY0 + s - 0.18, EY0 + s + 0.18, 5.7, 0);
+    flatBox(EX + D - 0.7, EX + D - 0.35, EY0 + s - 0.25, EY0 + s + 0.25, 0.4, 0);
+    const x0 = s > WB1 && s < 25.8 ? EX - RD - 1.5 : s >= 25.8 && s < RB ? EX + PP : s < RB ? EX - RD : EX;
+    flatBox(x0, EX + D, EY0 + s - 0.15, EY0 + s + 0.15, 5.7, 5.35);
+  }
+  // street furniture along the face right of the doors (coloring page): bench, bike hoops, bench at the brick end
+  const G0 = 0.15, furn = [];
+  const fb = (x0, x1, y0, y1, z0, z1) => { const b = new THREE.BoxGeometry(x1 - x0, z1 - z0, y1 - y0); b.translate((x0 + x1) / 2, (z0 + z1) / 2, -(y0 + y1) / 2); furn.push(b.toNonIndexed()); };
+  const bench = (y0) => { const x0 = EX + 0.55, y1 = y0 + 1.9;
+    fb(x0, x0 + 0.5, y0, y1, G0 + 0.42, G0 + 0.5);                       // seat
+    fb(x0, x0 + 0.06, y0, y1, G0 + 0.62, G0 + 0.92);                     // back rail
+    for (const y of [y0 + 0.1, y1 - 0.16]) { fb(x0 + 0.05, x0 + 0.45, y, y + 0.06, G0, G0 + 0.42); fb(x0, x0 + 0.06, y, y + 0.06, G0 + 0.5, G0 + 0.92); }
+    groundLine([[x0 + 0.05, y0 + 0.1], [x0 + 0.45, y0 + 0.1]]); groundLine([[x0 + 0.05, y1 - 0.1], [x0 + 0.45, y1 - 0.1]]); };
+  const hoop = (y) => { const xc = EX + 1.1, r = 0.35, pts = [];   // inverted-U bike rack standing square to the wall, so a bike parks along it
+    pts.push(new THREE.Vector3(xc - r, G0, -y), new THREE.Vector3(xc - r, G0 + 0.55, -y));
+    for (let k = 1; k < 12; k++) { const a = Math.PI - k * Math.PI / 12; pts.push(new THREE.Vector3(xc + r * Math.cos(a), G0 + 0.55 + r * Math.sin(a), -y)); }
+    pts.push(new THREE.Vector3(xc + r, G0 + 0.55, -y), new THREE.Vector3(xc + r, G0, -y));
+    furn.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.05), 40, 0.045, 6).toNonIndexed()); };
+  bench(EY0 + 27.9);
+  for (let i = 0; i < 8; i++) hoop(EY0 + 30.6 + i * 0.85);   // eight hoops in one even row
+  // bikes parked along five of the hoops, leaning on the near side: a line drawing (wheels, spokes, frame, bars, cranks) with a solid saddle
+  const bikeL = [];
+  const bike = (hy, dir) => { const cx = EX + 1.15, side = hy + 0.14;
+    const P = (lx, ly, lz) => new THREE.Vector3(cx - dir * lx, G0 + ly, -(side + lz));
+    const seg = (a, b) => bikeL.push(P(...a), P(...b));
+    const circ = (x, y, z, r, n) => { for (let k = 0; k < n; k++) { const a0 = k / n * 6.2832, a1 = (k + 1) / n * 6.2832; seg([x + r * Math.cos(a0), y + r * Math.sin(a0), z], [x + r * Math.cos(a1), y + r * Math.sin(a1), z]); } };
+    const R = 0.34, RA = [-0.52, R], FA = [0.53, R], BB = [-0.05, 0.3], ST = [-0.2, 0.84], HT = [0.38, 0.86], HB = [0.42, 0.7];
+    for (const [x, y] of [RA, FA]) { circ(x, y, 0, R, 28); circ(x, y, 0, R - 0.035, 28); circ(x, y, 0, 0.03, 8);
+      for (let k = 0; k < 12; k++) { const a = k / 12 * 6.2832 + (x > 0 ? 0.13 : 0); seg([x, y, (k % 2 ? 0.025 : -0.025)], [x + (R - 0.035) * Math.cos(a), y + (R - 0.035) * Math.sin(a), 0]); } }
+    seg([...ST, 0], [...HT, 0]); seg([...BB, 0], [...HB, 0]); seg([...BB, 0], [...ST, 0]); seg([...HB, 0], [...HT, 0]);   // the frame
+    for (const z of [-0.05, 0.05]) { seg([...BB, 0], [...RA, z]); seg([...ST, 0], [...RA, z]); seg([...HB, 0], [...FA, z]); }   // stays and fork
+    seg([...HT, 0], [0.36, 0.98, 0]); seg([0.36, 0.98, -0.28], [0.36, 0.98, 0.28]); seg([0.36, 0.98, -0.28], [0.3, 0.96, -0.3]); seg([0.36, 0.98, 0.28], [0.3, 0.96, 0.3]);   // stem and bars
+    seg([...ST, 0], [-0.23, 0.95, 0]);                                                    // seat post
+    circ(BB[0], BB[1], 0.06, 0.09, 12); seg([BB[0], BB[1], 0.06], [BB[0] - 0.16, BB[1] - 0.06, 0.08]); seg([BB[0], BB[1], -0.06], [BB[0] + 0.16, BB[1] + 0.06, -0.08]);   // chainring, cranks
+    seg([BB[0] - 0.16, BB[1] - 0.06, 0.08], [BB[0] - 0.16, BB[1] - 0.06, 0.17]); seg([BB[0] + 0.16, BB[1] + 0.06, -0.08], [BB[0] + 0.16, BB[1] + 0.06, -0.17]);   // pedals
+    { const c = P(-0.23, 0.985, 0); fb(c.x - 0.13, c.x + 0.13, -c.z - 0.065, -c.z + 0.065, c.y - 0.03, c.y + 0.03); } };   // saddle
+  [[0, 1], [1, -1], [3, 1], [4, 1], [6, -1]].forEach(([i, d]) => bike(EY0 + 30.6 + i * 0.85, d));
+  root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(bikeL), M.line));
+  bench(EY0 + 40.0);
+  { const fg = mergeGeometries(furn), fm = new THREE.Mesh(fg, M.wall); root.add(fm); root.add(new THREE.LineSegments(new THREE.EdgesGeometry(fg, 35), M.line)); }
+  // SCHOOL in raised 3D letters on the siding panel
+  { const font = new FontLoader().parse(SCHOOL_FONT);   // glyphs inlined: the page cannot fetch font files
+    const tg = new TextGeometry("SCHOOL", { font, size: 1.45, height: 0.18, curveSegments: 6, bevelEnabled: false });
+    tg.computeBoundingBox(); const bb = tg.boundingBox; tg.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, 0);
+    tg.rotateY(Math.PI / 2); tg.translate(EX + 0.02, 8.4, -(EY0 + 33.6));
+    root.add(new THREE.Mesh(tg, M.wall)); root.add(new THREE.LineSegments(new THREE.EdgesGeometry(tg, 30), M.line));
+  }
+  // bollards and two benches at the front walk
+  for (const s of [18.5, 20.5, 22.5, 24.5, 26.5, 28.5]) groundLine(Array.from({ length: 16 }, (_, k) => [EX + 12.4 + 0.15 * Math.cos(k * Math.PI / 8), EY0 + s + 0.15 * Math.sin(k * Math.PI / 8)]), true);
+  for (const s of [18.5, 20.5, 22.5, 24.5, 26.5, 28.5]) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 1.0, 16), M.wall); b.position.copy(V(EX + 12.4, EY0 + s, 0.5)); root.add(b); const be = new THREE.LineSegments(new THREE.EdgesGeometry(b.geometry, 40), M.line); be.position.copy(b.position); root.add(be); }
+}
+
+// ---------------- the building ----------------
+// west part (classroom wings, main block, central hall): every slope has the one shared pitch of the entrance roof;
+// roofs are the upper envelope of all the gables, computed in layout-scripts/roof-west.py, so where one block runs into
+// another the two roofs meet along a sloped intersection line, and each roof stops where its neighbour starts
+const WEST_ROOF = [{"pl": [0, 0.289157, 7.679518], "pts": [[10.4, 18.4], [32.8, 18.4], [32.8, 22.4], [58.08, 22.4], [58.08, 18.4], [107.2, 18.4], [107.2, 22.4], [128.64, 22.4], [128.64, 18.4], [137.6, 18.4], [137.6, -0.8], [10.4, -0.8]]}, {"pl": [0, -0.289157, 18.320482], "pts": [[73.28, 34.4], [73.453, 34.4], [89.28, 18.573], [105.107, 34.4], [105.28, 34.4], [105.28, 35.2], [137.6, 35.2], [137.6, 18.4], [128.64, 18.4], [128.64, 22.4], [107.2, 22.4], [107.2, 18.4], [58.08, 18.4], [58.08, 22.4], [32.8, 22.4], [32.8, 18.4], [10.4, 18.4], [10.4, 35.2], [73.28, 35.2]]}, {"pl": [0, 0.289157, -7.022892], "pts": [[6.4, 77.6], [24.0, 77.6], [24.0, 59.52], [63.36, 59.52], [63.36, 66.0], [86.207, 66.0], [73.28, 53.073], [73.28, 47.04], [72.48, 47.04], [72.48, 46.24], [6.4, 46.24]]}, {"pl": [0, 0.289157, -7.022892], "pts": [[141.2, 82.363], [149.2, 82.363], [149.2, 77.2], [156.0, 77.2], [156.0, 62.4], [153.0, 62.4], [153.0, 43.2], [116.2, 43.2], [116.2, 52.273], [105.28, 52.273], [105.28, 53.073], [92.353, 66.0], [141.2, 66.0]]}, {"pl": [0, -0.289157, 37.854217], "pts": [[24.0, 102.4], [24.0, 77.6], [6.4, 77.6], [6.4, 102.4]]}, {"pl": [0, 0.289157, -5.022892], "pts": [[23.2, 58.72], [23.2, 88.267], [32.0, 88.267], [32.0, 93.267], [75.2, 93.267], [75.2, 88.267], [88.0, 88.267], [88.0, 93.267], [103.2, 93.267], [103.2, 88.267], [142.0, 88.267], [142.0, 65.2], [64.16, 65.2], [64.16, 58.72]]}, {"pl": [0, -0.289157, 46.022892], "pts": [[142.0, 106.3], [142.0, 88.267], [103.2, 88.267], [103.2, 93.267], [88.0, 93.267], [88.0, 88.267], [75.2, 88.267], [75.2, 93.267], [32.0, 93.267], [32.0, 88.267], [23.2, 88.267], [23.2, 112.0], [105.2, 112.0], [105.2, 106.3]]}, {"pl": [0.289157, 0, -12.865904], "pts": [[73.453, 34.4], [72.48, 34.4], [72.48, 52.273], [86.207, 66.0], [89.28, 66.0], [89.28, 18.573]]}, {"pl": [-0.289157, 0, 38.765904], "pts": [[89.28, 66.0], [92.353, 66.0], [106.08, 52.273], [106.08, 34.4], [105.107, 34.4], [89.28, 18.573]]}];
+const WEST_WALLS = [{"n": "AB", "ax": "x", "x0": 11.200000000000001, "x1": 136.8, "y0": 0.0, "y1": 34.4, "r": 18.400000000000002, "H": 13.0, "e0": 7.68, "e1": 8.373, "o": {"ends": true, "win": "band"}}, {"n": "C", "ax": "x", "x0": 7.2, "x1": 89.28, "y0": 47.04, "y1": 101.60000000000001, "r": 77.60000000000001, "H": 15.415662650602414, "e0": 6.579, "e1": 8.476, "o": {"win": "row", "glassW": true}}, {"n": "D1", "ax": "x", "x0": 24.0, "x1": 63.36, "y0": 59.52, "y1": 111.2, "r": 88.26666666666667, "H": 20.5, "e0": 12.188, "e1": 13.869, "o": {"skip": ["north", "east"], "northTo": 104.4}}, {"n": "D2", "ax": "x", "x0": 63.36, "x1": 104.4, "y0": 66.0, "y1": 111.2, "r": 88.26666666666667, "H": 20.5, "e0": 14.061, "e1": 13.869, "o": {"skip": ["north", "west"]}}, {"n": "H", "ax": "y", "x0": 73.28, "x1": 105.28, "y0": 18.400000000000002, "y1": 68.48, "r": 89.28, "H": 12.95, "e0": 8.323, "e1": 8.323, "o": {}}];
+const MONITORS = [{"xa": 32.8, "xb": 58.08, "r": 18.4, "e": 4.0, "H": 13.0}, {"xa": 107.2, "xb": 128.64, "r": 18.4, "e": 4.0, "H": 13.0}, {"xa": 32.0, "xb": 75.2, "r": 88.267, "e": 5.0, "H": 20.5}, {"xa": 88.0, "xb": 103.2, "r": 88.267, "e": 5.0, "H": 20.5}];
+for (const w of WEST_WALLS) { const o = { ...w.o, noRoof: true };
+  if (w.ax === "x") { gableX(w.x0, w.x1, w.y0, w.y1, w.r, w.e0, w.H, w.e1, o.skip || [], o);
+    if (o.northTo) wall("N", o.northTo, w.y1, rectO(o.northTo - w.x0, w.e1), o);   // one north wall for the whole main block
+  } else gableY(w.x0, w.x1, w.y0, w.y1, w.r, w.e0, w.H, w.e1, o); }
+for (const f of WEST_ROOF) slab(f.pts.map(([x, y]) => [x, y, f.pl[0] * x + f.pl[1] * y + f.pl[2]]));
+// return wall where the main block's south wall steps back (D1 -> D2), so the notch is closed
+{ const d1 = WEST_WALLS.find(w => w.n === "D1"), d2 = WEST_WALLS.find(w => w.n === "D2"), d = d2.y0 - d1.y0;
+  wall("E", d2.x0, d1.y0, [[0, 0], [d, 0], [d, d2.e0], [0, d1.e0]], {}); }
+// roof monitors: north riser (metal band) and the two triangular cheeks under the carried-on south slope
+for (const m of MONITORS) { const KM = (15.3 - 5.7) / 33.2, lo = m.H - KM * m.e, hi = m.H + KM * m.e, W = m.xb - m.xa;
+  wall("N", m.xb, m.r + m.e, [[0, lo], [W, lo], [W, hi], [0, hi]], { kind: "gym" });
+  const z = RT + 0.02, L = [[m.xa, m.r + m.e, lo + z], [m.xb, m.r + m.e, lo + z], [m.xa, m.r, m.H + z], [m.xa, m.r + m.e, lo + z], [m.xb, m.r, m.H + z], [m.xb, m.r + m.e, lo + z]];
+  root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(L.map(([x, y, zz]) => V(x, y, zz))), M.line));
+  wall("E", m.xb, m.r, [[0, m.H], [m.e, lo], [m.e, hi]], { kind: "plain" });
+  wall("W", m.xa, m.r + m.e, [[0, lo], [0, hi], [m.e, m.H]], { kind: "plain" }); }
+// east block (gym + entrance): tallest roof, entrance gable on the east face a step lower
+// gym: stops at the low roof, so only its high clerestory band shows above it (photo)
+// gym south slope continues the same plane as the low roof and the entrance gable (one slope end to end)
+// level 3 (green): the gym, highest; its south eave sits a clerestory band above the low roof (photo)
+// every slope in this block is parallel: south slopes rise at the low-roof pitch, north slopes fall at the entrance-gable pitch
+// entrance gable (coloring page): east face, apex 3/4 to the north, long slope down to the south
+// coloring page: a long low shed roof (left) and, a step higher, the main gable over the glass, doors and SCHOOL panel
+const FRB = 27.7, FRD = 3.0, CN = 18.4, PP = 0.4;   // CN: canopy start = where the roof overhang steps back; PP: white pier projects
+const WB0 = 12.0, WB1 = 20.0, WD = 0.6;   // wood bay: a shallow 0.6 m step back, s 12..20   // face steps back FRD m for s < FRB
+const EX0 = 138, EX = 155.2, EY0 = 44, EY1 = 100.5, EREC = 56.5;   // EREC: where the face steps back 2 m (dark recess, photo)
+// gentler pitch like the coloring page: apex stays 15.3 m, both eaves raised (south 4.5 -> 5.7, north 6.0 -> 8.5)
+const ESTEP = 17.6, ESH0 = 5.7, EAPX = 33.2, EZR = 15.3, EZN = 8.5, ESH1 = ESH0 + (EZR - ESH0) * ESTEP / EAPX, EGL = ESH1;
+const KS = (EZR - ESH0) / EAPX, KN = (EZR - EZN) / (EY1 - EY0 - EAPX);   // the two shared pitches
+const roofZ = s => s < ESTEP ? ESH0 + s * (ESH1 - ESH0) / ESTEP : s < EAPX ? EGL + (s - ESTEP) * (EZR - EGL) / (EAPX - ESTEP) : EZR - (s - EAPX) * (EZR - EZN) / (EY1 - EY0 - EAPX);
+// entrance block = three gables, ridges E-W, each one further back and higher, all slopes parallel (Ahmed's prompt)
+const YAP = EY0 + EAPX;                       // red apex line
+// 1 RED (lowest): its gable end is the white entrance face. Long south slope 4.5 -> 15.3 m runs back to the
+//   green clerestory wall; short north slope 15.3 -> 6.0 m is only ~6 m deep behind the face.
+const XR0 = PX(770), XRN = EX - 6;
+const XRS = PX(738);   // red low wing now runs on west to the hall's east wall, same slopes (Ahmed)
+// 2 BLUE + 3 GREEN: blue is a lifted copy of red's north slope only;
+//   green is a copy of the red gable lifted 2.4 m, running back to the west.
+const XB0 = XRN - 8, YB1 = EY1 + 5, DG = 7.0;   // heights from the street photo: dark blocks stand well above red
+const zS = (y, d) => ESH0 + KS * (y - EY0) + d, zN = (y, d) => EZR - KN * (y - YAP) + d;
+// walls only (roofs are drawn below as single slabs, so no seam lines run across them)
+// open courtyard cut out next to the hall (Ahmed): east wall at XC, north wall at YC (where the red slope meets the hall eave)
+const XC = 117.0, YC = EY0 + (12.95 - KS * (PX(738) - PX(638)) - ESH0) / KS;
+gableX(XC, EX - FRD, EY0, EY0 + FRB, EY0 + FRB, ESH0, roofZ(FRB), roofZ(FRB), ["east", "north"], { noRoof: true, win: "row" });
+wall("S", XRS, YC, rectO(XC - XRS, zS(YC, 0)), { win: "row" });
+gableX(XRS, EX, EY0 + FRB, YAP, YAP, roofZ(FRB), EZR, EZR, ["east", "north"], { noRoof: true, noS: true });
+wall("N", EX, EY1, rectO(EX - XRN, EZN), { kind: "plain" });   // north end: plain, no windows
+// red south slope: one L-shaped slab whose edge steps back with the recessed face
+// behind the 6 m red north part, the south slope runs on past the apex at the same pitch until it meets blue's top
+const DB = 3.0, YBR = YAP + DB / (KS + KN), ZBR = zS(YBR, 0);
+// (red south slope is drawn with the west roofs: it now runs on west into the hall, see roof-west.py)
+// red north slope (6 m deep behind the face)
+slab([[XRN - O, YAP], [EX + O, YAP], [EX + O, EY1 + O], [XRN - O, EY1 + O]].map(([x, y]) => [x, y, zN(y, 0)]));
+// blue: only the slope falling to the right, lifted DB above red's; it starts at the apex line (nothing rises
+//   on the left side), so a dark step shows above red's north slope and it runs 5 m past the face
+gableX(XB0, XRN, YBR, YB1, YBR, ZBR, ZBR, zN(YB1, DB), ["east"], { kind: "gym", noS: true, noWin: true });
+wall("E", XRN, YAP, [[0, 0], [YB1 - YAP, 0], [YB1 - YAP, zN(YB1, DB)], [YBR - YAP, ZBR], [0, EZR]], { kind: "gym", noWin: true });
+// green: low on the south side (only DGS above red, a short clerestory wall), same south pitch carried up
+//   to a ridge further north (photo), then the shared north pitch down to a tall north wall
+{ const YG0 = EY0 + 22, DGS = 2.0, ZGR = 20.5, YGR = YAP + (ZGR - EZR - DGS) / KS;
+  gableX(XR0 - 6, XB0, YG0, YB1, YGR, zS(YG0, DGS), ZGR, ZGR - KN * (YB1 - YGR), [], { kind: "gym", noWin: true, noRoof: true }); }   // its roof is drawn with the west roofs, one plane with the main block
+// central hall linking the two wings, ridge north-south, rides over both
+// flat-roof annexes
+// FB(78, 125, 520, 710, 5.0);
+// FB(115, 210, 425, 475, 5.0);
+// FB(655, 780, 345, 450, 6.5);
+// FB(755, 800, 760, 790, 5.0);
+entranceFacade();
+
+// ---------------- site in 3D (from site plan v8, same metre grid: x east, y north) ----------------
+// coloring-book style like the building: white solids with black outlines, no text
+{
+const W0 = new THREE.MeshLambertMaterial({ color: 0xffffff, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(900, 1100), M.ground);
+ground.rotation.x = -Math.PI / 2; ground.position.copy(V(65, 190, -0.02)); root.add(ground);
+const segs = [];                                   // all thin lines go into one LineSegments
+const seg = (a, b) => segs.push(...V(...a).toArray(), ...V(...b).toArray());
+const pl = (pts, z = 0.03, closed = false) => { for (let i = 0; i < pts.length - (closed ? 0 : 1); i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; seg([a[0], a[1], a[2] ?? z], [b[0], b[1], b[2] ?? z]); } };
+const Rr = (x0, x1, y0, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+// raised flat solid (pad, curb, box) with outlines
+function pad(pts, h, z0 = 0, holes = []) {
+  const sh = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
+  for (const hp of holes) sh.holes.push(new THREE.Path(hp.map(([x, y]) => new THREE.Vector2(x, y))));
+  const g = new THREE.ExtrudeGeometry(sh, { depth: h, bevelEnabled: false, curveSegments: 24 });
+  const m = new THREE.Mesh(g, W0); m.rotation.x = -Math.PI / 2; m.position.y = z0; root.add(m);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), M.line); e.rotation.copy(m.rotation); e.position.copy(m.position); root.add(e);
+}
+const box = (x0, x1, y0, y1, z0, z1) => pad(Rr(x0, x1, y0, y1), z1 - z0, z0);
+// site layers: same solid, but outlines come from the polygon rings themselves (top + bottom loop, corner posts),
+// so the triangulation of big polygons with holes never leaks stray lines across aisles
+function padR(pts, h, z0 = 0, holes = []) {
+  const sh = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
+  for (const hp of holes) sh.holes.push(new THREE.Path(hp.map(([x, y]) => new THREE.Vector2(x, y))));
+  const g = new THREE.ExtrudeGeometry(sh, { depth: h, bevelEnabled: false, curveSegments: 24 });
+  const m = new THREE.Mesh(g, W0); m.rotation.x = -Math.PI / 2; m.position.y = z0; root.add(m);
+  const v = [];
+  for (const r of [pts, ...holes]) for (let i = 0; i < r.length; i++) {
+    const a = r[(i + r.length - 1) % r.length], b = r[i], c = r[(i + 1) % r.length];
+    for (const z of [z0, z0 + h]) v.push(...V(b[0], b[1], z).toArray(), ...V(c[0], c[1], z).toArray());
+    if (Math.abs((b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0])) > 1e-6) v.push(...V(b[0], b[1], z0).toArray(), ...V(b[0], b[1], z0 + h).toArray());
+  }
+  const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.Float32BufferAttribute(v, 3)); root.add(new THREE.LineSegments(lg, M.line));
+}
+// oriented box along a segment a->b, width w
+function bar(a, b, w, z0, z1) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy), nx = -dy / l * w / 2, ny = dx / l * w / 2;
+  pad([[a[0] + nx, a[1] + ny], [b[0] + nx, b[1] + ny], [b[0] - nx, b[1] - ny], [a[0] - nx, a[1] - ny]], z1 - z0, z0);
+}
+const walk = (pts, w, h = 0.08) => { for (let i = 0; i + 1 < pts.length; i++) bar(pts[i], pts[i + 1], w, 0, h); };
+// fence: posts every 3 m, top and bottom rails
+function fence(pts, h = 1.8, closed = false, step = 3) {
+  pl(pts.map(p => [p[0], p[1], h]), h, closed); pl(pts.map(p => [p[0], p[1], 0.15]), 0.15, closed);
+  for (let i = 0; i < pts.length - (closed ? 0 : 1); i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(l / step));
+    for (let k = 0; k <= n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, y = a[1] + (b[1] - a[1]) * k / n; seg([x, y, 0], [x, y, h]); }
+  }
+}
+// bleachers: one solid with a stepped profile, front edge xf, step depth dx (sign = direction away from the field)
+function stands(xf, dx, n, y0, y1) {
+  const pr = [[xf, 0]]; for (let k = 0; k < n; k++) { pr.push([xf + dx * k, 0.7 * (k + 1)]); pr.push([xf + dx * (k + 1), 0.7 * (k + 1)]); }
+  pr.push([xf + dx * n, 0]);
+  const sh = new THREE.Shape(pr.map(([x, z]) => new THREE.Vector2(x, z)));
+  const g = new THREE.ExtrudeGeometry(sh, { depth: y1 - y0, bevelEnabled: false });
+  const m = new THREE.Mesh(g, W0); m.position.z = -y1; root.add(m);   // shape x = world x, shape y = height, extrude along world -y
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), M.line); e.position.copy(m.position); root.add(e);
+}
+// low-poly tree: trunk + faceted crown
+const crownG = new THREE.IcosahedronGeometry(1, 0), crownE = new THREE.EdgesGeometry(crownG, 1);
+const trunkG = new THREE.CylinderGeometry(0.18, 0.25, 1, 6), trunkE = new THREE.EdgesGeometry(trunkG, 30);
+const TREES = [];                                  // trunk positions, so the shrubs keep clear of them
+function tree(x, y, r = 3, h = 7) {
+  TREES.push([x, y]);
+  const t = new THREE.Mesh(trunkG, W0); t.scale.set(1, h - r, 1); t.position.copy(V(x, y, (h - r) / 2)); root.add(t);
+  const c = new THREE.Mesh(crownG, W0); c.scale.set(r, r * 1.1, r); c.position.copy(V(x, y, h)); c.rotation.y = (x * 7 + y * 3) % 6.28; root.add(c);
+  const ce = new THREE.LineSegments(crownE, M.line); ce.scale.copy(c.scale); ce.position.copy(c.position); ce.rotation.copy(c.rotation); root.add(ce);
+}
+let seed = 7; const rnd = (a, b) => { seed = (seed * 16807) % 2147483647; return a + (b - a) * (seed / 2147483647); };
+
+// ---- merged ground layers (layout-scripts/site-layers.py): paving, lawns + islands, walks, sport surfaces
+const SITE_LAYERS = {"P": {"h": 0.05, "polys": [{"o": [[-125.0, -124.0], [-125.0, -106.0], [-1.0, -106.0], [-1.0, -99.0], [-40.0, -99.0], [-40.0, -92.0], [-34.5, -92.0], [-34.5, -89.0], [-40.0, -89.0], [-40.0, -21.0], [-34.5, -21.0], [-34.5, -18.0], [-40.0, -18.0], [-40.0, -8.0], [35.0, -8.0], [35.0, -18.0], [32.0, -18.0], [26.5, -18.0], [26.5, -21.0], [32.0, -21.0], [32.0, -89.0], [26.5, -89.0], [26.5, -92.0], [32.0, -92.0], [35.0, -92.0], [35.0, -99.0], [11.0, -99.0], [11.0, -106.0], [81.0, -106.0], [81.0, -99.0], [39.0, -99.0], [39.0, -92.0], [42.0, -92.0], [47.5, -92.0], [47.5, -89.0], [42.0, -89.0], [42.0, -21.0], [47.5, -21.0], [47.5, -18.0], [42.0, -18.0], [39.0, -18.0], [39.0, -8.0], [117.0, -8.0], [117.0, -18.0], [114.0, -18.0], [108.5, -18.0], [108.5, -21.0], [114.0, -21.0], [114.0, -89.0], [108.5, -89.0], [108.5, -92.0], [114.0, -92.0], [117.0, -92.0], [117.0, -99.0], [93.0, -99.0], [93.0, -106.0], [163.0, -106.0], [163.0, -99.0], [121.0, -99.0], [121.0, -92.0], [124.0, -92.0], [129.5, -92.0], [129.5, -89.0], [124.0, -89.0], [124.0, -21.0], [129.5, -21.0], [129.5, -18.0], [124.0, -18.0], [121.0, -18.0], [121.0, -8.0], [168.0, -8.0], [168.0, -6.0], [168.0, 128.0], [168.0, 140.0], [178.0, 140.0], [178.0, 134.0], [182.0, 134.0], [215.0, 134.0], [216.0, 134.0], [228.0, 134.0], [228.0, 311.0], [216.0, 311.0], [216.0, 298.0], [168.0, 298.0], [168.0, 332.0], [216.0, 332.0], [216.0, 319.0], [228.0, 319.0], [228.0, 510.0], [246.0, 510.0], [246.0, -106.0], [255.0, -106.0], [255.0, -124.0], [246.0, -124.0], [228.0, -124.0]], "h": [[[216.0, 126.0], [215.0, 126.0], [209.0, 126.0], [209.0, 121.5], [215.0, 121.5], [215.0, 72.9], [209.0, 72.9], [209.0, 62.1], [215.0, 62.1], [215.0, 5.4], [209.0, 5.4], [209.0, 2.0], [215.0, 2.0], [216.0, 2.0], [228.0, 2.0], [228.0, 126.0]], [[175.0, -99.0], [175.0, -106.0], [228.0, -106.0], [228.0, -6.0], [216.0, -6.0], [215.0, -6.0], [182.0, -6.0], [178.0, -6.0], [178.0, -8.0], [178.0, -18.0], [172.5, -18.0], [172.5, -21.0], [178.0, -21.0], [183.5, -21.0], [183.5, -18.0], [190.5, -18.0], [190.5, -21.0], [196.0, -21.0], [196.0, -89.0], [190.5, -89.0], [190.5, -92.0], [196.0, -92.0], [196.0, -99.0]], [[193.0, 126.0], [193.0, 121.5], [203.0, 121.5], [203.0, 126.0]], [[193.0, 72.9], [193.0, 62.1], [203.0, 62.1], [203.0, 72.9]], [[193.0, 5.4], [193.0, 2.0], [203.0, 2.0], [203.0, 5.4]], [[178.0, 62.1], [178.0, 2.0], [182.0, 2.0], [187.0, 2.0], [187.0, 5.4], [182.0, 5.4], [182.0, 62.1], [187.0, 62.1], [187.0, 72.9], [182.0, 72.9], [182.0, 121.5], [187.0, 121.5], [187.0, 126.0], [182.0, 126.0], [178.0, 126.0], [178.0, 72.9]], [[178.0, -92.0], [183.5, -92.0], [183.5, -89.0], [178.0, -89.0], [172.5, -89.0], [172.5, -92.0]], [[165.5, -89.0], [160.0, -89.0], [154.5, -89.0], [154.5, -92.0], [160.0, -92.0], [165.5, -92.0]], [[160.0, -18.0], [154.5, -18.0], [154.5, -21.0], [160.0, -21.0], [165.5, -21.0], [165.5, -18.0]], [[142.0, -21.0], [147.5, -21.0], [147.5, -18.0], [142.0, -18.0], [136.5, -18.0], [136.5, -21.0]], [[142.0, -89.0], [136.5, -89.0], [136.5, -92.0], [142.0, -92.0], [147.5, -92.0], [147.5, -89.0]], [[96.0, -89.0], [90.5, -89.0], [90.5, -92.0], [96.0, -92.0], [101.5, -92.0], [101.5, -89.0]], [[101.5, -18.0], [96.0, -18.0], [90.5, -18.0], [90.5, -21.0], [96.0, -21.0], [101.5, -21.0]], [[78.0, -89.0], [72.5, -89.0], [72.5, -92.0], [78.0, -92.0], [83.5, -92.0], [83.5, -89.0]], [[72.5, -21.0], [78.0, -21.0], [83.5, -21.0], [83.5, -18.0], [78.0, -18.0], [72.5, -18.0]], [[54.5, -18.0], [54.5, -21.0], [60.0, -21.0], [65.5, -21.0], [65.5, -18.0], [60.0, -18.0]], [[54.5, -89.0], [54.5, -92.0], [60.0, -92.0], [65.5, -92.0], [65.5, -89.0], [60.0, -89.0]], [[14.0, -21.0], [19.5, -21.0], [19.5, -18.0], [14.0, -18.0], [8.5, -18.0], [8.5, -21.0]], [[14.0, -92.0], [19.5, -92.0], [19.5, -89.0], [14.0, -89.0], [8.5, -89.0], [8.5, -92.0]], [[-4.0, -21.0], [1.5, -21.0], [1.5, -18.0], [-4.0, -18.0], [-9.5, -18.0], [-9.5, -21.0]], [[-4.0, -89.0], [-9.5, -89.0], [-9.5, -92.0], [-4.0, -92.0], [1.5, -92.0], [1.5, -89.0]], [[-27.5, -21.0], [-22.0, -21.0], [-16.5, -21.0], [-16.5, -18.0], [-22.0, -18.0], [-27.5, -18.0]], [[-27.5, -89.0], [-27.5, -92.0], [-22.0, -92.0], [-16.5, -92.0], [-16.5, -89.0], [-22.0, -89.0]]]}, {"o": [[-108.0, 475.0], [-103.0, 475.0], [-103.0, 168.0], [-10.0, 168.0], [-10.0, 160.0], [-70.0, 160.0], [-70.0, 140.0], [-10.0, 140.0], [-10.0, 132.0], [-100.0, 132.0], [-100.0, 128.0], [-100.0, 21.75], [-100.77, 21.29], [-100.0, 20.0], [-100.0, -99.0], [-100.0, -100.0], [-108.0, -100.0], [-108.0, 132.0], [-108.0, 140.0], [-108.0, 168.0]], "h": []}]}, "G": {"h": 0.12, "polys": [{"o": [[216.0, 134.0], [215.0, 134.0], [182.0, 134.0], [178.0, 134.0], [178.0, 140.0], [216.0, 140.0]], "h": []}, {"o": [[215.0, 72.9], [215.0, 121.5], [209.0, 121.5], [209.0, 126.0], [215.0, 126.0], [216.0, 126.0], [216.0, 121.5], [216.0, 72.9], [216.0, 62.1], [216.0, 5.4], [216.0, 2.0], [215.0, 2.0], [209.0, 2.0], [209.0, 5.4], [215.0, 5.4], [215.0, 62.1], [209.0, 62.1], [209.0, 72.9]], "h": []}, {"o": [[196.0, -92.0], [190.5, -92.0], [190.5, -89.0], [196.0, -89.0], [196.0, -21.0], [190.5, -21.0], [190.5, -18.0], [183.5, -18.0], [183.5, -21.0], [178.0, -21.0], [172.5, -21.0], [172.5, -18.0], [178.0, -18.0], [178.0, -6.0], [182.0, -6.0], [215.0, -6.0], [216.0, -6.0], [216.0, -18.0], [215.0, -18.0], [215.0, -99.0], [196.0, -99.0]], "h": []}, {"o": [[203.0, 126.0], [203.0, 121.5], [193.0, 121.5], [193.0, 126.0]], "h": []}, {"o": [[203.0, 72.9], [203.0, 62.1], [193.0, 62.1], [193.0, 72.9]], "h": []}, {"o": [[203.0, 5.4], [203.0, 2.0], [193.0, 2.0], [193.0, 5.4]], "h": []}, {"o": [[178.0, 126.0], [182.0, 126.0], [187.0, 126.0], [187.0, 121.5], [182.0, 121.5], [182.0, 72.9], [178.0, 72.9]], "h": []}, {"o": [[178.0, 62.1], [182.0, 62.1], [182.0, 5.4], [187.0, 5.4], [187.0, 2.0], [182.0, 2.0], [178.0, 2.0]], "h": []}, {"o": [[172.5, -92.0], [172.5, -89.0], [178.0, -89.0], [183.5, -89.0], [183.5, -92.0], [178.0, -92.0]], "h": []}, {"o": [[167.0, 100.5], [167.0, 74.0], [163.0, 74.0], [163.0, 100.5]], "h": []}, {"o": [[167.0, 61.0], [167.0, 44.0], [163.0, 44.0], [163.0, 61.0]], "h": []}, {"o": [[165.5, -18.0], [165.5, -21.0], [160.0, -21.0], [154.5, -21.0], [154.5, -18.0], [160.0, -18.0]], "h": []}, {"o": [[165.5, -92.0], [160.0, -92.0], [154.5, -92.0], [154.5, -89.0], [160.0, -89.0], [165.5, -89.0]], "h": []}, {"o": [[157.0, 100.5], [157.0, 86.5], [155.2, 86.5], [155.2, 100.5]], "h": []}, {"o": [[154.2, 61.0], [154.2, 44.0], [152.2, 44.0], [152.2, 61.0]], "h": []}, {"o": [[147.5, -89.0], [147.5, -92.0], [142.0, -92.0], [136.5, -92.0], [136.5, -89.0], [142.0, -89.0]], "h": []}, {"o": [[136.5, -21.0], [136.5, -18.0], [142.0, -18.0], [147.5, -18.0], [147.5, -21.0], [142.0, -21.0]], "h": []}, {"o": [[124.0, -18.0], [129.5, -18.0], [129.5, -21.0], [124.0, -21.0], [124.0, -89.0], [129.5, -89.0], [129.5, -92.0], [124.0, -92.0], [121.0, -92.0], [121.0, -18.0]], "h": []}, {"o": [[108.5, -92.0], [108.5, -89.0], [114.0, -89.0], [114.0, -21.0], [108.5, -21.0], [108.5, -18.0], [114.0, -18.0], [117.0, -18.0], [117.0, -92.0], [114.0, -92.0]], "h": []}, {"o": [[101.5, -21.0], [96.0, -21.0], [90.5, -21.0], [90.5, -18.0], [96.0, -18.0], [101.5, -18.0]], "h": []}, {"o": [[101.5, -89.0], [101.5, -92.0], [96.0, -92.0], [90.5, -92.0], [90.5, -89.0], [96.0, -89.0]], "h": []}, {"o": [[83.5, -89.0], [83.5, -92.0], [78.0, -92.0], [72.5, -92.0], [72.5, -89.0], [78.0, -89.0]], "h": []}, {"o": [[72.5, -18.0], [78.0, -18.0], [83.5, -18.0], [83.5, -21.0], [78.0, -21.0], [72.5, -21.0]], "h": []}, {"o": [[60.0, -18.0], [65.5, -18.0], [65.5, -21.0], [60.0, -21.0], [54.5, -21.0], [54.5, -18.0]], "h": []}, {"o": [[60.0, -89.0], [65.5, -89.0], [65.5, -92.0], [60.0, -92.0], [54.5, -92.0], [54.5, -89.0]], "h": []}, {"o": [[42.0, -18.0], [47.5, -18.0], [47.5, -21.0], [42.0, -21.0], [42.0, -89.0], [47.5, -89.0], [47.5, -92.0], [42.0, -92.0], [39.0, -92.0], [39.0, -18.0]], "h": []}, {"o": [[26.5, -92.0], [26.5, -89.0], [32.0, -89.0], [32.0, -21.0], [26.5, -21.0], [26.5, -18.0], [32.0, -18.0], [35.0, -18.0], [35.0, -92.0], [32.0, -92.0]], "h": []}, {"o": [[8.5, -21.0], [8.5, -18.0], [14.0, -18.0], [19.5, -18.0], [19.5, -21.0], [14.0, -21.0]], "h": []}, {"o": [[8.5, -92.0], [8.5, -89.0], [14.0, -89.0], [19.5, -89.0], [19.5, -92.0], [14.0, -92.0]], "h": []}, {"o": [[1.5, -89.0], [1.5, -92.0], [-4.0, -92.0], [-9.5, -92.0], [-9.5, -89.0], [-4.0, -89.0]], "h": []}, {"o": [[-9.5, -21.0], [-9.5, -18.0], [-4.0, -18.0], [1.5, -18.0], [1.5, -21.0], [-4.0, -21.0]], "h": []}, {"o": [[-100.0, 20.0], [-99.23, 18.71], [-73.85, 33.94], [-58.48, 64.69], [-60.45, 94.28], [-34.44, 113.55], [-6.0, 116.49], [-6.0, -2.0], [-46.0, -2.0], [-46.0, -99.0], [-100.0, -99.0]], "h": []}, {"o": [[-100.0, 128.0], [-6.0, 128.0], [-6.0, 118.0], [-6.15, 119.49], [-35.56, 116.45], [-63.55, 95.72], [-61.52, 65.31], [-76.15, 36.06], [-100.0, 21.75]], "h": []}, {"o": [[-10.0, 160.0], [-10.0, 140.0], [-70.0, 140.0], [-70.0, 160.0]], "h": []}, {"o": [[-22.0, -89.0], [-16.5, -89.0], [-16.5, -92.0], [-22.0, -92.0], [-27.5, -92.0], [-27.5, -89.0]], "h": []}, {"o": [[-27.5, -18.0], [-22.0, -18.0], [-16.5, -18.0], [-16.5, -21.0], [-22.0, -21.0], [-27.5, -21.0]], "h": []}, {"o": [[-34.5, -18.0], [-34.5, -21.0], [-40.0, -21.0], [-40.0, -18.0]], "h": []}, {"o": [[-34.5, -89.0], [-34.5, -92.0], [-40.0, -92.0], [-40.0, -89.0]], "h": []}]}, "W": {"h": 0.15, "polys": [{"o": [[-6.0, 116.49], [-34.44, 113.55], [-60.45, 94.28], [-58.48, 64.69], [-73.85, 33.94], [-99.23, 18.71], [-100.77, 21.29], [-76.15, 36.06], [-61.52, 65.31], [-63.55, 95.72], [-35.56, 116.45], [-6.15, 119.49], [-6.0, 118.0], [-6.0, 128.0], [25.0, 128.0], [25.0, 226.0], [12.0, 226.0], [12.0, 233.0], [-35.0, 233.0], [-35.0, 237.0], [12.0, 237.0], [12.0, 252.0], [25.0, 252.0], [25.0, 337.5], [-100.0, 337.5], [-100.0, 344.5], [-96.5, 344.5], [-96.5, 352.0], [-91.5, 352.0], [-91.5, 344.5], [46.5, 344.5], [46.5, 356.0], [51.5, 356.0], [51.5, 344.5], [164.0, 344.5], [164.0, 356.0], [168.0, 356.0], [168.0, 344.5], [216.0, 344.5], [216.0, 337.5], [165.0, 337.5], [165.0, 275.6], [167.0, 275.6], [167.0, 272.6], [165.0, 272.6], [165.0, 239.0], [167.0, 239.0], [167.0, 236.0], [165.0, 236.0], [165.0, 202.4], [167.0, 202.4], [167.0, 199.4], [165.0, 199.4], [165.0, 165.8], [167.0, 165.8], [167.0, 162.8], [165.0, 162.8], [165.0, 140.0], [159.0, 140.0], [159.0, 337.5], [31.0, 337.5], [31.0, 134.0], [96.0, 134.0], [96.0, 128.0], [160.0, 128.0], [168.0, 128.0], [168.0, -6.0], [160.0, -6.0], [121.0, -6.0], [121.0, -99.0], [117.0, -99.0], [117.0, -6.0], [39.0, -6.0], [39.0, -99.0], [35.0, -99.0], [35.0, -6.0], [-6.0, -6.0]], "h": [[[163.0, 44.0], [167.0, 44.0], [167.0, 61.0], [163.0, 61.0]], [[163.0, 74.0], [167.0, 74.0], [167.0, 100.5], [163.0, 100.5]], [[155.2, 86.5], [157.0, 86.5], [157.0, 100.5], [155.2, 100.5]], [[152.2, 44.0], [154.2, 44.0], [154.2, 61.0], [152.2, 61.0]]]}, {"o": [[178.0, 62.1], [178.0, 72.9], [187.0, 72.9], [187.0, 62.1]], "h": []}, {"o": [[147.85, 181.08], [146.51, 177.45], [144.89, 173.94], [143.0, 170.57], [140.85, 167.35], [138.46, 164.31], [135.83, 161.47], [132.99, 158.85], [129.95, 156.45], [126.74, 154.3], [123.36, 152.41], [119.85, 150.79], [116.22, 149.46], [112.5, 148.41], [108.71, 147.65], [104.86, 147.2], [101.0, 147.05], [97.14, 147.2], [93.29, 147.65], [89.5, 148.41], [85.78, 149.46], [82.15, 150.79], [78.64, 152.41], [75.26, 154.3], [72.05, 156.45], [69.01, 158.85], [66.17, 161.47], [63.54, 164.31], [61.15, 167.35], [59.0, 170.57], [57.11, 173.94], [55.49, 177.45], [54.15, 181.08], [53.1, 184.81], [52.35, 188.6], [51.89, 192.44], [51.74, 196.31], [51.74, 280.69], [51.89, 284.56], [52.35, 288.4], [53.1, 292.19], [54.15, 295.92], [55.49, 299.55], [57.11, 303.06], [59.0, 306.43], [61.15, 309.65], [63.54, 312.69], [66.17, 315.53], [69.01, 318.15], [72.05, 320.55], [75.26, 322.7], [78.64, 324.59], [82.15, 326.21], [85.78, 327.54], [89.5, 328.59], [93.29, 329.35], [97.14, 329.8], [101.0, 329.95], [104.86, 329.8], [108.71, 329.35], [112.5, 328.59], [116.22, 327.54], [119.85, 326.21], [123.36, 324.59], [126.74, 322.7], [129.95, 320.55], [132.99, 318.15], [135.83, 315.53], [138.46, 312.69], [140.85, 309.65], [143.0, 306.43], [144.89, 303.06], [146.51, 299.55], [147.85, 295.92], [148.9, 292.19], [149.65, 288.4], [150.11, 284.56], [150.26, 280.69], [150.26, 196.31], [150.11, 192.44], [149.65, 188.6], [148.9, 184.81]], "h": []}]}, "T": {"h": 0.15, "polys": [{"o": [[147.26, 196.31], [147.12, 192.68], [146.69, 189.07], [145.98, 185.51], [145.0, 182.01], [143.74, 178.6], [142.22, 175.3], [140.44, 172.13], [138.43, 169.11], [136.18, 166.26], [133.71, 163.59], [131.04, 161.13], [128.19, 158.88], [125.17, 156.86], [122.0, 155.09], [118.7, 153.57], [115.3, 152.31], [111.8, 151.32], [108.24, 150.61], [104.63, 150.19], [101.0, 150.05], [97.37, 150.19], [93.76, 150.61], [90.2, 151.32], [86.7, 152.31], [83.3, 153.57], [80.0, 155.09], [76.83, 156.86], [73.81, 158.88], [70.96, 161.13], [68.29, 163.59], [65.82, 166.26], [63.57, 169.11], [61.56, 172.13], [59.78, 175.3], [58.26, 178.6], [57.0, 182.01], [56.02, 185.51], [55.31, 189.07], [54.88, 192.68], [54.74, 196.31], [54.74, 280.69], [54.88, 284.32], [55.31, 287.93], [56.02, 291.49], [57.0, 294.99], [58.26, 298.4], [59.78, 301.7], [61.56, 304.87], [63.57, 307.89], [65.82, 310.74], [68.29, 313.41], [70.96, 315.87], [73.81, 318.12], [76.83, 320.14], [80.0, 321.91], [83.3, 323.43], [86.7, 324.69], [90.2, 325.68], [93.76, 326.39], [97.37, 326.81], [101.0, 326.95], [104.63, 326.81], [108.24, 326.39], [111.8, 325.68], [115.3, 324.69], [118.7, 323.43], [122.0, 321.91], [125.17, 320.14], [128.19, 318.12], [131.04, 315.87], [133.71, 313.41], [136.18, 310.74], [138.43, 307.89], [140.44, 304.87], [142.22, 301.7], [143.74, 298.4], [145.0, 294.99], [145.98, 291.49], [146.69, 287.93], [147.12, 284.32], [147.26, 280.69]], "h": [[[137.39, 283.56], [137.05, 286.4], [136.49, 289.22], [135.71, 291.97], [134.72, 294.66], [133.52, 297.27], [132.12, 299.77], [130.53, 302.15], [128.75, 304.4], [126.81, 306.5], [124.7, 308.45], [122.45, 310.22], [120.07, 311.82], [117.57, 313.22], [114.97, 314.42], [112.28, 315.41], [109.52, 316.19], [106.71, 316.75], [103.86, 317.08], [101.0, 317.19], [98.14, 317.08], [95.29, 316.75], [92.48, 316.19], [89.72, 315.41], [87.03, 314.42], [84.43, 313.22], [81.93, 311.82], [79.55, 310.22], [77.3, 308.45], [75.19, 306.5], [73.25, 304.4], [71.47, 302.15], [69.88, 299.77], [68.48, 297.27], [67.28, 294.66], [66.29, 291.97], [65.51, 289.22], [64.95, 286.4], [64.61, 283.56], [64.5, 280.69], [64.5, 196.31], [64.61, 193.44], [64.95, 190.6], [65.51, 187.78], [66.29, 185.03], [67.28, 182.34], [68.48, 179.73], [69.88, 177.23], [71.47, 174.85], [73.25, 172.6], [75.19, 170.5], [77.3, 168.55], [79.55, 166.78], [81.93, 165.18], [84.43, 163.78], [87.03, 162.58], [89.72, 161.59], [92.48, 160.81], [95.29, 160.25], [98.14, 159.92], [101.0, 159.81], [103.86, 159.92], [106.71, 160.25], [109.52, 160.81], [112.28, 161.59], [114.97, 162.58], [117.57, 163.78], [120.07, 165.18], [122.45, 166.78], [124.7, 168.55], [126.81, 170.5], [128.75, 172.6], [130.53, 174.85], [132.12, 177.23], [133.52, 179.73], [134.72, 182.34], [135.71, 185.03], [136.49, 187.78], [137.05, 190.6], [137.39, 193.44], [137.5, 196.31], [137.5, 280.69]]]}, {"o": [[137.5, 280.69], [137.5, 196.31], [137.39, 193.44], [137.05, 190.6], [136.49, 187.78], [135.71, 185.03], [134.72, 182.34], [133.52, 179.73], [132.12, 177.23], [130.53, 174.85], [128.75, 172.6], [126.81, 170.5], [124.7, 168.55], [122.45, 166.78], [120.07, 165.18], [117.57, 163.78], [114.97, 162.58], [112.28, 161.59], [109.52, 160.81], [106.71, 160.25], [103.86, 159.92], [101.0, 159.81], [98.14, 159.92], [95.29, 160.25], [92.48, 160.81], [89.72, 161.59], [87.03, 162.58], [84.43, 163.78], [81.93, 165.18], [79.55, 166.78], [77.3, 168.55], [75.19, 170.5], [73.25, 172.6], [71.47, 174.85], [69.88, 177.23], [68.48, 179.73], [67.28, 182.34], [66.29, 185.03], [65.51, 187.78], [64.95, 190.6], [64.61, 193.44], [64.5, 196.31], [64.5, 280.69], [64.61, 283.56], [64.95, 286.4], [65.51, 289.22], [66.29, 291.97], [67.28, 294.66], [68.48, 297.27], [69.88, 299.77], [71.47, 302.15], [73.25, 304.4], [75.19, 306.5], [77.3, 308.45], [79.55, 310.22], [81.93, 311.82], [84.43, 313.22], [87.03, 314.42], [89.72, 315.41], [92.48, 316.19], [95.29, 316.75], [98.14, 317.08], [101.0, 317.19], [103.86, 317.08], [106.71, 316.75], [109.52, 316.19], [112.28, 315.41], [114.97, 314.42], [117.57, 313.22], [120.07, 311.82], [122.45, 310.22], [124.7, 308.45], [126.81, 306.5], [128.75, 304.4], [130.53, 302.15], [132.12, 299.77], [133.52, 297.27], [134.72, 294.66], [135.71, 291.97], [136.49, 289.22], [137.05, 286.4], [137.39, 283.56]], "h": []}, {"o": [[201.0, 146.0], [167.0, 146.0], [167.0, 292.4], [201.0, 292.4]], "h": []}]}};
+for (const k of ["P", "G", "W"]) for (const p of SITE_LAYERS[k].polys) padR(p.o, SITE_LAYERS[k].h, 0, p.h);
+SITE_LAYERS.T.polys.forEach((p, i) => i < 2 ? pad(p.o, 0.05, 0.15, p.h) : pad(p.o, 0.1, 0, p.h));   // track + infield on the apron, tennis on the ground
+// ---- streets, plot fence, sidewalk ring around the building
+for (let x = -120; x < 250; x += 6) seg([x, -115, 0.06], [x + 3, -115, 0.06]);
+for (let y = -100; y < 505; y += 6) seg([237, y, 0.06], [237, y + 3, 0.06]);
+fence(Rr(-112, 222, -100, 482), 1.8, true, 4);
+
+// ---- green area (west + south-west) with a winding path and trees
+const GREEN = [[-100, -99], [-46, -99], [-46, -2], [-6, -2], [-6, 128], [-100, 128]];
+for (let i = 0; i < 400; i++) {
+  const x = rnd(-96, -10), y = rnd(-95, 124), keep = rnd(0, 1), r = rnd(2.5, 4);
+  if (x > -50 && y < 2) continue; if (keep < 0.8) continue;
+  tree(x, y, r, r + rnd(3, 5));
+}
+
+// ---- south parking: 3 lots, N-S aisles, tree islands, walks between lots, entries from Knott Rd
+const LY0 = -92, LY1 = -18;
+for (const px of [-40, 42, 124]) for (let k = 0; k < 4; k++) {
+  const bx = px + 18 * k;
+  for (const [x0, x1] of [[bx, bx + 5.5], [bx + 12.5, bx + 18]]) {
+    for (let j = 0; j < 26; j++) seg([x0, LY0 + 3 + 2.7 * j, 0.06], [x1, LY0 + 3 + 2.7 * j, 0.06]);
+    tree((x0 + x1) / 2, LY0 + 1.5, 1.6, 5); tree((x0 + x1) / 2, LY1 - 1.5, 1.6, 5);
+  }
+}
+for (const wx of [32, 114]) {
+  for (let yy = -88; yy < -20; yy += 9) { tree(wx + 1.6, yy, 1.4, 5); tree(wx + 8.4, yy, 1.4, 5); }
+}
+for (let y = -92; y < -20; y += 12) tree(205.5, y, 2.4, 6);
+for (const ex of [5, 87, 169]) { seg([ex, -106, 0.06], [ex, -99, 0.06]); }
+
+// ---- drop-off lane + east lot (staff / visitors), crosswalk to the main door
+for (let y = 62; y < 74; y += 2) pad(Rr(168, 178, y, y + 1), 0.02, 0.05);
+// one stall width (2.7 m) everywhere, laid out from the middle of the lot (entrance axis y 67.5) out to both ends;
+// curb islands at the row ends and on the entrance axis are green layers in site-layers.py (outer rows join the green strips)
+for (let k = -24; k <= 24; k++) { const y = 67.5 + 2.7 * k; if (y < 5.3 || y > 121.6 || Math.abs(k) === 1 || k === 0) continue;   // no lines inside the curb islands
+  for (const bx of [182, 198]) for (const [x0, x1] of [[bx, bx + 5], [bx + 11, bx + 16]]) seg([x0, y, 0.06], [x1, y, 0.06]); }
+
+// ---- forecourt paving joints: only the lines Ahmed drew, building edge to the walk-side bed, in a light grey
+{ const Z = 0.16, xs = (y) => y < 61.01 ? 152.2 : y < 71.7 ? 152.2 : 155.2, pts = [];
+  for (let k = 0; k <= 3; k++) { const y = 44 + k * 17 / 3; pts.push(V(xs(y), y, Z), V(163, y, Z)); }        // left of the doors: 4 lines
+  for (let k = 0; k <= 4; k++) { const y = 74 + k * 26.5 / 4; pts.push(V(155.2, y, Z), V(163, y, Z)); }     // right of the doors: 5 lines
+  root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xa8a8a8 }))); }
+
+// ---- west service road, bus loop
+for (let x = -66; x < -14; x += 4) seg([x, 133, 0.06], [x + 2.5, 138, 0.06]);
+for (let x = -64; x < -14; x += 12) tree(x, 150, 2.2, 6);
+
+// ---- pedestrian network
+const WS = 28, ES = 162, PYW = 341;
+box(14, 25, 236, 248, 0.1, 3.2); box(13.5, 25.5, 235.5, 248.5, 3.2, 3.6);   // gate / ticket / WC
+box(26, 40, 346, 356, 0, 3.2); box(25.5, 40.5, 345.5, 356.5, 3.2, 3.6);   // snacks / WC
+
+// ---- 400 m track + football field, stands, scoreboard
+const TX = 101, TY = 238.5, L = 84.39, r0 = 36.5, r1 = 46.26;
+const stadium = (r, n = 40) => {
+  const p = []; for (let k = 0; k <= n; k++) { const a = Math.PI * k / n; p.push([TX + r * Math.cos(a), TY + L / 2 + r * Math.sin(a)]); }
+  for (let k = 0; k <= n; k++) { const a = Math.PI * k / n; p.push([TX - r * Math.cos(a), TY - L / 2 - r * Math.sin(a)]); } return p; };
+for (let k = 1; k < 8; k++) pl(stadium(r0 + 1.22 * k), 0.21, true);
+const fx0 = TX - 24.4, fx1 = TX + 24.4, fy0 = TY - 54.86, fy1 = TY + 54.86;
+pl(Rr(fx0, fx1, fy0, fy1), 0.21, true);
+for (let k = 1; k < 12; k++) seg([fx0, fy0 + 9.144 * k, 0.21], [fx1, fy0 + 9.144 * k, 0.21]);
+for (const gy of [fy0, fy1]) {   // goal posts
+  seg([TX, gy, 0], [TX, gy, 3.05]); seg([TX - 2.82, gy, 3.05], [TX + 2.82, gy, 3.05]);
+  seg([TX - 2.82, gy, 3.05], [TX - 2.82, gy, 9.1]); seg([TX + 2.82, gy, 3.05], [TX + 2.82, gy, 9.1]);
+}
+// jumps: runways + pits in the D zones
+pad(Rr(TX - 26, TX + 16, fy1 + 7.4, fy1 + 8.6), 0.05, 0.2); pad(Rr(TX + 16, TX + 22, fy1 + 5, fy1 + 11), 0.6, 0.2);
+pad(Rr(TX - 26, TX + 14, fy0 - 8.6, fy0 - 7.4), 0.05, 0.2); pad(Rr(TX + 14, TX + 23, fy0 - 9.5, fy0 - 6.5), 0.05, 0.2);
+// home stands (west): stepped bleachers rising away from the field, press box on top
+stands(TX - 50, -1.85, 7, TY - 40, TY + 40);
+box(TX - 63, TX - 59, TY - 10, TY + 10, 4.9, 8.2); box(TX - 63.4, TX - 58.6, TY - 10.4, TY + 10.4, 8.2, 8.6);
+// visitor stands (east)
+stands(TX + 50, 1.5, 4, TY - 25, TY + 25);
+// scoreboard north of the track
+box(TX - 6, TX + 6, TY + 95, TY + 95.5, 4.5, 9); box(TX - 4.2, TX - 3.8, TY + 95.1, TY + 95.4, 0, 4.5); box(TX + 3.8, TX + 4.2, TY + 95.1, TY + 95.4, 0, 4.5);
+fence(stadium(r1 + 3), 1.2, true, 4);
+
+// ---- tennis: 4 fenced pairs, nets
+for (let i = 0; i < 4; i++) {
+  const y0 = 146 + i * 36.6, X0 = 167;
+  for (const cx of [X0 + 3.66, X0 + 3.66 + 10.97 + 3.66]) {
+    const a = y0 + 6.4, b = y0 + 30.17, n = y0 + 18.3, z = 0.11;
+    pl(Rr(cx, cx + 10.97, a, b), z, true);
+    seg([cx + 1.37, a, z], [cx + 1.37, b, z]); seg([cx + 9.6, a, z], [cx + 9.6, b, z]);
+    seg([cx + 1.37, n - 6.4, z], [cx + 9.6, n - 6.4, z]); seg([cx + 1.37, n + 6.4, z], [cx + 9.6, n + 6.4, z]);
+    seg([cx + 5.485, n - 6.4, z], [cx + 5.485, n + 6.4, z]);
+    box(cx - 0.9, cx + 11.87, n - 0.04, n + 0.04, 0.1, 1.0);
+  }
+  fence(Rr(X0, X0 + 34, y0, y0 + 36.6), 3.0, true, 3);
+}
+
+// ---- field parking off SE 15th St
+for (let x = 170; x < 215; x += 3) { seg([x, 298, 0.06], [x, 303.5, 0.06]); seg([x, 332, 0.06], [x, 326.5, 0.06]); }
+
+// ---- parked cars (random, in the marked stalls) + a school bus at the drop-off curb
+const BUS = globalThis.__BUS = {};   // the bus group and its door, driven by the drop-off loop further down
+{
+  const crand = (s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; })(4242);
+  const place = (x, y, h) => new THREE.Matrix4().makeTranslation(...V(x, y, 0).toArray()).multiply(new THREE.Matrix4().makeRotationY(h));
+  // detailed cars, built exactly like the train station's car park (body with wheel arches, glass, door shuts, handles, mirrors,
+  // lamps, bumpers, grille, plates, tyres with rims); one copy of each kind is baked, then repeated as instances
+  const TCAR = (() => { const LG = 0;
+    function box(root, x0, x1, y0, y1, z0, z1, mat = W0) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1 - x0), Math.abs(z1 - z0), Math.abs(y1 - y0)), mat);
+      m.position.copy(V((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)); root.add(m); return m;
+    }
+    const shapeOf = (pts) => new THREE.Shape(pts.map(([a, b]) => new THREE.Vector2(a, b)));
+    function sideShape(root, shape, x0, x1, mat = W0) {
+      const g = new THREE.ExtrudeGeometry(shape, { depth: x1 - x0, bevelEnabled: false, curveSegments: 24 });
+      g.rotateY(Math.PI / 2); const m = new THREE.Mesh(g, mat); m.position.x = x0; root.add(m); return m;
+    }
+    const side = (root, pts, x0, x1, mat) => sideShape(root, shapeOf(pts), x0, x1, mat);
+    function lines(root, segs) {
+      const pts = []; for (const [a, b] of segs) pts.push(V(...a), V(...b));
+      root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), M.line));
+    }
+    // cylinder along plan 'z' (up), 'x' or 'y', centred at (x, y, z)
+    function cyl(root, x, y, z, r, len, axis = "z", seg = 20, mat = W0, rTop = r) {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, r, len, seg), mat);
+      if (axis === "x") m.rotation.z = -Math.PI / 2; else if (axis === "y") m.rotation.x = -Math.PI / 2;
+      m.position.copy(V(x, y, z)); root.add(m); return m;
+    }
+    // parked cars at US sizes: sedan ~ Camry 4.85 x 1.84 x 1.44, hatchback ~ Civic hatch 4.45 x 1.80 x 1.45, SUV ~ RAV4 4.65 x 1.86 x 1.72
+    const CARS = {
+      sedan: { hl: 2.33, wf: 1.45, wr: -1.42, r: 0.33, sill: 0.28, belt: 0.9, roof: 1.44, cf: 0.92, rf: 0.05, rr: -0.95, cb: -1.72, deck: true, w: 0.92 },
+      hatch: { hl: 2.13, wf: 1.33, wr: -1.33, r: 0.32, sill: 0.28, belt: 0.9, roof: 1.45, cf: 0.85, rf: 0.02, rr: -1.55, cb: -2.02, deck: false, w: 0.9 },
+      suv:   { hl: 2.25, wf: 1.38, wr: -1.38, r: 0.37, sill: 0.42, belt: 1.08, roof: 1.72, cf: 1.0, rf: 0.3, rr: -1.85, cb: -2.12, deck: false, w: 0.93 },
+    };
+    function car(root, cx, cy, d = 1, kind = "sedan") {   // nose toward +y when d = 1: wheel arches, glasshouse, doors, lamps, bumpers, wheels with rims
+      const C = CARS[kind], { hl, wf, wr, r, sill, belt, roof, cf, rf, rr, cb, w } = C, ra = r + 0.07;
+      const G = new THREE.Group(); G.position.copy(V(cx, cy, LG)); G.rotation.y = d > 0 ? 0 : Math.PI; root.add(G);
+      const S = (f) => { const s = new THREE.Shape(); f(s); return s; };
+      sideShape(G, S((s) => {                                                         // lower body in side view, the two wheel arches cut into the sill
+        s.moveTo(-hl + 0.12, sill); s.lineTo(wr - ra, sill); s.absarc(wr, r, ra, Math.PI, 0, true); s.lineTo(wf - ra, sill); s.absarc(wf, r, ra, Math.PI, 0, true);
+        s.lineTo(hl - 0.12, sill); s.quadraticCurveTo(hl + 0.02, sill + 0.02, hl, sill + 0.27); s.quadraticCurveTo(hl - 0.02, belt - 0.12, hl - 0.28, belt - 0.1);
+        s.lineTo(cf - 0.05, belt); s.lineTo(cb, belt + 0.02);
+        if (C.deck) { s.lineTo(-hl + 0.18, belt); s.quadraticCurveTo(-hl - 0.02, belt - 0.05, -hl, sill + 0.27); }
+        else s.quadraticCurveTo(-hl + 0.02, belt - 0.02, -hl, sill + 0.27);
+        s.quadraticCurveTo(-hl + 0.01, sill + 0.02, -hl + 0.12, sill); }), -w, w);
+      const cw = w - 0.15, cc0 = [cf - (cf - rf) * 0.75, belt + (roof - belt) * 0.85], cc1 = C.deck ? [rr - (rr - cb) * 0.5, roof - 0.05] : [cb + 0.06, roof - 0.12];
+      sideShape(G, S((s) => { s.moveTo(cb, belt - 0.02); s.lineTo(cf, belt - 0.02); s.quadraticCurveTo(...cc0, rf, roof); s.lineTo(rr, roof); s.quadraticCurveTo(...cc1, cb, belt - 0.02); }), -cw, cw);
+      const bp = (rf + rr) / 2 + 0.12, gb = belt + 0.07, gt = roof - 0.08;
+      for (const xs of [-cw - 0.012, cw + 0.002]) {                                    // side glass: front and rear doors, and the quarter light on the longer roofs
+        side(G, [[cf - 0.22, gb], [rf + 0.06, gt], [bp, gt], [bp, gb]], xs, xs + 0.01);
+        if (C.deck) side(G, [[bp - 0.12, gb], [bp - 0.12, gt], [rr + 0.02, gt], [cb + 0.3, gb]], xs, xs + 0.01);
+        else { const bc = wr + 0.1; side(G, [[bp - 0.12, gb], [bp - 0.12, gt], [bc, gt], [bc, gb]], xs, xs + 0.01);
+          side(G, [[bc - 0.1, gb], [bc - 0.1, gt], [rr + 0.04, gt], [cb + 0.16, gb]], xs, xs + 0.01); }
+      }
+      const Ln = [], dR = C.deck ? cb + 0.22 : wr + 0.12, at = r + ra + 0.04;
+      for (const xs of [-w - 0.005, w + 0.005]) {
+        const sg = Math.sign(xs);
+        Ln.push([[xs, cf - 0.05, at], [xs, cf - 0.05, belt - 0.01]], [[xs, bp - 0.06, sill], [xs, bp - 0.06, belt + 0.01]], [[xs, dR, at], [xs, dR, belt + 0.01]],   // door shuts
+          [[xs, hl - 0.3, belt - 0.28], [xs, -hl + 0.25, belt - 0.28]]);                                                                                               // shoulder crease
+        box(G, xs - 0.01, xs + 0.01, cf - 0.75, cf - 0.57, belt - 0.12, belt - 0.08); box(G, xs - 0.01, xs + 0.01, bp - 0.65, bp - 0.47, belt - 0.12, belt - 0.08);   // handles
+        box(G, sg * (cw - 0.02), sg * (w + 0.05), cf - 0.28, cf - 0.17, belt + 0.03, belt + 0.11);                                                                     // mirror
+        for (const o of [wr, wf]) { cyl(G, sg * (w - 0.1), o, r, r, 0.22, "x", 24); cyl(G, sg * (w - 0.08), o, r, r * 0.6, 0.22, "x", 20); cyl(G, sg * (w - 0.07), o, r, 0.06, 0.22, "x", 10); }   // tyre, rim, hub
+      }
+      for (const [p0, c, p1, sg] of [[[cf, belt - 0.02], cc0, [rf, roof], 1], [[cb, belt - 0.02], cc1, [rr, roof], -1]]) {   // windscreen and back light on the curved cabin
+        const Q = (t) => { const u = 1 - t, o = u * u * p0[0] + 2 * u * t * c[0] + t * t * p1[0], h = u * u * p0[1] + 2 * u * t * c[1] + t * t * p1[1];
+          const to = 2 * u * (c[0] - p0[0]) + 2 * t * (p1[0] - c[0]), th = 2 * u * (c[1] - p0[1]) + 2 * t * (p1[1] - c[1]), n = Math.hypot(to, th) || 1;
+          return [o + sg * Math.abs(th) / n * 0.012, h + Math.abs(to) / n * 0.012]; };
+        const ts = [0.12, 0.3, 0.5, 0.7, 0.9], xw = cw - 0.13;
+        for (const xs of [-xw, xw]) for (let i = 0; i < ts.length - 1; i++) { const a = Q(ts[i]), b = Q(ts[i + 1]); Ln.push([[xs, a[0], a[1]], [xs, b[0], b[1]]]); }
+        for (const t of [ts[0], ts[ts.length - 1]]) { const a = Q(t); Ln.push([[-xw, a[0], a[1]], [xw, a[0], a[1]]]); }
+      }
+      const hb = sill - 0.01;
+      box(G, -w - 0.03, w + 0.03, hl - 0.1, hl + 0.06, hb, hb + 0.15); box(G, -w - 0.03, w + 0.03, -hl - 0.06, -hl + 0.1, hb, hb + 0.15);   // bumpers
+      box(G, -0.42, 0.42, hl - 0.06, hl + 0.01, sill + 0.18, sill + 0.36);                                                                 // grille
+      lines(G, [0.23, 0.28, 0.33].map((h) => [[-0.42, hl + 0.015, sill + h], [0.42, hl + 0.015, sill + h]]));
+      for (const xh of [-(w - 0.3), w - 0.3]) { cyl(G, xh, hl - 0.03, sill + 0.3, 0.11, 0.06, "y", 18); box(G, xh - 0.17, xh + 0.17, -hl - 0.03, -hl + 0.04, belt - 0.28, belt - 0.15); }   // head and tail lamps
+      box(G, -0.26, 0.26, -hl - 0.08, -hl - 0.04, sill + 0.17, sill + 0.31); box(G, -0.26, 0.26, hl + 0.06, hl + 0.08, sill + 0.01, sill + 0.12);   // number plates
+      if (kind === "suv") for (const xr of [-(cw - 0.12), cw - 0.12]) { box(G, xr - 0.03, xr + 0.03, rr + 0.1, rf - 0.1, roof + 0.05, roof + 0.09);   // roof rails
+        for (const o of [rr + 0.15, rf - 0.15]) box(G, xr - 0.03, xr + 0.03, o - 0.04, o + 0.04, roof - 0.01, roof + 0.05); }
+    }
+    return { CARS, car }; })();
+  const KIND = {};
+  for (const kind of ["sedan", "hatch", "suv"]) { const g = new THREE.Group(); TCAR.car(g, 0, 0, 1, kind); g.updateMatrixWorld(true);
+    const ms = [], ls = [];
+    g.traverse(o => { if (o.isMesh) { const t = o.geometry.type, thr = t === "CylinderGeometry" ? 40 : 20;
+        ls.push(new THREE.EdgesGeometry(o.geometry, thr).applyMatrix4(o.matrixWorld)); const q = o.geometry.clone().applyMatrix4(o.matrixWorld); q.deleteAttribute("uv"); ms.push(q.index ? q.toNonIndexed() : q); }
+      else if (o.isLineSegments) ls.push(o.geometry.clone().applyMatrix4(o.matrixWorld)); });
+    const C = TCAR.CARS[kind];
+    KIND[kind] = { body: mergeGeometries(ms), line: mergeGeometries(ls).getAttribute("position").array, len: 2 * C.hl + 0.12, at: [] }; }
+  const pick = () => { const r = crand(); return r < 0.4 ? "sedan" : r < 0.65 ? "hatch" : "suv"; };
+  // a car in a stall: (d0..d1) is the stall depth along x (or y when along = "y"), c its centre across; face = +1/-1 toward the aisle
+  function park(d0, d1, c, face, along) { if (crand() > 0.3) return;
+    const K = KIND[pick()], L = K.len, f = crand() < 0.85 ? face : -face;   // most drive in nose first
+    const gap = Math.min(0.35, d1 - d0 - L - 0.1), mid = face > 0 ? d1 - gap - L / 2 : d0 + gap + L / 2, cc = c + (crand() - 0.5) * 0.25, h = (crand() - 0.5) * 0.06;
+    const hd = along === "y" ? (f > 0 ? Math.PI / 2 : -Math.PI / 2) : (f > 0 ? 0 : Math.PI);   // heading in plan; the car model's nose points north (+y)
+    K.at.push(along === "y" ? place(cc, mid, hd + h - Math.PI / 2) : place(mid, cc, hd + h - Math.PI / 2)); }
+  // south lots: rows run north-south, stalls 2.7 m wide, each pair of rows faces the 7 m aisle between them
+  for (const px of [-40, 42, 124]) for (let k = 0; k < 4; k++) { const bx = px + 18 * k;
+    for (let j = 0; j < 25; j++) { const c = LY0 + 3 + 2.7 * j + 1.35; park(bx, bx + 5.5, c, 1); park(bx + 12.5, bx + 18, c, -1); } }
+  // east lot (staff / visitors): same stall lines as drawn above, skipping the curb islands
+  for (let k = -24; k < 24; k++) { const y = 67.5 + 2.7 * k; if (y < 5.3 || y + 2.7 > 121.6 || Math.abs(k) <= 1 || k === -2) continue;
+    park(182, 187, y + 1.35, 1); park(193, 198, y + 1.35, -1); park(198, 203, y + 1.35, 1); park(209, 214, y + 1.35, -1); }
+  // field parking off SE 15th St: stalls 3 m wide, noses toward the aisle between the two rows
+  for (let x = 170; x + 3 < 215; x += 3) { park(298, 303.5, x + 1.5, 1, "y"); park(326.5, 332, x + 1.5, -1, "y"); }
+  // school bus at the drop-off curb (flat front, like Ahmed's photo), door side to the curb, heading south, stopped with its open door at the entrance, between the bollards (its nose over the crosswalk).
+  // Local frame: x forward (front face at +6.1), y up, z to the right (door side)
+  {
+    const G = new THREE.Group(), LN = [], P = (x, y, z) => new THREE.Vector3(x, y, z);
+    const add = (geo, thr = 25) => { G.add(new THREE.Mesh(geo, W0)); G.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, thr), M.line)); return geo; };
+    const B = (x0, x1, y0, y1, z0, z1) => add(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0).translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2));
+    const Cy = (x, y, z, r, len, axis, seg = 20) => { const g = new THREE.CylinderGeometry(r, r, len, seg); if (axis === "z") g.rotateX(Math.PI / 2); else if (axis === "x") g.rotateZ(Math.PI / 2); return add(g.translate(x, y, z), 40); };
+    const rod = (a, b, r = 0.025) => { const A = P(...a), Bv = P(...b), g = new THREE.CylinderGeometry(r, r, A.distanceTo(Bv), 6);
+      g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(P(0, 1, 0), Bv.clone().sub(A).normalize())).translate(...A.clone().add(Bv).multiplyScalar(0.5).toArray()); add(g, 40); };
+    const poly = (pts, closed) => { for (let i = 0; i < pts.length - (closed ? 0 : 1); i++) LN.push(pts[i], pts[(i + 1) % pts.length]); };
+    const W = 1.22, ZS = W + 0.006, XF = 6.1, XFF = XF + 0.006;
+    const sRect = (z, x0, x1, y0, y1) => poly([P(x0, y0, z), P(x1, y0, z), P(x1, y1, z), P(x0, y1, z)], true);        // on a side face
+    const fRect = (x, z0, z1, y0, y1) => poly([P(x, y0, z0), P(x, y0, z1), P(x, y1, z1), P(x, y1, z0)], true);         // on the front or rear face
+    const ring = (c, r, n, u, v, ry = r) => { const q = []; for (let k = 0; k < n; k++) { const a = 2 * Math.PI * k / n; q.push(c.clone().addScaledVector(u, r * Math.cos(a)).addScaledVector(v, ry * Math.sin(a))); } poly(q, true); };
+    // stroke letters for the "SCHOOL BUS" signs (unit box 0.6 wide, 1 high)
+    const GL = { S: [[[0.6, 0.85], [0.45, 1], [0.15, 1], [0, 0.85], [0, 0.62], [0.15, 0.5], [0.45, 0.5], [0.6, 0.38], [0.6, 0.15], [0.45, 0], [0.15, 0], [0, 0.15]]],
+      C: [[[0.6, 0.85], [0.45, 1], [0.15, 1], [0, 0.85], [0, 0.15], [0.15, 0], [0.45, 0], [0.6, 0.15]]], H: [[[0, 0], [0, 1]], [[0.6, 0], [0.6, 1]], [[0, 0.5], [0.6, 0.5]]],
+      O: [[[0.15, 0], [0.45, 0], [0.6, 0.15], [0.6, 0.85], [0.45, 1], [0.15, 1], [0, 0.85], [0, 0.15], [0.15, 0]]], L: [[[0, 1], [0, 0], [0.6, 0]]],
+      B: [[[0, 0], [0, 1], [0.42, 1], [0.56, 0.88], [0.56, 0.62], [0.42, 0.5], [0, 0.5]], [[0.42, 0.5], [0.6, 0.38], [0.6, 0.12], [0.47, 0], [0, 0]]], U: [[[0, 1], [0, 0.15], [0.15, 0], [0.45, 0], [0.6, 0.15], [0.6, 1]]] };
+    const text = (str, h, o, u) => { let a = -(str.length * 0.85 - 0.25) * h / 2;          // centred on o, running along u
+      for (const ch of str) { for (const st of GL[ch] || []) poly(st.map(([x, y]) => o.clone().addScaledVector(u, a + x * h).add(P(0, y * h, 0)))); a += 0.85 * h; } };
+    // body: side profile with the two wheel arches and the rounded roof edges, across the full width
+    const xf = 3.95, xr = -2.9, ar = 0.62;
+    const sh = new THREE.Shape(); sh.moveTo(-XF, 0.45); sh.lineTo(xr - ar, 0.45); sh.absarc(xr, 0.52, ar, Math.PI, 0, true); sh.lineTo(xf - ar, 0.45); sh.absarc(xf, 0.52, ar, Math.PI, 0, true);
+    sh.lineTo(XF, 0.45); sh.lineTo(XF, 3.12); sh.quadraticCurveTo(XF, 3.35, XF - 0.25, 3.35); sh.lineTo(-XF + 0.2, 3.35); sh.quadraticCurveTo(-XF, 3.35, -XF, 3.15); sh.closePath();
+    add(new THREE.ExtrudeGeometry(sh, { depth: 2 * W, bevelEnabled: false, curveSegments: 16 }).translate(0, 0, -W));
+    // wheels: tyre, rim, hub; twin tyres at the back
+    for (const s of [-1, 1]) { for (const [x, tw] of [[xf, 0.32], [xr, 0.55]]) { const z = s * (W - tw / 2 + 0.02); Cy(x, 0.52, z, 0.52, tw, "z", 24); Cy(x, 0.52, z + s * 0.01, 0.3, tw, "z", 16); Cy(x, 0.52, z + s * 0.02, 0.1, tw, "z", 10); } }
+    // black rub rails along both sides (stopping at the wheel arches and at the door)
+    const rail = (z, s, y, h, x0, x1) => { if (x1 > x0) B(x0, x1, y, y + h, s > 0 ? z : -z - 0.03, s > 0 ? z + 0.03 : -z); };
+    for (const s of [-1, 1]) { const dEnd = s > 0 ? 4.62 : XF - 0.02;
+      rail(W, s, 1.7, 0.09, -XF + 0.02, dEnd); rail(W, s, 1.3, 0.08, -XF + 0.02, dEnd);
+      for (const y of [1.0, 0.5]) { rail(W, s, y, 0.07, -XF + 0.02, xr - ar - 0.05); rail(W, s, y, 0.07, xr + ar + 0.05, xf - ar - 0.05); rail(W, s, y, 0.07, xf + ar + 0.05, s > 0 ? 4.62 : XF - 0.02); }
+      // passenger windows with the split sash, from the back to the door (right) or to the driver's window (left)
+      const z = s * ZS, x1 = s > 0 ? 4.5 : 4.2, n = s > 0 ? 11 : 10, pw = (x1 + 5.7 - 0.08 * (n - 1)) / n;
+      for (let i = 0; i < n; i++) { const a = -5.7 + i * (pw + 0.08); sRect(z, a, a + pw, 1.88, 2.8); LN.push(P(a, 2.48, z), P(a + pw, 2.48, z)); }
+      text("SCHOOL BUS", 0.2, P(-2.2, 1.45, z), P(s > 0 ? 1 : -1, 0, 0)); }
+    // driver's window and the STOP arm on the left
+    sRect(-ZS, 4.45, 5.9, 1.65, 2.86); LN.push(P(5.2, 1.65, -ZS), P(5.2, 2.86, -ZS));
+    B(4.05, 4.15, 1.9, 2.4, -W - 0.06, -W); Cy(4.32, 2.15, -W - 0.06, 0.24, 0.025, "z", 8); ring(P(4.32, 2.15, -W - 0.08), 0.19, 8, P(1, 0, 0), P(0, 1, 0));
+    // the folding glass entrance door on the right
+    // (two glass leaves hinged at the jambs that fold back to open it, the steps showing inside)
+    sRect(ZS, 4.68, 5.82, 0.48, 2.9);
+    { const op = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 2.36), new THREE.MeshBasicMaterial({ color: 0xdcdcdc })); op.position.set(5.25, 0.48 + 1.18, ZS - 0.002); G.add(op); }
+    const leaves = [];
+    for (const [hx, sg] of [[4.7, 1], [5.8, -1]]) { const L = new THREE.Group(); L.position.set(hx, 0, W); G.add(L); leaves.push(L);
+      const g = new THREE.BoxGeometry(0.55, 2.38, 0.05).translate(sg * 0.275, 1.69, 0.025); L.add(new THREE.Mesh(g, W0)); L.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), M.line));
+      const a = sg * 0.06, b = sg * 0.49, z = 0.054; L.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([P(a, 0.62, z), P(b, 0.62, z), P(b, 0.62, z), P(b, 2.78, z), P(b, 2.78, z), P(a, 2.78, z), P(a, 2.78, z), P(a, 0.62, z)]), M.line)); }
+    BUS.door = (k) => { for (const L of leaves) L.scale.x = 1 - 0.6 * k; };   // 0 shut .. 1 folded open
+    for (const y of [0.78, 1.08]) LN.push(P(4.92, y, ZS + 0.001), P(5.58, y, ZS + 0.001));                       // the steps up into the bus
+    B(4.68, 5.82, 0.3, 0.45, W - 0.4, W);                                                                          // step under the door
+    // front: two-pane windscreen, the "SCHOOL BUS" header with its red/amber warning lamps, lower panel, lamp housings, bumper
+    fRect(XFF, -1.12, 1.12, 1.62, 2.9); fRect(XFF + 0.002, -1.07, 1.07, 1.67, 2.85); LN.push(P(XFF, 1.62, 0.12), P(XFF, 2.9, 0.12));
+    for (const zc of [-0.55, 0.55]) LN.push(P(XFF + 0.004, 1.72, zc + 0.3), P(XFF + 0.004, 2.45, zc - 0.2));      // wipers
+    text("SCHOOL BUS", 0.16, P(XFF, 2.97, 0), P(0, 0, -1));
+    for (const s of [-1, 1]) { B(XF, XF + 0.05, 2.93, 3.16, s > 0 ? 0.76 : -1.16, s > 0 ? 1.16 : -0.76);
+      for (const zc of [0.88, 1.06]) Cy(XF + 0.06, 3.045, s * zc, 0.075, 0.03, "x", 16);
+      B(XF, XF + 0.05, 0.72, 1.56, s > 0 ? 0.8 : -1.14, s > 0 ? 1.14 : -0.8);                                    // black lamp housing: amber turn signal over the headlight
+      Cy(XF + 0.06, 1.38, s * 0.97, 0.09, 0.03, "x", 16); Cy(XF + 0.06, 0.98, s * 0.97, 0.11, 0.03, "x", 16);
+      // big mirrors on arms by the windscreen, and the round cross-view mirror at the roof corner
+      rod([XF - 0.1, 2.55, s * W], [XF + 0.15, 2.45, s * 1.42]); rod([XF - 0.1, 1.75, s * W], [XF + 0.15, 1.85, s * 1.42]);
+      B(XF + 0.1, XF + 0.2, 1.8, 2.5, s > 0 ? 1.38 : -1.52, s > 0 ? 1.52 : -1.38);
+      rod([XF - 0.05, 3.1, s * W], [XF + 0.35, 2.85, s * 1.45]); Cy(XF + 0.38, 2.75, s * 1.47, 0.11, 0.06, "x", 16); }
+    fRect(XFF, -0.72, 0.72, 0.72, 1.48); ring(P(XFF + 0.002, 1.3, 0), 0.16, 20, P(0, 0, 1), P(0, 1, 0), 0.08);   // access panel + badge
+    B(XF, XF + 0.22, 0.3, 0.68, -1.25, 1.25); for (const zc of [-0.65, 0, 0.65]) fRect(XF + 0.226, zc - 0.15, zc + 0.15, 0.42, 0.56);
+    // back: emergency door with its window, tail lamps, warning lamps
+    fRect(-XFF, -0.55, 0.55, 0.55, 3.0); fRect(-XFF, -0.45, 0.45, 1.9, 2.8); LN.push(P(-XFF, 1.2, -0.38), P(-XFF, 1.2, -0.12));
+    for (const s of [-1, 1]) { Cy(-XF - 0.02, 0.95, s * 0.95, 0.1, 0.04, "x", 16); Cy(-XF - 0.02, 1.25, s * 0.95, 0.1, 0.04, "x", 16);
+      B(-XF - 0.05, -XF, 2.93, 3.16, s > 0 ? 0.7 : -1.1, s > 0 ? 1.1 : -0.7); for (const zc of [0.8, 1.0]) Cy(-XF - 0.06, 3.045, s * zc, 0.075, 0.03, "x", 16); }
+    B(-XF - 0.15, -XF, 0.32, 0.62, -1.2, 1.2);                                                                     // rear bumper
+    // roof: the long rooftop unit and two escape hatches
+    const pod = new THREE.Shape(); pod.moveTo(-1.8, 3.35); pod.lineTo(3.2, 3.35); pod.lineTo(2.95, 3.62); pod.lineTo(-1.55, 3.62); pod.closePath();
+    add(new THREE.ExtrudeGeometry(pod, { depth: 1.7, bevelEnabled: false }).translate(0, 0, -0.85)); B(0.3, 1.6, 3.62, 3.66, -0.5, 0.5);
+    for (const x of [-4.2, 3.9]) B(x - 0.35, x + 0.35, 3.35, 3.41, -0.38, 0.38);
+    const lg = new THREE.BufferGeometry().setFromPoints(LN); G.add(new THREE.LineSegments(lg, M.line));
+    G.position.copy(V(169.6, 70.75, 0)); G.rotation.y = -Math.PI / 2; root.add(G); BUS.G = G; BUS.door(1);
+    // the routes (plan x, y), sampled every half metre: the short roll to the door, and out to the end of the main road
+    const R = 6, path = (f) => { const pts = []; f((x0, y0, x1, y1) => { const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 0.5); for (let i = 0; i < n; i++) pts.push([x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n]); },
+        (cx, cy, a0, a1) => { for (let i = 0; i < 24; i++) { const a = a0 + (a1 - a0) * i / 24; pts.push([cx + R * Math.cos(a), cy + R * Math.sin(a)]); } }, (x, y) => pts.push([x, y]));
+      const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+      return { len: cum[cum.length - 1], at(d) { let lo = 0, hi = cum.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (cum[m] <= d) lo = m; else hi = m; }
+        const u = Math.min(1, Math.max(0, (d - cum[lo]) / ((cum[hi] - cum[lo]) || 1))), [x0, y0] = pts[lo], [x1, y1] = pts[hi]; return [x0 + (x1 - x0) * u, y0 + (y1 - y0) * u, Math.atan2(y1 - y0, x1 - x0)]; } }; };
+    const YS = 70.75, XL = 169.6, YE = -122;
+    const IN = path((line, arc, end) => { line(XL, 96, XL, YS); end(XL, YS); });   // a short roll down the drop-off lane to the door
+    const OUT = path((line, arc, end) => { line(XL, YS, XL, 2); arc(XL + R, 2, Math.PI, 1.5 * Math.PI);                       // down the lane, left into the aisle
+      line(XL + R, -4, 232.5 - R, -4); arc(232.5 - R, -4 - R, 0.5 * Math.PI, 0); line(232.5, -4 - R, 232.5, YE); end(232.5, YE); });   // right down the east road
+    const A = 1.2, VM = 7, TA = VM / A, SA = VM * TA / 2;          // 7 m/s (25 km/h), gentle starts and stops
+    const arr = 9, dep = arr + 28, out = TA + (OUT.len - SA) / VM;
+    BUS.plan = { arr, dep, loop: Math.ceil(dep + out + 2),
+      inAt: (q) => IN.at(IN.len * smooth(Math.min(1, q / arr))),   // pulls off gently and eases to a stop
+      outAt: (q) => { const d = q < TA ? A * q * q / 2 : SA + VM * (q - TA); return [...OUT.at(Math.min(d, OUT.len)), d < OUT.len]; } };
+  }
+  for (const k in KIND) { const K = KIND[k], n = K.at.length; if (!n) continue;
+    const im = new THREE.InstancedMesh(K.body, W0, n); K.at.forEach((m, i) => im.setMatrixAt(i, m)); root.add(im);
+    const src = K.line, out = new Float32Array(src.length * n), v = new THREE.Vector3();
+    K.at.forEach((m, i) => { for (let j = 0; j < src.length; j += 3) { v.set(src[j], src[j + 1], src[j + 2]).applyMatrix4(m); out.set([v.x, v.y, v.z], i * src.length + j); } });
+    const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.BufferAttribute(out, 3)); root.add(new THREE.LineSegments(lg, M.line)); }
+}
+
+// ---- shrubs (Ahmed's picks: #2 round bush and #5 ornamental grass, blades only), only in the planting beds at the entrance;
+// clear of tree trunks and of each other; a few baked variants repeated as instances
+{
+  const srand = (s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; })(777);
+  const VAR = [];
+  for (let v = 0; v < 6; v++) { const ms = [], ls = [], n = 3 + Math.floor(srand() * 3);
+    for (let i = 0; i < n; i++) { const a = srand() * 6.28, d = i ? 0.25 + srand() * 0.2 : 0, r = i ? 0.3 + srand() * 0.15 : 0.45;
+      const m = new THREE.Matrix4().compose(new THREE.Vector3(Math.cos(a) * d, r * 0.85 + (i ? 0 : 0.1), Math.sin(a) * d), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, srand() * 6, 0)), new THREE.Vector3(r, r * 0.9, r));
+      const g = new THREE.IcosahedronGeometry(1, 1); ls.push(new THREE.EdgesGeometry(g, 20).applyMatrix4(m)); g.applyMatrix4(m); g.deleteAttribute("uv"); ms.push(g); }
+    VAR.push({ body: mergeGeometries(ms), line: mergeGeometries(ls).getAttribute("position").array, at: [] }); }
+  const GRASS = [];                                 // grass tufts: long blades fanning out from the ground, lines only
+  for (let v = 0; v < 4; v++) { const q = [];
+    for (let i = 0; i < 34; i++) { const a = srand() * 6.28, t = 0.25 + srand() * 0.55, h = 0.6 + srand() * 0.5, bx = Math.cos(a) * 0.12, bz = Math.sin(a) * 0.12;
+      const mx = bx + Math.cos(a) * t * 0.5, mz = bz + Math.sin(a) * t * 0.5, tx = bx + Math.cos(a) * t, tz = bz + Math.sin(a) * t;
+      q.push(bx, 0, bz, mx, h * 0.75, mz, mx, h * 0.75, mz, tx, h * (0.85 + srand() * 0.2), tz); }
+    GRASS.push({ body: null, line: new Float32Array(q), at: [] }); }
+  const inRing = (x, y, r) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) { const [xi, yi] = r[i], [xj, yj] = r[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; };
+  const inPoly = (x, y, p) => inRing(x, y, p.o) && !(p.h || []).some(h => inRing(x, y, h));
+  const edgeDist = (x, y, r) => { let m = 1e9; for (let i = 0; i < r.length; i++) { const [ax, ay] = r[i], [bx, by] = r[(i + 1) % r.length], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L2)); m = Math.min(m, Math.hypot(x - ax - t * dx, y - ay - t * dy)); } return m; };
+  const nearEdge = (x, y, p, d) => [p.o, ...(p.h || [])].some(r => edgeDist(x, y, r) < d);
+  const placed = [];
+  const free = (x, y, s) => !TREES.some(([tx, ty]) => Math.hypot(x - tx, y - ty) < 0.9 + s * 0.6) && !placed.some(([px, py, ps]) => Math.hypot(x - px, y - py) < 0.75 * (s + ps));
+  // the planting beds along the entrance forecourt: filled close together, bushes and grass tufts mixed through each other (each spot leans to whichever kind its neighbours have less of)
+  const pick = (set) => set[Math.floor(srand() * set.length)];
+  for (const p of SITE_LAYERS.G.polys) {
+    const xs = p.o.map(q => q[0]), ys = p.o.map(q => q[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    if (x0 < 150 || x1 > 168.5 || y0 < 40 || y1 > 101) continue; p.bed = true;
+    for (let x = x0 + 0.5; x < x1; x += 1.05) for (let y = y0 + 0.5; y < y1; y += 1.05) {
+      const s = 0.5 + srand() * 0.3, px = x + (srand() - 0.5) * 0.5, py = y + (srand() - 0.5) * 0.5;
+      if (!inPoly(px, py, p) || nearEdge(px, py, p, 0.45 * s) || !free(px, py, s * 0.6)) continue;
+      let nb = 0, ng = 0; for (const [qx, qy, , gr] of placed) if (Math.hypot(px - qx, py - qy) < 1.9) gr ? ng++ : nb++;
+      const gr = srand() < Math.max(0.12, Math.min(0.88, 0.5 + (nb - ng) * 0.18));
+      placed.push([px, py, s * 0.6, gr]); pick(gr ? GRASS : VAR).at.push(new THREE.Matrix4().compose(V(px, py, 0.12), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, srand() * 6.28, 0)), new THREE.Vector3(s, s * (0.85 + srand() * 0.3), s))); }
+  }
+  for (const K of [...VAR, ...GRASS]) { const n = K.at.length; if (!n) continue;
+    if (K.body) { const im = new THREE.InstancedMesh(K.body, W0, n); K.at.forEach((m, i) => im.setMatrixAt(i, m)); root.add(im); }
+    const src = K.line, out = new Float32Array(src.length * n), v = new THREE.Vector3();
+    K.at.forEach((m, i) => { for (let j = 0; j < src.length; j += 3) { v.set(src[j], src[j + 1], src[j + 2]).applyMatrix4(m); out[i * src.length + j] = v.x; out[i * src.length + j + 1] = v.y; out[i * src.length + j + 2] = v.z; } });
+    const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.BufferAttribute(out, 3)); root.add(new THREE.LineSegments(lg, M.line)); }
+  window.__shrubs = placed.length;
+}
+
+// ---- baseball + softball (home SW, toward NE): outfield fence, foul lines, infield, mound, bases, backstop, dugouts
+function diamond(hx, hy, base, rubber, lines, center, arc, back, moundR) {
+  const rot = (u, v) => [hx + (u + v) / Math.SQRT2, hy + (v - u) / Math.SQRT2];
+  const fan = [];
+  for (let k = -45; k <= 45; k += 3) { const t = k * Math.PI / 180, r = lines + (center - lines) * Math.cos(2 * t); fan.push(rot(r * Math.sin(t), r * Math.cos(t))); }
+  fence(fan, 2.4, false, 4);
+  pl([fan[0], [hx, hy], fan[fan.length - 1]], 0.04);
+  const ip = [[hx, hy]]; for (let k = -50; k <= 50; k += 5) { const t = k * Math.PI / 180; ip.push(rot(arc * Math.sin(t), rubber + arc * Math.cos(t))); }
+  pad(ip, 0.05);
+  const s = base / Math.SQRT2; pl([rot(0, 0), rot(s, s), rot(0, 2 * s), rot(-s, s)], 0.07, true);
+  for (const p of [rot(s, s), rot(0, 2 * s), rot(-s, s)]) box(p[0] - 0.25, p[0] + 0.25, p[1] - 0.25, p[1] + 0.25, 0.05, 0.15);
+  const c = rot(0, rubber), mp = []; for (let k = 0; k < 24; k++) mp.push([c[0] + moundR * Math.cos(k * Math.PI / 12), c[1] + moundR * Math.sin(k * Math.PI / 12)]);
+  pad(mp, 0.25, 0.05);
+  fence([rot(-back * 0.9, -back * 0.25), rot(back * 0.9, -back * 0.25)], 6, false, 3);
+  bar(rot(6, -2), rot(6 + back * 0.6, -2 + back * 0.6), 2.6, 0, 2.4); bar(rot(-6, -2), rot(-6 - back * 0.6, -2 + back * 0.6), 2.6, 0, 2.4);
+}
+diamond(-82, 362, 27.43, 18.44, 98, 122, 29, 18.3, 2.7);
+diamond(54, 360, 18.29, 13.11, 67, 67, 18.3, 7.6, 2.4);
+
+// ---- soccer 100 x 64 with goals, team benches
+const SX0 = 134, SY0 = 362, z = 0.04;
+pl(Rr(SX0, SX0 + 64, SY0, SY0 + 100), z, true); seg([SX0, SY0 + 50, z], [SX0 + 64, SY0 + 50, z]);
+{ const cc = []; for (let k = 0; k < 32; k++) cc.push([SX0 + 32 + 9.15 * Math.cos(k * Math.PI / 16), SY0 + 50 + 9.15 * Math.sin(k * Math.PI / 16)]); pl(cc, z, true); }
+for (const yb of [SY0, SY0 + 83.5]) pl(Rr(SX0 + 11.8, SX0 + 52.2, yb, yb + 16.5), z, true);
+for (const gy of [SY0, SY0 + 100]) { const a = SX0 + 32 - 3.66, b = SX0 + 32 + 3.66;
+  seg([a, gy, 0], [a, gy, 2.44]); seg([b, gy, 0], [b, gy, 2.44]); seg([a, gy, 2.44], [b, gy, 2.44]); }
+box(SX0 + 72, SX0 + 78, SY0 + 25, SY0 + 75, 0, 1.2);
+
+// ---- practice lawn with throws circle + cage
+const LX0 = -95, LX1 = -35, LYa = 178, LYb = 292, tcx = (LX0 + LX1) / 2, tcy = LYa + 6;
+pl(Rr(LX0, LX1, LYa, LYb), 0.04, true);
+for (const half of [17.46]) { const a0 = (90 - half) * Math.PI / 180, a1 = (90 + half) * Math.PI / 180;
+  pl([[tcx + 80 * Math.cos(a0), tcy + 80 * Math.sin(a0)], [tcx, tcy], [tcx + 80 * Math.cos(a1), tcy + 80 * Math.sin(a1)]], 0.04); }
+{ const cp = []; for (let k = 0; k < 20; k++) cp.push([tcx + 1.25 * Math.cos(k * Math.PI / 10), tcy + 1.25 * Math.sin(k * Math.PI / 10)]); pad(cp, 0.05);
+  const cage = []; for (let k = 3; k <= 17; k++) cage.push([tcx + 3.5 * Math.cos(-Math.PI / 2 + k * Math.PI / 10), tcy + 3.5 * Math.sin(-Math.PI / 2 + k * Math.PI / 10)]); fence(cage, 4, false, 1.2); }
+
+
+
+root.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(segs, 3)), M.line));
+}
+
+// ---------------- people at play (animated) ----------------
+// small white figures with black outlines, like the rest of the drawing; each field shows its own game
+// (rackets, bats, an oval football, a discus); everything is moved every frame in tickPlay(t)
+const PLAY = [];
+const mk = (geos) => { const ps = geos.map(([g, x, y, z]) => { g.translate(x, y, z); g.deleteAttribute("uv"); return g.index ? g.toNonIndexed() : g; }); return mergeGeometries(ps); };
+const bodyGeo = mk([[new THREE.BoxGeometry(0.28, 0.62, 0.44), 0, 1.13, 0], [new THREE.IcosahedronGeometry(0.15, 0), 0, 1.62, 0]]);
+const legGeo = new THREE.BoxGeometry(0.13, 0.82, 0.13).translate(0, -0.41, 0);
+const armGeo = new THREE.BoxGeometry(0.1, 0.56, 0.1).translate(0, -0.27, 0);
+const ITEMS = {
+  racket: mk([[new THREE.CylinderGeometry(0.02, 0.02, 0.3, 6), 0, -0.68, 0], [new THREE.TorusGeometry(0.14, 0.018, 4, 14).scale(1, 1.25, 1), 0, -1.0, 0]]),
+  bat: mk([[new THREE.CylinderGeometry(0.045, 0.025, 0.85, 6), 0, -0.93, 0]]),
+  glove: mk([[new THREE.BoxGeometry(0.16, 0.2, 0.08), 0, -0.6, 0]]),
+  disc: mk([[new THREE.CylinderGeometry(0.11, 0.11, 0.04, 10).rotateX(Math.PI / 2), 0, -0.6, 0]]),
+};
+const EDG = new Map(), edges = g => { if (!EDG.has(g)) EDG.set(g, new THREE.EdgesGeometry(g, 30)); return EDG.get(g); };
+const solid = (g) => { const o = new THREE.Group(); o.add(new THREE.Mesh(g, M.wall), new THREE.LineSegments(edges(g), M.line)); return o; };
+// figure faces local +x; local +z is its right side. item goes in the right hand
+function figure(item, crouch = 1) {
+  const g = new THREE.Group(), body = solid(bodyGeo); g.add(body);
+  const legs = [-0.11, 0.11].map(z => { const l = solid(legGeo); l.position.set(0, 0.82, z); g.add(l); return l; });
+  const arms = [0.29, -0.29].map(z => { const a = solid(armGeo); a.position.set(0, 1.42, z); a.rotation.order = "YXZ"; g.add(a); return a; });
+  if (item) { const it = solid(ITEMS[item]); arms[0].add(it); g.userData.item = it; }
+  g.scale.set(1, crouch, 1); g.userData.legs = legs; g.userData.arms = arms; root.add(g); return g;
+}
+function ballObj(r, oval = 1) { const g = solid(new THREE.IcosahedronGeometry(r, 1)); g.scale.set(oval, 1, 1); root.add(g); return g; }
+// place a figure at plan (x, y) facing plan direction (dx, dy); stride 0..1 swings legs and arms
+function put(f, x, y, dx, dy, stride, ph, armSwing = true) {
+  f.position.copy(V(x, y, 0)); if (dx || dy) f.rotation.y = Math.atan2(dy, dx);
+  const s = Math.sin(ph) * 0.6 * stride, [L0, L1] = f.userData.legs, [R, L] = f.userData.arms;
+  L0.rotation.z = s; L1.rotation.z = -s;
+  if (armSwing) { R.rotation.set(0, 0, -s * 1.2); L.rotation.set(0, 0, s * 1.2); }
+}
+const putBall = (b, x, y, z) => b.position.copy(V(x, y, z));
+const smooth = u => u * u * (3 - 2 * u), clamp = (v, a, b) => Math.max(a, Math.min(b, v)), lerp = (a, b, u) => a + (b - a) * u;
+const arm = (a, x, y, z) => a.rotation.set(x, y, z);
+
+// ---- sound: synthesized in the browser (no files), switched on by the first touch; every field has its own
+// sounds and they only play when the camera is close to that field, fading in and out with distance
+// Crowd cheer (the one Ahmed picked, #9): formant voices, real clappers, finger whistles, stereo + reverb
+function makeCrowd(ctx, dest) {
+  const SR = ctx.sampleRate, R = Math.random;
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 10; comp.ratio.value = 4; comp.attack.value = 0.01; comp.release.value = 0.25;
+  const master = ctx.createGain(); master.gain.value = 1; master.connect(comp); comp.connect(dest);
+  // synthetic hall/stadium impulse response: early reflections + dark exponential tail
+  const irLen = Math.floor(SR * 2.6), ir = ctx.createBuffer(2, irLen, SR);
+  for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); let lp = 0;
+    for (let i = 0; i < irLen; i++) { const t = i / SR; lp += 0.35 * ((R() * 2 - 1) - lp); d[i] = lp * Math.exp(-t / 0.55) * (t < 0.012 ? t / 0.012 : 1); }
+    for (let k = 0; k < 14; k++) { const i = Math.floor(SR * (0.015 + R() * 0.09)); d[i] += (R() < 0.5 ? -1 : 1) * (0.5 - k * 0.025); } }
+  const verb = ctx.createConvolver(); verb.buffer = ir; const wet = ctx.createGain(); verb.connect(wet); wet.connect(master);
+  const noiseBuf = ctx.createBuffer(1, SR * 2, SR); { const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = R() * 2 - 1; }
+  // one clap sample: sharp attack, ~20 ms decay, a little body thump
+  const clapBufs = [0, 1, 2, 3, 4, 5].map(() => { const n = Math.floor(SR * 0.06), b = ctx.createBuffer(1, n, SR), d = b.getChannelData(0), tau = 0.006 + R() * 0.008;
+    for (let i = 0; i < n; i++) { const t = i / SR; d[i] = (R() * 2 - 1) * Math.exp(-t / tau) * (t < 0.0008 ? t / 0.0008 : 1); } return b; });
+  const VOW = { ee: [290, 2250, 2950], eh: [540, 1840, 2500], ah: [760, 1180, 2600], oh: [520, 880, 2500], oo: [330, 820, 2350], ay: [650, 1700, 2550] };
+  const BW = [90, 110, 150], FG = [1, 0.55, 0.3];
+  function strip(out, pan, far, send) { // per-source chain: distance lowpass -> pan -> dry + reverb send
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 9000 - far * 6500; const p = ctx.createStereoPanner(); p.pan.value = pan;
+    const dry = ctx.createGain(); dry.gain.value = 1 - far * 0.45; const sd = ctx.createGain(); sd.gain.value = send * (0.6 + far * 0.8);
+    lp.connect(p); p.connect(dry); dry.connect(out); p.connect(sd); sd.connect(verb); return lp; }
+  // one person shouting; kind sets the pitch contour and the vowel path
+  function shout(out, o) {
+    const { t, dur, f0, fem, kind, g, pan, far, send } = o, sc = fem ? 1.17 : 1, end = t + dur;
+    const path = { yeah: [[0, "ee"], [0.12, "eh"], [0.3, "ah"], [1, "ah"]], woo: [[0, "oo"], [0.5, "oo"], [1, "oh"]], ah: [[0, "ah"], [1, "ah"]], hey: [[0, "ay"], [0.5, "eh"], [1, "ee"]], oh: [[0, "oh"], [0.6, "ah"], [1, "ah"]] }[kind];
+    const pc = { yeah: [[0, 1], [0.18, 1.35], [0.6, 1.2], [1, 0.82]], woo: [[0, 1], [0.35, 1.75], [0.8, 1.6], [1, 1.15]], ah: [[0, 0.95], [0.25, 1.2], [0.8, 1.1], [1, 0.85]], hey: [[0, 1.1], [0.3, 1.3], [1, 0.9]], oh: [[0, 1], [0.3, 1.4], [1, 1.0]] }[kind];
+    const src = ctx.createOscillator(); src.type = "sawtooth"; const src2 = ctx.createOscillator(); src2.type = "sawtooth"; src2.detune.value = 8 + R() * 10;
+    for (const s of [src, src2]) { s.frequency.setValueAtTime(f0 * pc[0][1], t); for (const [u, m] of pc.slice(1)) s.frequency.linearRampToValueAtTime(f0 * m * (1 + (R() - 0.5) * 0.04), t + u * dur); }
+    const vib = ctx.createOscillator(), vg = ctx.createGain(); vib.frequency.value = 5 + R() * 2.5; vg.gain.value = f0 * (0.012 + R() * 0.02); vib.connect(vg); vg.connect(src.frequency); vg.connect(src2.frequency);
+    const mix = ctx.createGain(); mix.gain.value = 0.5; src.connect(mix); src2.connect(mix);
+    const asp = ctx.createBufferSource(); asp.buffer = noiseBuf; asp.loop = true; const ag = ctx.createGain(); ag.gain.value = 0.22 + R() * 0.2; asp.connect(ag);
+    const env = ctx.createGain(); const head = strip(out, pan, far, send); env.connect(head);
+    for (let k = 0; k < 3; k++) { const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; const f = (v) => VOW[v][k] * sc;
+      bp.frequency.setValueAtTime(f(path[0][1]), t); for (const [u, v] of path.slice(1)) bp.frequency.linearRampToValueAtTime(f(v), t + u * dur);
+      bp.Q.value = VOW.ah[k] * sc / BW[k]; const fg = ctx.createGain(); fg.gain.value = FG[k] * 3.2; mix.connect(bp); ag.connect(bp); bp.connect(fg); fg.connect(env); }
+    const a = Math.min(0.1, dur * 0.2); env.gain.setValueAtTime(0.0001, t); env.gain.exponentialRampToValueAtTime(g, t + a); env.gain.setValueAtTime(g, t + dur * 0.65); env.gain.exponentialRampToValueAtTime(0.0001, end);
+    for (const s of [src, src2, vib, asp]) { s.start(t, s === asp ? R() : undefined); s.stop(end + 0.05); }
+  }
+  // a finger whistle: fast rise, held, falls away
+  function whistle(out, t, dur, g, pan, far, send) {
+    const o = ctx.createOscillator(); o.type = "sine"; const f = 2300 + R() * 900; o.frequency.setValueAtTime(f * 0.7, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.08); o.frequency.setValueAtTime(f, t + dur * 0.7); o.frequency.exponentialRampToValueAtTime(f * 0.8, t + dur);
+    const v = ctx.createOscillator(), vg = ctx.createGain(); v.frequency.value = 6 + R() * 3; vg.gain.value = 18; v.connect(vg); vg.connect(o.frequency);
+    const env = ctx.createGain(); env.gain.setValueAtTime(0.0001, t); env.gain.exponentialRampToValueAtTime(g, t + 0.05); env.gain.setValueAtTime(g * 0.9, t + dur * 0.8); env.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(env); env.connect(strip(out, pan, far, send)); o.start(t); v.start(t); o.stop(t + dur + 0.05); v.stop(t + dur + 0.05);
+  }
+  // each clapper keeps their own tempo and hand tone; loudness follows the excitement curve
+  function clapper(out, t0, t1, g, pan, far, send, curve) {
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 900 + R() * 1600; bp.Q.value = 1.2 + R() * 1.5;
+    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 350; bp.connect(hp); hp.connect(strip(out, pan, far, send));
+    const per = 0.17 + R() * 0.12, buf = clapBufs[Math.floor(R() * clapBufs.length)];
+    for (let t = t0 + R() * per; t < t1; t += per * (0.93 + R() * 0.14)) { const lv = curve((t - t0) / (t1 - t0)); if (lv < 0.03) continue;
+      const s = ctx.createBufferSource(); s.buffer = buf; s.playbackRate.value = 0.85 + R() * 0.3; const gg = ctx.createGain(); gg.gain.value = g * lv * (0.7 + R() * 0.3); s.connect(gg); gg.connect(bp); s.start(t); }
+  }
+  // breathy crowd bed under everything
+  function bed(out, t, dur, g, far, send, peak = 0.25) {
+    for (const [f, q, m] of [[600, 1.2, 1], [1300, 1.5, 0.5], [2600, 2, 0.2]]) { const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = f; bp.Q.value = q;
+      const e = ctx.createGain(); e.gain.setValueAtTime(0.0001, t); e.gain.exponentialRampToValueAtTime(g * m, t + dur * peak); e.gain.setValueAtTime(g * m * 0.85, t + dur * 0.5); e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      s.connect(bp); bp.connect(e); e.connect(strip(out, (R() - 0.5) * 0.4, far, send)); s.start(t, R()); s.stop(t + dur + 0.05); }
+  }
+  const KINDS = { yeah: 0.4, woo: 0.2, ah: 0.25, oh: 0.15 };
+  function pick(w) { let r = R() * Object.values(w).reduce((a, b) => a + b, 0); for (const k in w) { if ((r -= w[k]) <= 0) return k; } return Object.keys(w)[0]; }
+  // a whole crowd reaction to one big moment
+  function cheer(out, t, o) {
+    const { people, clappers, whistles, far, send, spread, dur, kinds = KINDS, vg = 0.05, wg = 0.05, cg = 0.5, bedg = 0.03 } = o;
+    for (let i = 0; i < people; i++) { const fem = R() < 0.45, d0 = R() < 0.15 ? R() * 0.15 : 0.05 + Math.pow(R(), 1.6) * 0.6;
+      const kind = pick(kinds), du = (kind === "woo" ? 0.9 : 0.7) + R() * (dur * 0.45);
+      shout(out, { t: t + d0, dur: du, f0: (fem ? 230 : 125) * (0.85 + R() * 0.45) * (kind === "woo" ? 1.4 : 1), fem, kind, g: vg * (0.5 + R() * 0.5), pan: (R() * 2 - 1) * spread, far: Math.min(1, far + R() * 0.3), send });
+      if (R() < 0.35) { const t2 = t + d0 + du + 0.1 + R() * 0.4; if (t2 < t + dur - 0.8) shout(out, { t: t2, dur: 0.5 + R() * 0.8, f0: (fem ? 230 : 125) * (0.9 + R() * 0.4), fem, kind: R() < 0.5 ? "yeah" : "hey", g: vg * 0.6 * (0.5 + R() * 0.5), pan: (R() * 2 - 1) * spread, far: Math.min(1, far + R() * 0.3), send }); } }
+    for (let i = 0; i < whistles; i++) { const wt = t + 0.2 + R() * dur * 0.4; whistle(out, wt, 0.6 + R() * 0.9, wg * (0.5 + R() * 0.5), (R() * 2 - 1) * spread, far, send); if (R() < 0.5) whistle(out, wt + 1 + R() * 0.6, 0.4 + R() * 0.5, wg * 0.6, (R() * 2 - 1) * spread, far, send); }
+    const curve = (u) => u < 0.06 ? u / 0.06 : u < 0.4 ? 1 : Math.max(0, 1 - (u - 0.4) / 0.6) ** 1.5;
+    for (let i = 0; i < clappers; i++) clapper(out, t + 0.15 + R() * 0.3, t + dur, cg, (R() * 2 - 1) * spread, Math.min(1, far + R() * 0.3), send, curve);
+    bed(out, t, dur, bedg, far, send);
+  }
+  function bus() { const g = ctx.createGain(); g.connect(master); return g; }
+  return { ctx, master, wet, bus, cheer, shout, whistle, clapper, bed };
+}
+const SND = (() => {
+  let ctx = null, master = null, noiseBuf = null, crowd = null, on = false; const loops = [];
+  const start = () => { if (ctx) { if (ctx.state === "suspended") ctx.resume(); return; }
+    try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}   // iPhone: play even with the silent switch on
+    try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+    master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
+    crowd = makeCrowd(ctx, master); crowd.master.gain.value = 2.45; crowd.wet.gain.value = 0.4;
+    noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    };
+  const near = (x, y, rN, rF) => { if (typeof camera === "undefined") return 0; const d = camera.position.distanceTo(V(x, y, 1));
+    const g = clamp((rF - d) / (rF - rN), 0, 1); return g * g; };
+  const noise = (t0, dur, type, f, q, g0, att = 0.003) => { const s = ctx.createBufferSource(); s.buffer = noiseBuf; s.loop = true;
+    const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(g0, t0 + att); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    s.connect(fl); fl.connect(g); g.connect(master); s.start(t0, Math.random()); s.stop(t0 + dur + 0.05); return fl; };
+  const tone = (t0, dur, f0, f1, g0, type = "sine") => { const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t0); o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+    const g = ctx.createGain(); g.gain.setValueAtTime(g0, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + dur + 0.05); };
+  // one voice: a buzzy tone through a vowel filter, with a pitch bend, like a shout in a crowd
+  const voice = (t0, dur, f0, bend, g0, formant) => { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(f0, t0); o.frequency.linearRampToValueAtTime(f0 * bend, t0 + dur);
+    const v = ctx.createOscillator(), vg = ctx.createGain(); v.frequency.value = 5 + Math.random() * 2; vg.gain.value = f0 * 0.03; v.connect(vg); vg.connect(o.frequency);
+    const f1 = ctx.createBiquadFilter(); f1.type = "bandpass"; f1.frequency.value = formant; f1.Q.value = 3; const f2 = ctx.createBiquadFilter(); f2.type = "lowpass"; f2.frequency.value = 2600;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(g0, t0 + 0.04); g.gain.setValueAtTime(g0, t0 + dur * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(f1); f1.connect(f2); f2.connect(g); g.connect(master); o.start(t0); v.start(t0); o.stop(t0 + dur + 0.05); v.stop(t0 + dur + 0.05); };
+  // applause: lots of tiny hand claps at random moments, thinning out at the end
+  const clap = (t0, dur, rate, g0) => { const n = Math.floor(dur * rate); for (let i = 0; i < n; i++) { const tt = t0 + Math.pow(Math.random(), 1.3) * dur, a = g0 * (0.4 + Math.random() * 0.6) * (1 - (tt - t0) / dur * 0.7);
+    noise(tt, 0.018 + Math.random() * 0.012, "bandpass", 1300 + Math.random() * 1500, 1.4, a, 0.001); } };
+  const KINDS = {
+    pock: (t, g) => { tone(t, 0.07, 1100, 600, 0.5 * g); noise(t, 0.035, "bandpass", 2500, 2, 0.35 * g); },     // tennis ball on the strings
+    bounce: (t, g) => tone(t, 0.05, 500, 300, 0.2 * g),
+    crack: (t, g) => { noise(t, 0.09, "bandpass", 2800, 1.5, 0.9 * g); tone(t, 0.08, 220, 90, 0.4 * g); },           // bat
+    pop: (t, g) => noise(t, 0.05, "lowpass", 900, 1, 0.6 * g),                                                       // ball into the glove
+    kick: (t, g) => { tone(t, 0.12, 140, 60, 0.7 * g); noise(t, 0.03, "lowpass", 1500, 1, 0.3 * g); },
+    whistle: (t, g) => { tone(t, 0.45, 2900, 2850, 0.18 * g, "triangle"); tone(t, 0.45, 3150, 3100, 0.1 * g, "triangle"); },
+    // a crowd cheer = many voices shouting "hey/yeah" at slightly different pitches and times, plus applause
+    cheer: (t, g) => { const out = crowd.bus(); out.gain.value = g;
+      crowd.cheer(out, t, { people: 30, clappers: 34, whistles: 5, far: 0.2, send: 0.45, spread: 0.85, dur: 5.5, vg: 0.045, wg: 0.06, cg: 0.38, bedg: 0.035, kinds: { yeah: 0.3, woo: 0.45, ah: 0.1, oh: 0.15 } }); },
+    hut: (t, g) => { voice(t, 0.16, 135, 0.92, 0.35 * g, 650); voice(t + 0.42, 0.16, 135, 0.92, 0.35 * g, 650); },          // the quarterback's "hut, hut!"
+    slap: (t, g) => { noise(t, 0.05, "bandpass", 700, 1.2, 0.7 * g, 0.002); tone(t, 0.06, 180, 90, 0.25 * g); },           // leather ball into hands
+    snap: (t, g) => noise(t, 0.04, "bandpass", 400, 1, 0.4 * g, 0.002),
+    thud: (t, g) => tone(t, 0.18, 110, 50, 0.6 * g),
+    whoosh: (t, g) => { const f = noise(t, 0.7, "bandpass", 500, 3, 0.35 * g, 0.25); f.frequency.exponentialRampToValueAtTime(2400, t + 0.6); },
+    step: (t, g) => tone(t, 0.04, 160, 90, 0.12 * g),
+  };
+  // ---- the school bus: a six-cylinder diesel with an automatic gearbox (the sound Ahmed picked) ----
+  // Two loops of the engine at idle revs are made once: one ticking over, one working hard. Each firing is a smooth pressure bump in the
+  // exhaust, the cylinders never quite equal (a fixed pattern) for the engine's chug, plus the diesel knock and, under load, the roar.
+  // While the bus moves both loops are sped up with the revs and blended by how hard the engine works; a turbo whistle, gearbox whine,
+  // tyres, a little brake squeal before the stop and the air system (brake, door) go with it. All louder the closer the camera is.
+  const ER = 650, CYC = 120 / ER, CYL = [1, 0.94, 0.97, 0.91, 1.02, 0.95];
+  let eng = null, engBusy = false, hornBuf = null;
+  const rnd = () => Math.random() * 2 - 1;
+  async function engLoop(ld) { const sr = ctx.sampleRate, pre = 3 * CYC, len = 40 * CYC, N = Math.ceil((pre + len + 0.1) * sr), dt = 1 / sr;
+    const ex = new Float32Array(N), cla = new Float32Array(N), roar = new Float32Array(N); let ph = 0, k = 0, age = 1, amp = 0, ca = 0, rE = 0;
+    for (let i = 0; i < N; i++) { ph += ER / 20 * dt; if (ph >= 1) { ph -= 1; k++; age = 0; const cy = CYL[k % 6]; amp = (0.3 + 0.7 * ld) * cy * (1 + 0.025 * rnd()); ca = 0.55 * (0.55 + 0.45 * ld) * cy * (1 + 0.3 * rnd()); } else age += dt;
+      const x = age / (0.0022 + 0.0018 * (1 - ld)); ex[i] = amp * x * Math.exp(1 - x); cla[i] = ca * Math.exp(-age / 0.0012) * rnd();
+      rE += (amp * Math.exp(-age / 0.006) - rE) * 0.02; roar[i] = rnd() * rE * ld * ld; }
+    const off = new OfflineAudioContext(1, N, sr);
+    const stem = (a, chain, g) => { const b = off.createBuffer(1, N, sr); b.copyToChannel(a, 0); const s = off.createBufferSource(); s.buffer = b; let n = s;
+      for (const [type, f, q, db] of chain) { const fl = off.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; if (db) fl.gain.value = db; n.connect(fl); n = fl; }
+      const gn = off.createGain(); gn.gain.value = g; n.connect(gn); gn.connect(off.destination); s.start(0); };
+    stem(ex, [["lowpass", 520, 0.9], ["peaking", 75, 1.3, 7], ["peaking", 160, 2, 4], ["highpass", 28, 0.7]], 0.4);
+    stem(cla, [["peaking", 1300, 3, 8], ["peaking", 2600, 4, 6], ["bandpass", 1900, 0.8]], 0.1);
+    stem(roar, [["lowpass", 1300, 0.7], ["peaking", 300, 1, 5]], 0.35);
+    const r = await off.startRendering(), i0 = Math.round(pre * sr), n = Math.round(len * sr), b = ctx.createBuffer(1, n, sr);
+    b.copyToChannel(r.getChannelData(0).slice(i0, i0 + n), 0); return b; }
+  async function makeEngine() { engBusy = true; const [bi, bl] = await Promise.all([engLoop(0.15), engLoop(1)]);
+    const out = ctx.createGain(); out.gain.value = 0; out.connect(master);
+    const loop = (b) => { const s = ctx.createBufferSource(); s.buffer = b; s.loop = true; const g = ctx.createGain(); g.gain.value = 0; s.connect(g); g.connect(out); s.start(); return { s, g }; };
+    const osc = (type, f, chain, ) => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; const g = ctx.createGain(); g.gain.value = 0; let n = o;
+      for (const [t, fr, q] of chain) { const fl = ctx.createBiquadFilter(); fl.type = t; fl.frequency.value = fr; fl.Q.value = q; n.connect(fl); n = fl; } n.connect(g); g.connect(out); o.start(); return { o, g }; };
+    const ty = ctx.createBufferSource(); ty.buffer = noiseBuf; ty.loop = true; const tf = ctx.createBiquadFilter(); tf.type = "lowpass"; tf.frequency.value = 600; const tg = ctx.createGain(); tg.gain.value = 0;
+    ty.connect(tf); tf.connect(tg); tg.connect(out); ty.start();
+    const sq = osc("sine", 2750, []), lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 6; lg.gain.value = 14; lfo.connect(lg); lg.connect(sq.o.frequency); lfo.start();
+    eng = { out, idle: loop(bi), load: loop(bl), turbo: osc("sine", 2400, [["highpass", 1500, 0.7]]), whine: osc("sine", 100, [["bandpass", 900, 0.6]]), tyre: tg, squeal: sq,
+      r: ER, ld: 0.15, boost: 0, lastP: -1, lastT: 0 }; }
+  // a puff of the bus's air system (brake set or released, the door), and the door's clunk
+  const air = (t, g, d) => noise(t, d * 1.4, "highpass", 1500, 0.7, 0.3 * g, 0.012);
+  const clunk = (t, g) => { tone(t, 0.16, 95, 70, 0.35 * g); noise(t, 0.04, "lowpass", 900, 0.7, 0.2 * g, 0.002); };
+  // the school bus horn: two notes together; an electric disc horn's wave is a narrow pulse, a touch of distortion, the horn's resonances
+  function makeHorn() { const sr = ctx.sampleRate, pat = [[0, 0.2], [0.34, 0.85]], N = Math.floor(1.15 * sr), d = new Float32Array(N), ph = [0, 0];
+    for (let i = 0; i < N; i++) { const t = i / sr; let on = 0, since = 0;
+      for (const [a, b] of pat) if (t >= a && t < b + 0.06) { since = t - a; on = Math.min(1, since / 0.012) * (t > b ? Math.exp(-(t - b) / 0.015) : 1); }
+      let s = 0; [420, 505].forEach((f, j) => { ph[j] += f * (1 - 0.05 * Math.exp(-since / 0.04)) * (1 + 0.002 * rnd()) / sr; s += (ph[j] % 1) < 0.18 ? 1 : -0.18 / 0.82; });
+      d[i] = on > 0 ? Math.tanh(s * 1.6 * on) : 0; }
+    hornBuf = ctx.createBuffer(1, N, sr); hornBuf.copyToChannel(d, 0); }
+  return {
+    // one-shot sound at a plan position (rN: full volume inside this camera distance, rF: silent beyond it)
+    // the Sound button: off until tapped; the tap itself starts the audio (phones only allow it from a tap)
+    // the bus engine, every frame: where the bus is (plan), whether it shows, its speed (m/s) and acceleration, its time in the loop and the loop's plan
+    bus(x, y, vis, v, a, p, P) { if (!on || !ctx || ctx.state !== "running") return; if (!eng) { if (!engBusy) makeEngine(); return; }
+      const now = ctx.currentTime, dt = Math.min(0.1, Math.max(0, now - eng.lastT)); eng.lastT = now; const E = eng, g = vis ? near(x, y, 6, 110) : 0;
+      // revs and load: coasting in 2nd as it rolls in, ticking over at the door, launching in 1st (the torque converter lets the revs flare), 2nd from ~4.3 m/s
+      const first = p >= P.dep && v < 4.3, ld = a > 0.15 ? clamp(0.35 + a / 1.8, 0, 1) : v > 0.3 ? (a < -0.2 ? 0.05 : 0.35) : 0.15;
+      let tr = Math.max(ER + (first ? 650 : 250) * (a > 0.15 ? ld : 0), v * (first ? 430 : 235), ER); if (p < P.dep && v < 1.6) tr = ER;
+      E.r += (tr - E.r) * (1 - Math.exp(-dt / (tr < E.r ? 0.22 : 0.3))); E.ld += (ld - E.ld) * (1 - Math.exp(-dt / 0.12));
+      E.boost += (clamp((E.r - 900) / 1100, 0, 1) * E.ld - E.boost) * dt / 0.9;
+      const set = (prm, val) => prm.setTargetAtTime(val, now, 0.04);
+      set(E.out.gain, g * 0.9); set(E.idle.s.playbackRate, E.r / ER); set(E.load.s.playbackRate, E.r / ER); set(E.idle.g.gain, 1 - E.ld); set(E.load.g.gain, E.ld);
+      set(E.turbo.o.frequency, 2400 + E.boost * 3800); set(E.turbo.g.gain, E.boost * E.boost * 0.05);
+      set(E.whine.o.frequency, Math.max(20, v * 95)); set(E.whine.g.gain, Math.min(1, v / 2) * (0.3 + E.ld) * 0.04); set(E.tyre.gain, v / 7 * 0.3);
+      const q = p - (P.arr - 1.1), sq = q > 0 && q < 1.1 ? Math.min(1, q / 0.6) * Math.min(1, (1.1 - q) / 0.12) : 0; set(E.squeal.g.gain, sq * 0.03);
+      // the air system: brake set at the stop, the door opening and shutting, brake released before it pulls away
+      const cross = (at) => E.lastP < at && p >= at; if (g > 0.01) {
+        if (cross(P.arr + 0.25)) air(now, g, 1.1); if (cross(P.arr + 0.05)) air(now, 0.55 * g, 0.45); if (cross(P.arr + 1.5)) clunk(now, g);
+        if (cross(P.dep - 3)) air(now, 0.5 * g, 0.4); if (cross(P.dep - 1.5)) clunk(now, g); if (cross(P.dep - 0.25)) air(now, 0.6 * g, 0.35); }
+      E.lastP = p; },
+    // a tap on the bus: its horn, from where the bus is
+    horn(x, y) { if (!on || !ctx) return; if (!hornBuf) makeHorn(); const g = near(x, y, 15, 160); if (g < 0.01) return;
+      const s = ctx.createBufferSource(); s.buffer = hornBuf; let n = s;
+      for (const [type, f, q, db] of [["highpass", 250, 0.7], ["peaking", 1250, 2, 5], ["peaking", 2900, 3, 8], ["lowpass", 5500, 0.7]]) { const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; if (db) fl.gain.value = db; n.connect(fl); n = fl; }
+      const gn = ctx.createGain(); gn.gain.value = 0.3 * g; n.connect(gn); gn.connect(master); s.start(ctx.currentTime + 0.02); },
+    isOn: () => on,
+    toggle() { on = !on; if (on) start(); if (master) master.gain.setTargetAtTime(on ? 0.9 : 0, ctx.currentTime, 0.05); return on; },
+    hit(kind, x, y, rN = 18, rF = 90) { if (!on || !ctx || ctx.state !== "running") return; const g = near(x, y, rN, rF); if (g > 0.01) KINDS[kind](ctx.currentTime + 0.01, g); },
+    // steady crowd murmur around a field
+    // crowd chatter around a field: people talking (short random syllables) and a clap here and there,
+    // scheduled a little ahead every frame, louder the closer you are
+    murmur(x, y, rN, rF, level) { loops.push({ x, y, rN, rF, level, next: 0 }); },
+    tick() { if (!on || !ctx || ctx.state !== "running") return; const now = ctx.currentTime;
+      for (const l of loops) { const g = near(l.x, l.y, l.rN, l.rF) * l.level; if (g < 0.01) { l.next = now; continue; }
+        while (l.next < now + 0.2) { l.next = Math.max(l.next, now) + 0.04 + Math.random() * 0.09;
+          if (Math.random() < 0.9) voice(l.next, 0.08 + Math.random() * 0.16, 150 + Math.random() * 230, 0.85 + Math.random() * 0.3, 0.06 * g, 500 + Math.random() * 700);
+          else noise(l.next, 0.02, "bandpass", 1800, 1.4, 0.25 * g, 0.001); } } },
+  };
+})();
+// seeded random, so the crowd looks the same every time the page opens
+const rng = (seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; })(20251107);
+// move a figure to (x, y) facing (fx, fy); legs swing with the distance actually covered, so standing players stand still
+function move(f, x, y, fx, fy, t) { const u = f.userData, d = u.px === undefined ? 0 : Math.hypot(x - u.px, y - u.py), dt = Math.max(1e-3, t - (u.pt || t - 0.016));
+  u.ph = (u.ph || 0) + d * 2.6; u.px = x; u.py = y; u.pt = t; put(f, x, y, fx, fy, clamp(d / dt / 5, 0, 1), u.ph); }
+
+// tennis: only some courts are in use, spread over the four fenced pairs (one doubles match);
+// players stay on their baseline, slide from their last shot to the next ball and swing the racket through it
+const forehand = (f, dt) => {   // dt: seconds from this player's hit (negative = before)
+  const R = f.userData.arms[0], L = f.userData.arms[1];
+  if (Math.abs(dt) < 0.45) { const s = clamp(dt / 0.45, -1, 1); arm(R, -1.35, s * 1.4, 0); arm(L, 0, 0, 0.3); }
+  else arm(R, -0.35, 0, 0.6), arm(L, 0, 0, 0.2);
+};
+[[0, 1, false], [1, 0, true], [3, 0, false], [3, 1, false]].forEach(([pair, side, doubles], i) => {
+  const y0 = 146 + pair * 36.6, cx = 167 + 3.66 + side * (10.97 + 3.66), a = y0 + 6.4, b = a + 23.77, n = y0 + 18.3;
+  const p1 = figure("racket"), p2 = figure("racket"), ball = ballObj(0.18), T = 1.5 + 0.17 * i, off = i * 0.9;
+  const xs = q => cx + 2 + 7 * (0.5 + 0.5 * Math.sin(q * 2.3 + i * 1.7)), ya = a - 0.3, yb = b + 0.3, xm = cx + 5.485;
+  const mates = doubles ? [figure("racket"), figure("racket")] : [];
+  let lastK = null, bounced = false;
+  PLAY.push(t => {
+    const tt = t + off, k = Math.floor(tt / T), u = (tt / T) % 1, odd = k % 2 === 1;
+    if (k !== lastK) { if (lastK !== null) SND.hit("pock", cx + 5.5, n, 10, 60); lastK = k; bounced = false; }
+    if (!bounced && u > 0.72) { bounced = true; SND.hit("bounce", cx + 5.5, n, 10, 60); }
+    const x0 = xs(k), x1 = xs(k + 1), from = odd ? yb : ya, to = odd ? ya : yb;
+    putBall(ball, lerp(x0, x1, u), lerp(from, to, u), 1.0 + 2.4 * Math.sin(Math.PI * u));
+    const hit = odd ? p2 : p1, rec = odd ? p1 : p2, w = smooth(Math.min(1, u * 1.25));
+    const back = q => lerp(xs(q), xm, 0.4), hx = lerp(x0, back(k), smooth(u)), rx = lerp(back(k - 1), x1, w);
+    put(hit, hx, from, 0, odd ? -1 : 1, 0.3, t * 6, false); put(rec, rx, to, 0, odd ? 1 : -1, 0.9, t * 9, false);
+    forehand(p1, ((tt + T) % (2 * T)) - T); forehand(p2, (tt % (2 * T)) - T);
+    mates.forEach((m, j) => { const yy = j ? n + 4 : n - 4, xx = xm + (lerp(x0, x1, u) - xm) * 0.5 + (j ? 1.5 : -1.5);
+      put(m, xx, yy, 0, j ? -1 : 1, 0.4, t * 7 + j, false); arm(m.userData.arms[0], -0.6, 0, 0.9); });
+  });
+});
+
+// track: runners in different lanes at different speeds, counter-clockwise, arms pumping
+{ const TX = 101, TY = 238.5, L = 84.39;
+  const lap = r => { const P = 2 * L + 2 * Math.PI * r; return s => { s = ((s % P) + P) % P;
+    if (s < L) return [TX + r, TY - L / 2 + s, 0, 1]; s -= L;
+    if (s < Math.PI * r) { const a = s / r; return [TX + r * Math.cos(a), TY + L / 2 + r * Math.sin(a), -Math.sin(a), Math.cos(a)]; } s -= Math.PI * r;
+    if (s < L) return [TX - r, TY + L / 2 - s, 0, -1]; s -= L;
+    const a = s / r; return [TX - r * Math.cos(a), TY - L / 2 - r * Math.sin(a), Math.sin(a), -Math.cos(a)]; }; };
+  [[1, 6.2, 0], [2, 5.6, 60], [3, 6.8, 140], [5, 4.2, 230], [6, 4.6, 300]].forEach(([lane, v, s0]) => {
+    const f = figure(), path = lap(36.5 + 1.22 * lane - 0.6);
+    let lastS = 0;
+    PLAY.push(t => { const [x, y, dx, dy] = path(s0 + v * t); put(f, x, y, dx, dy, 1, t * v * 2.2);
+      const st = Math.floor(t * v * 2.2 / Math.PI); if (st !== lastS) { lastS = st; SND.hit("step", x, y, 6, 30); } });
+  }); }
+
+// football: 11 against 11. Offense: five linemen, a tight end, the quarterback, a running back and three receivers;
+// defense: four linemen, three linebackers, two cornerbacks shadowing the outside receivers and two safeties deep.
+// the whistle starts the play, the QB drops back and throws the oval ball to the receiver on the right, the crowd cheers
+// the catch, everyone drifts back to the line and the receiver tosses the ball back to the quarterback
+{ const TX = 101, TY = 238.5, LOS = TY - 12, T = 11, ball = ballObj(0.17, 1.7), qb = figure(), wr = figure();
+  const line = [];
+  for (let j = 0; j < 5; j++) line.push([figure(null, 1, 1.05), TX - 4 + 2 * j, LOS - 0.9, 1]);   // offensive line
+  line.push([figure(null, 1, 0.8), TX + 6, LOS - 1.0, 1]);                                          // tight end
+  for (let j = 0; j < 4; j++) line.push([figure(null, 1, 1.05), TX - 3 + 2 * j, LOS + 0.9, -1]);   // defensive line
+  const W0 = [TX + 15, LOS - 0.5], W1 = [TX + 15, LOS + 16], W2 = [TX + 7, LOS + 22];
+  const wrAt = u => u < 0.1 ? W0 : u < 0.4 ? [W0[0], lerp(W0[1], W1[1], (u - 0.1) / 0.3)] : u < 0.7 ? [lerp(W1[0], W2[0], (u - 0.4) / 0.3), lerp(W1[1], W2[1], (u - 0.4) / 0.3)]
+    : u < 0.92 ? [lerp(W2[0], W0[0], smooth((u - 0.7) / 0.22)), lerp(W2[1], W0[1], smooth((u - 0.7) / 0.22))] : W0;
+  const qbAt = u => [TX, u < 0.12 ? LOS - 2 : u < 0.35 ? lerp(LOS - 2, LOS - 8, smooth((u - 0.12) / 0.23)) : u < 0.8 ? LOS - 8 : lerp(LOS - 8, LOS - 2, smooth((u - 0.8) / 0.2))];
+  // the rest of the 22 follow simple paths: go out with the play (0.1..0.7) and come back to their spot (0.7..0.95)
+  const out = (u, a, b) => { const w = u < 0.1 ? 0 : u < 0.7 ? smooth((u - 0.1) / 0.6) : u < 0.95 ? 1 - smooth((u - 0.7) / 0.25) : 0; return [lerp(a[0], b[0], w), lerp(a[1], b[1], w)]; };
+  const others = [
+    [[TX - 2.5, LOS - 6], [TX - 2, LOS - 6.5]],          // running back stays in to block
+    [[TX - 15, LOS - 0.5], [TX - 15, LOS + 18]],         // receiver left: straight up the field
+    [[TX + 10, LOS - 1], [TX + 4, LOS + 7]],             // slot receiver: short route over the middle
+    [[TX - 5, LOS + 5], [TX - 4, LOS + 3]],              // linebackers
+    [[TX, LOS + 5], [TX + 1, LOS - 1]],
+    [[TX + 5, LOS + 5], [TX + 5, LOS + 9]],
+    [[TX - 15, LOS + 6], [TX - 14, LOS + 19]],           // cornerbacks with the outside receivers
+    [[TX + 15, LOS + 6], [TX + 10, LOS + 20]],
+    [[TX - 8, LOS + 15], [TX - 6, LOS + 22]],            // safeties deep
+    [[TX + 8, LOS + 15], [TX + 8, LOS + 24]],
+  ].map(([a, b], j) => [figure(), a, b, j < 3 ? 1 : -1]);
+  let lastU = 1;
+  PLAY.push(t => { const u = (t / T) % 1, q = qbAt(u), r = wrAt(u), rn = wrAt((u + 0.005) % 1);
+    if (lastU < 0.03 && u >= 0.03) SND.hit("hut", TX, LOS - 2, 15, 80);          // QB calls the snap
+    if (lastU < 0.12 && u >= 0.12) SND.hit("snap", TX, LOS, 12, 60);
+    if (lastU < 0.68 && u >= 0.68) { SND.hit("slap", r[0], r[1], 15, 80); SND.hit("cheer", TX, TY, 40, 190); }
+    if (lastU < 0.74 && u >= 0.74) SND.hit("whistle", TX, LOS + 10, 25, 140);  // whistle: play over
+    lastU = u;
+    put(qb, q[0], q[1], 0, 1, u > 0.12 && u < 0.35 || u > 0.8 ? 0.6 : 0, t * 7, false);
+    arm(qb.userData.arms[0], 0, 0, u > 0.4 && u < 0.5 ? lerp(2.6, -0.4, (u - 0.4) / 0.1) : u > 0.3 && u <= 0.4 ? 2.6 : 0.3);
+    const moving = u > 0.1 && u < 0.92; put(wr, r[0], r[1], moving ? rn[0] - r[0] : 0, moving ? rn[1] - r[1] : -1, moving ? 1 : 0, t * 10);
+    if (u > 0.62 && u < 0.72) { arm(wr.userData.arms[0], 0, 0, 2.6); arm(wr.userData.arms[1], 0, 0, 2.6); }
+    let bp; if (u < 0.45) bp = [q[0], q[1], 1.9];
+    else if (u < 0.68) { const w = (u - 0.45) / 0.23, c = wrAt(0.68); bp = [lerp(q[0], c[0], w), lerp(q[1], c[1], w), 2 + 7 * Math.sin(Math.PI * w)]; }
+    else if (u < 0.92) bp = [r[0], r[1], 1.2];
+    else { const w = (u - 0.92) / 0.08, c = qbAt(0); bp = [lerp(W0[0], c[0], w), lerp(W0[1], c[1], w), 1.3 + 3 * Math.sin(Math.PI * w)]; }
+    putBall(ball, ...bp);
+    // three-point stance before the snap (feet apart front/back, hips down, one hand on the ground), then they rise and block
+    line.forEach(([f, x, y, d], j) => { const set = u < 0.12 || u > 0.9, push = set ? 0 : Math.min(1, (u - 0.12) * 8), L = f.userData.legs, A = f.userData.arms;
+      put(f, x, y + d * push * 0.8, 0, d, 0, 0, false);
+      const sp = set ? 0.5 : 0.35 + 0.15 * Math.sin(t * 9 + j); L[0].rotation.z = sp; L[1].rotation.z = -sp; f.position.y -= 0.82 * (1 - Math.cos(sp));
+      f.children[0].rotation.z = -(set ? 1.05 : 0.55);
+      if (set) { arm(A[0], 0, 0, -1.0); arm(A[1], 0, 0, 0.3); } else { arm(A[0], 0, 0, 1.4); arm(A[1], 0, 0, 1.4); } });
+    others.forEach(([f, a, b, d]) => { const p = out(u, a, b); move(f, p[0], p[1], 0, d, t); }); });
+  SND.murmur(TX - 55, TY, 30, 160, 1); SND.murmur(TX + 52, TY, 30, 140, 0.6);
+}
+
+// spectators on both football stands: a random crowd (sitting, standing, kids, caps, a few arms up),
+// built as one merged shape so hundreds of people cost almost nothing; a few fans jump up when the ball is caught
+{ const TX = 101, TY = 238.5, parts = [], box = (w, h, d, x, y, z, ry = 0) => { const g = new THREE.BoxGeometry(w, h, d); g.rotateY(ry); g.translate(x, y, z); g.deleteAttribute("uv"); parts.push(g.toNonIndexed()); };
+  const head = (r, x, y, z) => { const g = new THREE.IcosahedronGeometry(r, 0); g.translate(x, y, z); g.deleteAttribute("uv"); parts.push(g); };
+  const fans = [];
+  const seat = (px, py, pz, face) => {   // face: +1 looks toward +x (home stand), -1 toward -x
+    const s = 0.78 + rng() * 0.32 * (rng() < 0.85 ? 1 : 0.4), k = rng(), P = V(px, py, pz), ry = face > 0 ? 0 : Math.PI, fx = face * 0.18 * s;
+    if (k < 0.72) {          // sitting: hips on the step, thighs forward, lower legs down
+      box(0.3 * s, 0.55 * s, 0.42 * s, P.x, P.y + 0.3 * s, P.z, ry); head(0.14 * s, P.x, P.y + 0.72 * s, P.z);
+      box(0.42 * s, 0.13 * s, 0.34 * s, P.x + fx + face * 0.06, P.y + 0.07 * s, P.z, ry);
+      if (rng() < 0.15) { box(0.09, 0.5 * s, 0.09, P.x, P.y + 0.85 * s, P.z + 0.22 * s); box(0.09, 0.5 * s, 0.09, P.x, P.y + 0.85 * s, P.z - 0.22 * s); }   // arms up
+    } else {                 // standing
+      box(0.28 * s, 0.62 * s, 0.42 * s, P.x, P.y + 1.13 * s, P.z, ry); head(0.15 * s, P.x, P.y + 1.62 * s, P.z);
+      box(0.13 * s, 0.82 * s, 0.32 * s, P.x, P.y + 0.41 * s, P.z, ry);
+    }
+    if (rng() < 0.22) box(0.3 * s, 0.07 * s, 0.3 * s, P.x, P.y + (k < 0.72 ? 0.86 : 1.76) * s, P.z, ry);   // cap
+  };
+  const fill = (xf, dx, n, y0, y1, face, dens) => { for (let k = 0; k < n; k++) for (let y = y0 + 0.5; y < y1 - 0.4; y += 0.62) {
+    if (rng() > dens * (1 - 0.25 * k / n)) continue;
+    if (face > 0 && k >= 5 && Math.abs(y - TY) < 11) continue;   // under the press box
+    const x = xf + dx * (k + 0.55) + (rng() - 0.5) * 0.15, z = 0.7 * (k + 1);
+    if (k < n && rng() < 0.03 && fans.length < 16) { fans.push([x, y + (rng() - 0.5) * 0.2, z, face]); continue; }
+    seat(x, y + (rng() - 0.5) * 0.2, z, face); } };
+  fill(TX - 50, -1.85, 7, TY - 40, TY + 40, 1, 0.26);
+  fill(TX + 50, 1.5, 4, TY - 25, TY + 25, -1, 0.2);
+  const crowd = mergeGeometries(parts); root.add(new THREE.Mesh(crowd, M.wall)); root.add(new THREE.LineSegments(new THREE.EdgesGeometry(crowd, 30), M.line));
+  // the few animated fans: jump with both arms up for a moment after each catch
+  const T = 11; fans.forEach(([x, y, z, face], j) => { const f = figure(null, 0.8 + 0.25 * rng()), dl = rng() * 0.05;
+    PLAY.push(t => { const u = ((t / T) % 1) - 0.68 - dl, up = u > 0 && u < 0.16; f.position.copy(V(x, y, z + (up ? Math.abs(Math.sin(u * 60)) * 0.35 : 0)));
+      f.rotation.y = face > 0 ? 0 : Math.PI; const [R, L] = f.userData.arms; arm(R, up ? -0.3 : 0, 0, up ? 3.0 : 0.1); arm(L, up ? 0.3 : 0, 0, up ? 3.0 : 0.1); }); });
+}
+
+// soccer: 11 against 11 in a 4-4-2. Each player keeps his place in the shape and the whole team slides with
+// the ball; the nearest player of each team goes to the ball; goalkeepers spread their arms when it comes close
+{ const SX0 = 134, SY0 = 362, W = 64, Lf = 100, ball = ballObj(0.25), bpos = t => [SX0 + 32 + 22 * Math.sin(t * 0.37) * Math.cos(t * 0.11), SY0 + 50 + 38 * Math.sin(t * 0.23 + 1)];
+  const shape = [[0.15, 0.17], [0.38, 0.14], [0.62, 0.14], [0.85, 0.17], [0.12, 0.38], [0.38, 0.35], [0.62, 0.35], [0.88, 0.38], [0.4, 0.55], [0.6, 0.56]];
+  const teams = [0, 1].map(side => shape.map(([fx, fy]) => ({ f: figure(), fx, fy, side })));
+  const gks = [0, 1].map(side => ({ f: figure(), side }));
+  let lastKick = 0;
+  PLAY.push(t => { const [bx, by] = bpos(t), [bx2, by2] = bpos(t - 0.2);
+    putBall(ball, bx, by, 0.25 + 0.6 * Math.abs(Math.sin(t * 2.1)));
+    if (Math.floor(t * 0.7) !== lastKick) { lastKick = Math.floor(t * 0.7); SND.hit("kick", bx, by, 20, 100); }
+    teams.forEach(team => { const sgn = team[0].side ? -1 : 1, y0 = team[0].side ? SY0 + Lf : SY0;
+      let best = null, bd = 1e9; const spots = team.map(p => { const x = SX0 + p.fx * W + (bx - SX0 - W / 2) * 0.35, y = y0 + sgn * p.fy * Lf + (by - SY0 - Lf / 2) * 0.4;
+        const d = Math.hypot(x - bx, y - by); if (d < bd) { bd = d; best = p; } return [clamp(x, SX0 + 1, SX0 + W - 1), clamp(y, SY0 + 1, SY0 + Lf - 1)]; });
+      team.forEach((p, j) => { let [x, y] = spots[j]; if (p === best) { const w = 0.85; x = lerp(x, bx - 0.8 * (bx - bx2), w); y = lerp(y, by - sgn * 1.2, w); }
+        move(p.f, x, y, bx - x, by - y, t); }); });
+    gks.forEach(g => { const gy = g.side ? SY0 + Lf - 1 : SY0 + 1, near = Math.abs(by - gy) < 25;
+      move(g.f, SX0 + W / 2 + clamp((bx - SX0 - W / 2) * 0.2, -3, 3), gy, bx - SX0 - W / 2, g.side ? -1 : 1, t);
+      const o = near ? 1.3 : 0.25; arm(g.f.userData.arms[0], -o, 0, 0); arm(g.f.userData.arms[1], o, 0, 0); }); });
+}
+
+// baseball + softball: pitcher winds up and throws, the batter swings, a crouched catcher with an umpire
+// behind, fielders in their positions on their toes; the catcher throws the ball back to the pitcher
+function ballgame(hx, hy, rubber, bases, far, T, ph) {
+  const rot = (u, v) => [hx + (u + v) / Math.SQRT2, hy + (v - u) / Math.SQRT2];
+  const home = rot(0, 0.8), mound = rot(0, rubber), d = [home[0] - mound[0], home[1] - mound[1]], dl = Math.hypot(...d), side = [-d[1] / dl, d[0] / dl];
+  const pitcher = figure("glove"), catcher = figure("glove", 1, 0.35), ump = figure(null, 1, 0.3), batter = figure("bat"), ball = ballObj(0.14);
+  const bat = [home[0] + side[0] * 1.0, home[1] + side[1] * 1.0];
+  const spots = [rot(bases * 0.6, bases * 0.88), rot(-bases * 0.6, bases * 0.88), rot(bases * 0.3, bases * 1.15), rot(-bases * 0.3, bases * 1.15), rot(0, far), rot(-far * 0.45, far * 0.82), rot(far * 0.45, far * 0.82)];
+  spots.forEach((p, j) => { const f = figure("glove", 1, 0.25), dir = [home[0] - p[0], home[1] - p[1]], L = Math.hypot(...dir), sd = [-dir[1] / L, dir[0] / L];
+    PLAY.push(t => { const sw = Math.sin(t * 1.3 + j * 1.7) * 1.4; put(f, p[0] + sd[0] * sw, p[1] + sd[1] * sw, dir[0], dir[1], Math.abs(Math.cos(t * 1.3 + j * 1.7)) * 0.6, t * 7 + j); }); });
+  let lastU = 0;
+  PLAY.push(t => { const u = ((t + ph) / (2 * T)) % 1, out = u < 0.5, w = out ? u * 2 : (u - 0.5) * 2, [f, g] = out ? [mound, home] : [home, mound];
+    if (lastU < 0.4 && u >= 0.4) SND.hit("crack", home[0], home[1], 18, 100);   // the swing meets the ball (foul tip)
+    if (lastU < 0.5 && u >= 0.5) SND.hit("pop", home[0], home[1], 18, 100);
+    if (lastU > u) SND.hit("pop", mound[0], mound[1], 18, 100);
+    lastU = u;
+    putBall(ball, lerp(f[0], g[0], w), lerp(f[1], g[1], w), 1.7 + (out ? 0.3 : 2.5) * Math.sin(Math.PI * w));
+    put(pitcher, mound[0], mound[1], d[0], d[1], 0, 0, false);
+    arm(pitcher.userData.arms[0], 0, 0, out && w < 0.12 ? lerp(-2.8, 1.4, w / 0.12) : !out && w > 0.8 ? lerp(0.3, -2.8, (w - 0.8) / 0.2) : 0.3);
+    put(catcher, home[0] - d[0] / dl * 0.9, home[1] - d[1] / dl * 0.9, -d[0], -d[1], 0, 0, false);
+    { const L = catcher.userData.legs; L[0].rotation.z = 1.25; L[1].rotation.z = 1.25; catcher.position.y -= 0.82 * (1 - Math.cos(1.25)); }   // squat arm(catcher.userData.arms[0], 0, 0, out ? 1.4 : !out && w < 0.12 ? 2.4 : 0.8);
+    put(ump, home[0] - d[0] / dl * 2.0, home[1] - d[1] / dl * 2.0, -d[0], -d[1], 0, 0);
+    put(batter, bat[0], bat[1], -side[0], -side[1], 0, 0, false);
+    // swing as the pitch arrives: bat cocked over the shoulder, then a flat sweep across the plate
+    const s = out ? (w - 0.78) / 0.2 : 2, B = batter.userData.arms;
+    if (s > 0 && s < 1.6) { const y = lerp(-1.6, 1.8, clamp(s, 0, 1)); arm(B[0], 0, y, 1.55); arm(B[1], 0, y, 1.55); }
+    else { arm(B[0], 0, -1.1, 2.6); arm(B[1], 0, -0.6, 1.6); } });
+}
+ballgame(-82, 362, 18.44, 27.43, 80, 1.5, 0);
+ballgame(54, 360, 13.11, 18.29, 50, 1.3, 0.8);
+
+// throwing field: a discus thrower spins in the cage and lets the disc fly into the sector; an official
+// waits out in the sector, the next athlete waits beside the cage
+{ const LX0 = -95, LX1 = -35, LYa = 178, tcx = (LX0 + LX1) / 2, tcy = LYa + 6, T = 6, thr = figure("disc"), off = figure(), nxt = figure(), disc = ballObj(0.11);
+  disc.scale.set(1, 0.3, 1); const land = [tcx + 4, tcy + 46];
+  put(off, tcx + 10, tcy + 48, -1, -0.3, 0, 0); put(nxt, tcx - 5.5, tcy - 2, 1, 0.4, 0, 0);
+  let lastU = 0;
+  PLAY.push(t => { const u = (t / T) % 1, R = thr.userData.arms[0];
+    if (lastU < 0.3 && u >= 0.3) SND.hit("whoosh", tcx, tcy, 15, 80);
+    if (lastU < 0.65 && u >= 0.65) SND.hit("thud", land[0], land[1], 20, 90);
+    lastU = u;
+    const spin = u < 0.3 ? smooth(u / 0.3) * 3 * Math.PI : 3 * Math.PI;   // 1.5 turns, then face the sector
+    thr.position.copy(V(tcx, tcy, 0)); thr.rotation.y = Math.PI / 2 - Math.PI + spin;
+    const sl = Math.sin(u * 40) * 0.4 * (u < 0.3); thr.userData.legs[0].rotation.z = sl; thr.userData.legs[1].rotation.z = -sl;
+    arm(R, u < 0.32 ? -1.45 : -0.4, 0, u < 0.32 ? 0 : 0.6); arm(thr.userData.arms[1], u < 0.3 ? 1.2 : 0.2, 0, 0);
+    thr.userData.item.visible = u < 0.3 || u > 0.85;
+    disc.visible = u >= 0.3 && u < 0.85;
+    if (disc.visible) { const w = clamp((u - 0.3) / 0.35, 0, 1); putBall(disc, lerp(tcx, land[0], w), lerp(tcy, land[1], w), 0.05 + (1.6 * (1 - w) + 9 * Math.sin(Math.PI * w)) * (w < 1)); }
+    nxt.userData.arms[0].rotation.z = 0.2 * Math.sin(t); });
+}
+// ---- morning drop-off: both double doors of the entrance stand open, and students with backpacks step off the bus,
+// walk between the bollards, under the canopy and in through the open doors (on a loop)
+{
+  // the south door stands open (a pale opening over its painted leaves, both glass leaves swung out onto the walk); the north door stays shut
+  const DXF = EX - FRD - 1.5 + 0.02, Y0 = EY0 + 20.0, Y1 = EY0 + 25.8, YM = EY0 + 22.9, H = 2.85;
+  // the open doorway is a real hole in the facade (see seg), looking into the corridor behind it
+  { // the corridor: two walls running in from the jambs, floor, ceiling, lockers, a classroom door, and an open doorway at the far end
+    const XE = DXF - 14, YA = Y0, YB = Y1, Z0 = 0.05, Z1 = 3.1, pos = [], ln = [];
+    const quad = (a, b, c, d) => { const p = [a, b, c, a, c, d].map(q => V(...q)); for (const v of p) pos.push(v.x, v.y, v.z); };
+    const L = (a, b) => ln.push(V(...a), V(...b));
+    const rect = (x0, x1, y, z0, z1) => { L([x0, y, z0], [x1, y, z0]); L([x1, y, z0], [x1, y, z1]); L([x1, y, z1], [x0, y, z1]); L([x0, y, z1], [x0, y, z0]); };
+    quad([DXF, YA, Z0], [XE, YA, Z0], [XE, YB, Z0], [DXF, YB, Z0]); quad([DXF, YA, Z1], [XE, YA, Z1], [XE, YB, Z1], [DXF, YB, Z1]);
+    quad([DXF, YA, Z0], [XE, YA, Z0], [XE, YA, Z1], [DXF, YA, Z1]); quad([DXF, YB, Z0], [XE, YB, Z0], [XE, YB, Z1], [DXF, YB, Z1]);
+    const EW = 0.75, YC = (YA + YB) / 2, ZD = 2.3;   // far wall around an open doorway
+    quad([XE, YA, Z0], [XE, YC - EW, Z0], [XE, YC - EW, Z1], [XE, YA, Z1]); quad([XE, YC + EW, Z0], [XE, YB, Z0], [XE, YB, Z1], [XE, YC + EW, Z1]); quad([XE, YC - EW, ZD], [XE, YC + EW, ZD], [XE, YC + EW, Z1], [XE, YC - EW, Z1]);
+    const cg = new THREE.BufferGeometry(); cg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); cg.computeVertexNormals();
+    const cm = new THREE.Mesh(cg, new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 })); cm.renderOrder = 2; root.add(cm);
+    const dark = new THREE.Mesh(new THREE.PlaneGeometry(2 * EW, ZD - Z0).rotateY(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xdcdcdc })); dark.position.copy(V(XE, YC, (Z0 + ZD) / 2)); dark.renderOrder = 2; root.add(dark);
+    for (const y of [YA, YB]) for (const z of [Z0, Z1]) L([DXF, y, z], [XE, y, z]);                       // the long corner lines
+    for (const y of [YA, YB]) L([XE, y, Z0], [XE, y, Z1]); L([XE, YA, Z0], [XE, YB, Z0]); L([XE, YA, Z1], [XE, YB, Z1]);
+    L([XE, YC - EW, Z0], [XE, YC - EW, ZD]); L([XE, YC - EW, ZD], [XE, YC + EW, ZD]); L([XE, YC + EW, ZD], [XE, YC + EW, Z0]);
+    for (let x = DXF - 1.2; x > XE; x -= 1.2) L([x, YA, Z0], [x, YB, Z0]);                               // floor tiles
+    L([DXF, YC, Z0], [XE, YC, Z0]);
+    for (let x = DXF - 2; x > XE + 1; x -= 3) { const a = x, b = x - 1.2, c0 = YC - 0.3, c1 = YC + 0.3;  // ceiling lights
+      L([a, c0, Z1], [b, c0, Z1]); L([b, c0, Z1], [b, c1, Z1]); L([b, c1, Z1], [a, c1, Z1]); L([a, c1, Z1], [a, c0, Z1]); }
+    for (const [y, x0, x1] of [[YA + 0.005, DXF - 2, DXF - 8.4], [YB - 0.005, DXF - 2, DXF - 6.8], [YB - 0.005, DXF - 9.6, DXF - 12.8]]) {   // locker banks
+      for (let x = x0; x > x1 + 0.01; x -= 0.4) { rect(x, x - 0.4, y, Z0 + 0.1, Z0 + 1.85);
+        for (let k = 0; k < 3; k++) L([x - 0.12, y, Z0 + 1.55 + k * 0.07], [x - 0.28, y, Z0 + 1.55 + k * 0.07]); L([x - 0.33, y, Z0 + 0.95], [x - 0.33, y, Z0 + 1.1]); } }
+    rect(DXF - 7.6, DXF - 8.6, YB - 0.005, Z0, Z0 + 2.2); rect(DXF - 7.75, DXF - 8.45, YB - 0.005, Z0 + 1.2, Z0 + 2.0); L([DXF - 8.45, YB - 0.005, Z0 + 1.0], [DXF - 8.3, YB - 0.005, Z0 + 1.0]);   // a classroom door
+    rect(DXF - 9.6, DXF - 12.4, YA + 0.005, Z0 + 1.0, Z0 + 2.2); rect(DXF - 9.8, DXF - 12.2, YA + 0.005, Z0 + 1.2, Z0 + 2.0);   // notice board
+    const lm = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(ln), M.line); lm.renderOrder = 3; root.add(lm); }
+  const lp = []; const L3 = (a, b) => lp.push(V(...a), V(...b));
+  const YO = YM - 0.05; L3([DXF + 0.01, Y0, 0.05], [DXF + 0.01, YO, 0.05]); L3([DXF + 0.01, Y0, H + 0.05], [DXF + 0.01, YO, H + 0.05]); L3([DXF + 0.01, Y0, 0.05], [DXF + 0.01, Y0, H + 0.05]);
+  { const g = new THREE.BoxGeometry(0.08, H, 0.1).translate(0, H / 2, 0); const m = new THREE.Mesh(g, M.wall); m.position.copy(V(DXF + 0.04, YM, 0.05)); root.add(m);   // middle mullion
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(g), M.line); e.position.copy(m.position); root.add(e); }
+  for (const [hy, sg] of [[Y0, 1], [YM - 0.05, -1]]) {   // the open door: two leaves hinged at its jambs, swung 78 degrees out
+    const a = 78 * Math.PI / 180, ux = Math.sin(a), uy = sg * Math.cos(a), w = 1.45, t = 0.05;
+    const G = new THREE.Group(); G.position.copy(V(DXF, hy, 0.05)); G.rotation.y = Math.atan2(uy, ux); root.add(G);   // local x runs along the leaf, away from the hinge
+    const g = new THREE.BoxGeometry(w, H, t).translate(w / 2, H / 2, 0); G.add(new THREE.Mesh(g, M.wall)); G.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), M.line));
+    const q = []; for (const z of [t / 2 + 0.003, -t / 2 - 0.003]) { const R4 = (x0, x1, y0, y1) => q.push(new THREE.Vector3(x0, y0, z), new THREE.Vector3(x1, y0, z), new THREE.Vector3(x1, y0, z), new THREE.Vector3(x1, y1, z), new THREE.Vector3(x1, y1, z), new THREE.Vector3(x0, y1, z), new THREE.Vector3(x0, y1, z), new THREE.Vector3(x0, y0, z));
+      R4(0.25, 1.2, 0.45, 2.55); q.push(new THREE.Vector3(1.3, 1.25, z), new THREE.Vector3(1.3, 1.85, z)); }   // glass and the pull handle
+    G.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(q), M.line)); }
+  root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(lp), M.line));
+  // students: each one gets a backpack, a pace and a place in the line; the path runs from inside the bus door to inside the school
+  const PATH = [[169.0, 65.5, 0.35], [168.0, 65.5, 0], [166.2, 65.45, 0], [160.8, 65.45, 0], [152.4, 65.45, 0], [149.6, 65.45, 0], [DXF - 15.5, 65.45, 0]];
+  const seg = PATH.slice(1).map((p, i) => Math.hypot(p[0] - PATH[i][0], p[1] - PATH[i][1])), LEN = seg.reduce((a, b) => a + b, 0);
+  const at = (d, off) => { let i = 0; while (i < seg.length - 1 && d > seg[i]) { d -= seg[i]; i++; } const a = PATH[i], b = PATH[i + 1], u = clamp(d / seg[i], 0, 1);
+    const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, o = i < 2 ? 0 : i === 2 ? off * smooth(u) : off;   // through the bollards in single file, then spread a little through the open door
+    return [a[0] + dx * u - dy / L * o, a[1] + dy * u + dx / L * o, lerp(a[2], b[2], u), dx, dy]; };
+  const packG = mk([[new THREE.BoxGeometry(0.16, 0.42, 0.32), -0.23, 1.15, 0], [new THREE.BoxGeometry(0.07, 0.18, 0.24), -0.33, 1.02, 0]]);
+  const N = 10, T = globalThis.__BUS.plan.loop, rs = (k) => { const v = Math.sin(k * 91.7) * 43758.5; return v - Math.floor(v); };
+  for (let i = 0; i < N; i++) {
+    const f = figure(null), s = 0.88 + rs(i) * 0.14, v = 1.15 + rs(i + 20) * 0.3, t0 = globalThis.__BUS.plan.arr + 2.5 + i * 2.1 + rs(i + 40) * 0.8, off = (i % 2 ? 1 : -1) * (0.2 + rs(i + 60) * 0.55);
+    f.add(solid(packG)); f.scale.setScalar(s); f.traverse(o => o.renderOrder = 3);   // drawn after the corridor, so they show inside it
+    PLAY.push(t => { const d = ((t - t0) % T + T) % T * v; f.visible = d < LEN; if (!f.visible) return;
+      const [x, y, z, dx, dy] = at(d, off); put(f, x, y, dx, dy, d < seg[0] ? 0.3 : 1, d * 2.6); f.position.y = z; });
+  }
+}
+
+// the bus loop: it starts in the drop-off lane a little north of the entrance, rolls down to it,
+// stops at the entrance, opens its door and lets the students off, shuts it and drives out: down the lane, along the aisle below
+// the east lot and down the east road to the end of the main road, where it is gone until the next loop (keeping right, rounded turns)
+{ const BUS = globalThis.__BUS, P = BUS.plan, S = { v: 0, a: 0 };
+  PLAY.push(t => { const p = ((t % P.loop) + P.loop) % P.loop; let x, y, h, k = 0, vis = true;
+    if (p < P.arr) [x, y, h] = P.inAt(p);
+    else if (p < P.dep) { [x, y, h] = P.inAt(P.arr); const q = p - P.arr; k = q < 1.5 ? q / 1.5 : q < P.dep - P.arr - 3 ? 1 : q < P.dep - P.arr - 1.5 ? 1 - (q - (P.dep - P.arr - 3)) / 1.5 : 0; }
+    else { const r = P.outAt(p - P.dep); [x, y, h] = r; vis = r[3]; }
+    BUS.G.visible = vis; BUS.G.position.copy(V(x, y, 0)); BUS.G.rotation.y = h; BUS.door(smooth(k));
+    const dt = t - (S.t ?? t), d = Math.hypot(x - (S.x ?? x), y - (S.y ?? y)), v = dt > 1e-3 && dt < 0.5 && d < 5 ? d / dt : S.v;
+    S.a += ((dt > 1e-3 && dt < 0.5 ? (v - S.v) / dt : 0) - S.a) * Math.min(1, dt * 6 || 0); S.v = v; S.t = t; S.x = x; S.y = y;
+    SND.bus(x, y, vis, S.v, S.a, p, P); }); }
+
+function tickPlay(t) { for (const f of PLAY) f(t); SND.tick(); }
+
+// Two-finger touch (same as the other buildings): move both fingers to turn like one finger, pinch to zoom toward the fingers, twist to turn, glide on release
+function mapTouch(controls, camera, canvas, scene) {
+  controls.touches.TWO = -1;                                 // OrbitControls leaves two-finger gestures to this code
+  const pts = new Map();                                     // pointerId -> {x, y}
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), up = new THREE.Vector3(0, 1, 0);
+  let g = null, multi = false, raf = 0, glide = 0;           // gesture in progress; did this touch use two fingers; frame requests
+
+  const two = () => [...pts.values()];
+  const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const ang = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
+  const wrap = (x) => Math.atan2(Math.sin(x), Math.cos(x)); // keep a turn between -180° and 180°
+  function rayAt(p) {
+    const r = canvas.getBoundingClientRect();
+    ndc.set((p.x - r.left) / r.width * 2 - 1, -(p.y - r.top) / r.height * 2 + 1); ray.setFromCamera(ndc, camera); return ray.ray;
+  }
+  function anchorAt(p) {                                     // the spot on the model under the fingers
+    const R = rayAt(p);
+    const hit = ray.intersectObjects(scene.children, true).find((h) => h.object.isMesh && h.object.visible);
+    if (hit) return hit.point.clone();
+    return R.at(camera.position.distanceTo(controls.target), new THREE.Vector3());
+  }
+
+  // move the whole view about P: zoom by k, twist by th, and turn like one finger by a drag of (dx, dy) pixels
+  function step(P, k, th, dx, dy) {
+    const cam = camera.position, tgt = controls.target, d0 = cam.distanceTo(tgt), h = canvas.clientHeight || 1;
+    k = THREE.MathUtils.clamp(k, controls.minDistance / d0, controls.maxDistance / d0);
+    cam.sub(P).multiplyScalar(k).add(P); tgt.sub(P).multiplyScalar(k).add(P);
+    // round about the upright line through P: the twist, plus a sideways drag at one-finger speed
+    const q = new THREE.Quaternion().setFromAxisAngle(up, th - 2 * Math.PI * dx / h * controls.rotateSpeed);
+    cam.sub(P).applyQuaternion(q).add(P); tgt.sub(P).applyQuaternion(q).add(P);
+    // over the top: a drag down rises to look from above, a drag up sinks toward the ground (as with one finger)
+    const off = cam.clone().sub(tgt), phi = Math.acos(THREE.MathUtils.clamp(off.y / off.length(), -1, 1));
+    const nphi = THREE.MathUtils.clamp(phi - 2 * Math.PI * dy / h * controls.rotateSpeed, 0.03, controls.maxPolarAngle);
+    if (Math.abs(nphi - phi) > 1e-5) {
+      const axis = new THREE.Vector3().crossVectors(up, off).normalize(), qt = new THREE.Quaternion().setFromAxisAngle(axis, phi - nphi);
+      const o2 = off.clone().applyQuaternion(qt);
+      if (Math.abs(Math.acos(THREE.MathUtils.clamp(o2.y / o2.length(), -1, 1)) - nphi) > 1e-3) qt.setFromAxisAngle(axis, nphi - phi);
+      cam.sub(P).applyQuaternion(qt).add(P); tgt.sub(P).applyQuaternion(qt).add(P);
+      if (cam.y < 0.3) { const lift = 0.3 - cam.y; cam.y += lift; tgt.y += lift; }   // never below the ground
+    }
+    if (tgt.y < -3) {                                        // the aim point (what one finger turns about) sank well under the ground: bring it up to the ground
+      const d = cam.distanceTo(tgt), R = new THREE.Ray(cam.clone(), tgt.clone().sub(cam).normalize()), G = R.intersectPlane(new THREE.Plane(up, 0.6), new THREE.Vector3());
+      if (G && G.distanceTo(cam) > 0.5 * d) tgt.copy(G);
+    }
+    camera.lookAt(tgt); controls.update();
+  }
+
+  function start() {
+    cancelAnimationFrame(glide); glide = 0;
+    const [a, b] = two();
+    g = { a: { ...a }, b: { ...b }, P: anchorAt(mid(a, b)), v: { k: 1, th: 0, x: 0, y: 0 }, t: performance.now() };
+    controls.autoRotate = false; document.getElementById("spin")?.setAttribute("aria-pressed", "false");
+  }
+
+  canvas.addEventListener("pointerdown", (e) => {
+    if (pts.size === 0) { multi = false; cancelAnimationFrame(glide); glide = 0; }
+    if (e.pointerType !== "touch") return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2) { multi = true; start(); } else if (g) g = null;
+  });
+  const end = (e) => {
+    if (!pts.delete(e.pointerId)) return;
+    if (g && performance.now() - g.moved < 100) coast(g);   // fingers were still moving when lifted
+    g = null;
+  };
+  canvas.addEventListener("pointerup", end); canvas.addEventListener("pointercancel", end);
+
+  canvas.addEventListener("pointermove", (e) => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (g) g.moved = performance.now();
+    if (g && pts.size === 2 && !raf) raf = requestAnimationFrame(apply);   // each finger reports on its own; apply both together once a frame
+  });
+
+  function apply() {
+    raf = 0;
+    if (!g || pts.size !== 2) return;
+    const [a, b] = two(), pa = g.a, pb = g.b; g.a = { ...a }; g.b = { ...b };
+    const m = mid(a, b), pm = mid(pa, pb);
+    const k = dist(pa, pb) / Math.max(1, dist(a, b)), th = wrap(ang(a, b) - ang(pa, pb));
+    step(g.P, k, th, m.x - pm.x, m.y - pm.y);
+    const now = performance.now(), f = Math.min(1, (now - g.t) / 50); g.t = now;   // remember how fast it was going (smoothed)
+    const v = g.v, s = 0.5 + 0.5 * f;
+    v.k = Math.pow(v.k, 1 - s) * Math.pow(k, s); v.th = v.th * (1 - s) + th * s;
+    v.x = v.x * (1 - s) + (m.x - pm.x) * s; v.y = v.y * (1 - s) + (m.y - pm.y) * s;
+  }
+
+  function coast(G) {                                        // keep gliding after the fingers lift, slowing down each frame
+    const v = { ...G.v }, P = G.P;
+    const tick = () => {
+      v.k = Math.pow(v.k, 0.9); v.th *= 0.9; v.x *= 0.9; v.y *= 0.9;
+      if (Math.abs(Math.log(v.k)) < 0.0005 && Math.abs(v.th) < 0.0005 && Math.hypot(v.x, v.y) < 0.3) { glide = 0; return; }
+      step(P, v.k, v.th, v.x, v.y);
+      glide = requestAnimationFrame(tick);
+    };
+    glide = requestAnimationFrame(tick);
+  }
+
+  return { active: () => multi, stop: () => { cancelAnimationFrame(glide); glide = 0; } };   // active: a two-finger touch (so not a tap); stop: a view button was pressed
+}
+
+// ---------------- viewer ----------------
+const canvas = document.getElementById("c");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xffffff); scene.add(root);
+scene.add(new THREE.HemisphereLight(0xffffff, 0xdddddd, 2.4));
+const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(-60, 90, 80); scene.add(sun);
+const camera = new THREE.PerspectiveCamera(34, 1, 0.5, 3000);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.minDistance = 4; controls.maxDistance = 900;
+controls.maxPolarAngle = Math.PI / 2 - 0.02; controls.autoRotateSpeed = 1.0;
+// easier moving around a big site: pinch zooms toward the fingers (not back toward the entrance),
+// one/two-finger drag slides along the ground instead of up into the sky, and you can get close to the players
+controls.zoomToCursor = true; controls.screenSpacePanning = false; controls.minDistance = 4;
+const touch = mapTouch(controls, camera, canvas, scene);
+const VIEWS = {
+  entry: { eye: [207, 69, 6.5], tgt: [150, 69, 6] },   // standing in the car park, straight at the entrance (Ahmed's pick)
+  door: { eye: [188, 40, 7], tgt: [152, 66, 6] },
+  se: { eye: [250, -110, 120], tgt: [78, 60, 4] },
+  nw: { eye: [-110, 230, 110], tgt: [78, 60, 4] },
+  top: { eye: [78, 59.9, 330], tgt: [78, 60, 0] },
+  court: { eye: [205, 5, 14], tgt: [130, 30, 6] },
+  chk: { eye: [185, 5, 38], tgt: [135, 60, 8] },
+  photo: { eye: [235, 40, 55], tgt: [130, 72, 8] },
+  m16: { eye: [200, 30, 32], tgt: [148, 72, 10] },
+  m20: { eye: [180, 42, 24], tgt: [150, 64, 9] },
+  ne: { eye: [215, 150, 8], tgt: [140, 80, 9] },
+  m24: { eye: [200, 20, 40], tgt: [140, 70, 10] },
+  wst: { eye: [-30, 85, 70], tgt: [95, 85, 10] },
+  cy: { eye: [96, 40, 30], tgt: [112, 68, 12] },
+  n1: { eye: [40, 170, 18], tgt: [64, 111, 9] },
+  site: { eye: [300, -230, 300], tgt: [60, 200, 0] },
+  k1: { eye: [80, 20, 40], tgt: [110, 52, 5] },
+  j1: { eye: [96, 52, 21], tgt: [104.4, 66, 14] },
+  s1: { eye: [90, -45, 22], tgt: [90, 60, 12] },
+  b3: { eye: [50, 15, 28], tgt: [74, 48, 6] },
+  b4: { eye: [74, 47, 120], tgt: [74, 47.1, 0] },
+  b1: { eye: [150, -15, 45], tgt: [108, 62, 6] },
+  b2: { eye: [120, -20, 40], tgt: [100, 62, 6] },
+  a1: { eye: [60, 0, 55], tgt: [95, 75, 8] },
+  a2: { eye: [130, 0, 55], tgt: [90, 75, 8] },
+};
+function setView(k) { touch.stop(); const v = VIEWS[k]; camera.position.copy(V(...v.eye)); controls.target.copy(V(...v.tgt)); controls.update(); }
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.8 ? 58 : 34; camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", resize); resize();
+setView(new URLSearchParams(location.search).get("view") || "entry");   // always open on the entrance
+document.getElementById("status").remove();
+for (const k of Object.keys(VIEWS)) if (document.getElementById("v-" + k)) document.getElementById("v-" + k).onclick = () => setView(k);
+const spinBtn = document.getElementById("spin");
+spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute("aria-pressed", controls.autoRotate); };
+const soundBtn = document.getElementById("sound");
+soundBtn.onclick = () => soundBtn.setAttribute("aria-pressed", SND.toggle());
+// a tap (not a drag) on the school bus sounds its horn, and turns the sound on if it was off
+{ const ray = new THREE.Raycaster(), tap = new THREE.Vector2(), G = globalThis.__BUS.G; let down = null;
+  canvas.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+  canvas.addEventListener("pointerup", (e) => {
+    if (touch.active() || !down || !G.visible || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8 || performance.now() - down.t > 600) return;
+    const r = canvas.getBoundingClientRect(); tap.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(tap, camera);
+    const hit = ray.intersectObjects(scene.children, true).find((h) => h.object.isMesh && h.object.visible);
+    for (let o = hit && hit.object; o; o = o.parent) if (o === G) { if (!SND.isOn()) soundBtn.setAttribute("aria-pressed", SND.toggle()); SND.horn(G.position.x, -G.position.z); break; } }); }
+const hint = document.getElementById("hint");
+controls.addEventListener("start", () => { hint.style.opacity = 0; }, { once: true });
+// keep the corridor behind the open door clean: whatever else of the building reaches into it (inner walls, the floor pad)
+// is clipped away inside the corridor box, so only the corridor's own walls, floor and ceiling show there
+{ const DXF = EX - FRD - 1.5 + 0.02, X0 = DXF - 14 + 0.01, X1 = DXF - 0.1, Y0 = EY0 + 20.0 - 0.03, Y1 = EY0 + 25.8 + 0.03, Z0 = -0.5, Z1 = 3.3;
+  const planes = [new THREE.Plane(new THREE.Vector3(-1, 0, 0), X0), new THREE.Plane(new THREE.Vector3(1, 0, 0), -X1), new THREE.Plane(new THREE.Vector3(0, -1, 0), Z0),
+    new THREE.Plane(new THREE.Vector3(0, 1, 0), -Z1), new THREE.Plane(new THREE.Vector3(0, 0, -1), -Y1), new THREE.Plane(new THREE.Vector3(0, 0, 1), Y0)];
+  const box = new THREE.Box3(new THREE.Vector3(X0, Z0, -Y1), new THREE.Vector3(X1, Z1, -Y0)), bb = new THREE.Box3(), done = new Map();
+  renderer.localClippingEnabled = true; scene.updateMatrixWorld(true);
+  scene.traverse(o => { if (!(o.isMesh || o.isLineSegments) || o.isInstancedMesh || o.renderOrder || !o.geometry.attributes.position) return;
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); bb.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); if (!bb.intersectsBox(box)) return;
+    const one = (m) => { if (!done.has(m)) { const c = m.clone(); c.clippingPlanes = planes; c.clipIntersection = true; done.set(m, c); } return done.get(m); };
+    o.material = Array.isArray(o.material) ? o.material.map(one) : one(o.material); }); }
+
+renderer.setAnimationLoop(() => { controls.update(); tickPlay(performance.now() / 1000); renderer.render(scene, camera); });
+window.__ready = true;
+</script>

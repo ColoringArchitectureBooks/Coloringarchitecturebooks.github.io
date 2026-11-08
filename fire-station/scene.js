@@ -240,8 +240,8 @@ function hall(root) {
 }
 
 // ---------- fire trucks in the bays (page): engine, ladder truck, engine, ambulance ----------
-function wheel(root, x, y) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.35, 24), M.white); w.rotation.z = Math.PI / 2; w.position.copy(V(x, y, 0.5)); root.add(w);
-  const h = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.38, 16), M.white); h.rotation.z = Math.PI / 2; h.position.copy(V(x, y, 0.5)); root.add(h); }
+function wheel(root, x, y) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.35, 24), M.white); w.rotation.z = Math.PI / 2; w.position.copy(V(x, y, 0.56)); root.add(w);   // tyres touch the hall floor (top 0.06)
+  const h = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.38, 16), M.white); h.rotation.z = Math.PI / 2; h.position.copy(V(x, y, 0.56)); root.add(h); }
 function truck(root, cx, y0, kind) {
   const amb = kind === "ambulance", hw = amb ? 1.12 : 1.22, top = amb ? 3.2 : 3.0;
   if (amb) {
@@ -352,7 +352,7 @@ function site(root) {
   lines(root, dash);
   lines(root, [[[-60, -30, 0.02], [112, -30, 0.02]]]);   // edge of Airway Blvd along the plot (no sidewalk on this side)
   // apron with the diagonal stripes, straight out to Airway Blvd
-  slab(root, [[0, -30], [25, -30], [25, 0], [0, 0]], 0, 0.06);
+  slab(root, [[0, -30], [25, -30], [25, 28.6], [0, 28.6]], 0, 0.06);   // apron continues inside as the hall floor, so the trucks stand on the same level
   const st = [], x0 = 0, x1 = 25, y0 = -30, y1 = 0;
   for (let c = -80; c < 80; c += 4) for (const s of [1, -1]) {
     const q = [];

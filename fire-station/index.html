@@ -20,7 +20,7 @@
     border-radius:999px; padding:9px 16px; cursor:pointer; white-space:nowrap; }
   button:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
   button[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
-  .hint { position:fixed; left:0; right:0; bottom:calc(max(16px, env(safe-area-inset-bottom, 0px)) + 96px);
+  .hint { position:fixed; left:0; right:0; bottom:calc(max(16px, env(safe-area-inset-bottom, 0px)) + 52px);
     text-align:center; font-size:13px; color:var(--muted); pointer-events:none; transition:opacity .6s; }
   #status { position:fixed; inset:0; display:grid; place-items:center; font-size:15px; color:var(--muted); }
 </style>
@@ -28,16 +28,13 @@
 <canvas id="c"></canvas>
 <header>
   <h1>Fire Station 3D Model</h1>
-  <div class="sub">Coloring book · fire station</div>
 </header>
 <div id="status">Loading the building…</div>
-<div class="hint" id="hint" dir="rtl">اسحب بصباعك عشان تلف المطافي، وقرّب بصباعين</div>
+<div class="hint" id="hint">Drag to turn the fire station, pinch to zoom</div>
 <div class="bar">
-  <button id="v-front">الواجهة</button>
-  <button id="v-obl">من فوق</button>
-  <button id="v-back">من ورا</button>
-  <button id="v-entry">المدخل</button>
-  <button id="spin" aria-pressed="false">لف</button>
+  <button id="v-front">Front</button>
+  <button id="v-obl">Aerial</button>
+  <button id="spin" aria-pressed="false">Spin</button>
 </div>
 
 <script type="importmap">
@@ -46,7 +43,8 @@
 <script type="module">
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { buildScene, V } from "./scene.js?v=1";
+import { mapTouch } from "./touch.js?v=4";
+import { buildScene, V } from "./scene.js?v=2";
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -56,6 +54,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xffffff);
 const camera = new THREE.PerspectiveCamera(34, 1, 0.5, 2000);
 const controls = new OrbitControls(camera, canvas);
+const touch = mapTouch(controls, camera, canvas, scene);   // two fingers: turn like one finger, pinch to zoom toward the fingers
 controls.enableDamping = true; controls.minDistance = 4; controls.maxDistance = 400;
 controls.maxPolarAngle = Math.PI / 2 - 0.02; controls.autoRotateSpeed = 1.0;
 
@@ -65,7 +64,7 @@ const VIEWS = {
   back:  { eye: [-40, 120, 50], tgt: [25, 40, 3] },
   entry: { eye: [92, -6, 7], tgt: [52, 9, 6] },
 };
-function setView(k) { const v = VIEWS[k]; camera.position.copy(V(...v.eye)); controls.target.copy(V(...v.tgt)); controls.update(); }
+function setView(k) { touch.stop(); const v = VIEWS[k]; camera.position.copy(V(...v.eye)); controls.target.copy(V(...v.tgt)); controls.update(); }
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.8 ? 58 : 34; camera.updateProjectionMatrix();
@@ -75,7 +74,7 @@ setView("front");
 buildScene(scene).then(() => document.getElementById("status").remove())
   .catch(() => { document.getElementById("status").textContent = "Couldn't load the model. Please refresh the page."; });
 
-for (const k of Object.keys(VIEWS)) document.getElementById("v-" + k).onclick = () => setView(k);
+for (const k of Object.keys(VIEWS)) if (document.getElementById("v-" + k)) document.getElementById("v-" + k).onclick = () => setView(k);
 const spinBtn = document.getElementById("spin");
 spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute("aria-pressed", controls.autoRotate); };
 const hint = document.getElementById("hint");

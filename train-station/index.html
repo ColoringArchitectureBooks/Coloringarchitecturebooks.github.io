@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Train Station 3D Model</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Deliberately single-theme: the model is a white coloring page, so the page stays paper-white. */
+  :root { --paper:#ffffff; --ink:#1a1a1a; --muted:#6b6b6b; color-scheme: light; }
+  html, body { margin:0; height:100%; background:var(--paper); color:var(--ink); overflow:hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  header { position:fixed; top:0; left:0; right:0; padding-top:max(14px, env(safe-area-inset-top, 0px));
+    padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); pointer-events:none; }
+  h1 { margin:0; font-size:17px; font-weight:700; }
+  .sub { margin-top:2px; font-size:13px; color:var(--muted); }
+  .bar { position:fixed; left:50%; transform:translateX(-50%); bottom:max(16px, env(safe-area-inset-bottom, 0px));
+    display:flex; gap:8px; flex-wrap:wrap; justify-content:center; width:max-content; max-width:calc(100% - 32px); }
+  button { font:inherit; font-size:14px; border:1.5px solid var(--ink); background:var(--paper); color:var(--ink);
+    border-radius:999px; padding:9px 16px; cursor:pointer; white-space:nowrap; }
+  button:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+  button[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
+  #sound { display:inline-flex; align-items:center; gap:6px; }
+  .ico { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  #sound .on { display:none; } #sound[aria-pressed="true"] .on { display:inline; } #sound[aria-pressed="true"] .off { display:none; }
+  .hint { position:fixed; left:0; right:0; bottom:calc(max(16px, env(safe-area-inset-bottom, 0px)) + 52px);
+    text-align:center; font-size:13px; color:var(--muted); pointer-events:none; transition:opacity .6s; }
+  .hint > span { display:inline-block; background:rgba(255,255,255,0.85); border-radius:6px; padding:1px 7px; line-height:1.3; }   /* a paper patch so it reads over the drawing */
+  #status { position:fixed; inset:0; display:grid; place-items:center; font-size:15px; color:var(--muted); }
+</style>
+
+<canvas id="c"></canvas>
+<header>
+  <h1>Train Station 3D Model</h1>
+</header>
+<div id="status">Loading the building…</div>
+<div class="hint" id="hint"><span><span id="hint-drag">Drag to turn the train station, pinch to zoom<br></span>Tap the train to blow the whistle</span></div>
+<div class="bar">
+  <button id="v-front">Front</button>
+  <button id="v-obl">Aerial</button>
+  <button id="spin" aria-pressed="false">Spin</button>
+  <button id="sound" aria-pressed="false" aria-label="Sound"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="off" d="M16 9l6 6M22 9l-6 6"/><path class="on" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>Sound</button>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { buildScene, V, zoomFade, tickSmoke, TRAIN, SMOKE_BEAT } from "./scene.js?v=52";
+import { whistle, setSound, isSoundOn, tickSound } from "./sound.js?v=2";
+import { mapTouch } from "./touch.js?v=4";
+
+const canvas = document.getElementById("c");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xffffff);
+const camera = new THREE.PerspectiveCamera(34, 1, 0.5, 2000);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.minDistance = 4; controls.maxDistance = 400;
+controls.maxPolarAngle = Math.PI / 2 - 0.02; controls.autoRotateSpeed = 1.0;
+const touch = mapTouch(controls, camera, canvas, scene);   // two fingers: zoom toward, twist and slide like a maps app
+
+const VIEWS = {
+  front: { eye: [12.27, -65.6, 6.3], tgt: [12.27, 0, 6.3], fov: 16 },   // long lens: near-flat like the page
+  obl:   { eye: [70, -60, 60], tgt: [12, 8, -1] },     // whole site: platforms, crossing, court, car park, street
+};
+let baseFov = 34;
+function setView(k) { touch.stop(); const v = VIEWS[k]; baseFov = v.fov || 34; resize(); camera.position.copy(V(...v.eye)); controls.target.copy(V(...v.tgt)); controls.update(); }
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.8 ? baseFov * 58 / 34 : baseFov; camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", resize); resize();
+setView("front");
+buildScene(scene).then(() => document.getElementById("status").remove())
+  .catch(() => { document.getElementById("status").textContent = "Couldn't load the model. Please refresh the page."; });
+
+for (const k of Object.keys(VIEWS)) if (document.getElementById("v-" + k)) document.getElementById("v-" + k).onclick = () => setView(k);
+const spinBtn = document.getElementById("spin");
+spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute("aria-pressed", controls.autoRotate); };
+const soundBtn = document.getElementById("sound");
+const sound = (v) => { soundBtn.setAttribute("aria-pressed", v); setSound(v); };
+soundBtn.onclick = () => sound(!isSoundOn());
+// a tap (not a drag) on the train blows the whistle, and turns the sound on if it was off
+const ray = new THREE.Raycaster(), tap = new THREE.Vector2(); let down = null;
+canvas.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+canvas.addEventListener("pointerup", (e) => {
+  if (touch.active() || !down || !TRAIN.group || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8 || performance.now() - down.t > 600) return;
+  const r = canvas.getBoundingClientRect();
+  tap.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(tap, camera);
+  const hit = ray.intersectObjects(scene.children, true).find((h) => h.object.isMesh && h.object.visible);
+  for (let o = hit && hit.object; o; o = o.parent) if (o === TRAIN.group) { if (!isSoundOn()) sound(true); whistle(); hint.style.opacity = 0; break; }
+});
+const hint = document.getElementById("hint");
+// the drag line goes once the reader starts turning; the whistle line stays until they blow the whistle
+controls.addEventListener("start", () => { document.getElementById("hint-drag").hidden = true; }, { once: true });
+renderer.setAnimationLoop(() => {
+  controls.update();
+  // keep the depth range tight to the view: zoomed far out, a near plane of 0.5 m left too little depth precision and touching faces flickered as stray lines
+  const d = camera.position.distanceTo(controls.target), n = Math.max(0.3, d / 40);
+  if (Math.abs(camera.near - n) > n * 0.05) { camera.near = n; camera.far = d * 8 + 400; camera.updateProjectionMatrix(); }
+  const now = performance.now() / 1000; zoomFade(d); tickSmoke(now); tickSound(now, SMOKE_BEAT);
+  renderer.render(scene, camera);
+});
+</script>
+</html>
