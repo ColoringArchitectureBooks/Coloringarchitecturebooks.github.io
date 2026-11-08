@@ -357,7 +357,7 @@ function buildProps(P, root) {
       else if (o.isLineSegments) ls.push(o.geometry.clone().applyMatrix4(o.matrixWorld)); });
     KIND[kind] = { body: mergeGeometries(ms), line: mergeGeometries(ls).getAttribute("position").array, at: [] }; }
   const place = (x, y, z, hdeg) => new THREE.Matrix4().makeTranslation(...V(x, y, z).toArray()).multiply(new THREE.Matrix4().makeRotationY((hdeg - 90) * Math.PI / 180));
-  for (const [x, y, hd, kind] of P.cars) KIND[kind].at.push(place(x, y, 0.02, hd));
+  for (const [x, y, hd, kind, z = 0.02] of P.cars) KIND[kind].at.push(place(x, y, z, hd));   // z: paving under the car (wheels on it)
   Object.values(KIND).forEach(instances);
 
   // ---- ambulance like the page: a van cab with a tall box module behind it (~6.7 x 2.3 x 3.0 m)
@@ -411,7 +411,7 @@ function buildProps(P, root) {
     lines(G, Ln);
     return G;
   }
-  for (const [x, y, hd] of P.ambulances) { const G = ambulance(); G.position.copy(V(x, y, 0.02)); G.rotation.y = (hd - 90) * Math.PI / 180; root.add(G); }
+  for (const [x, y, hd, z = 0.02] of P.ambulances) { const G = ambulance(); G.position.copy(V(x, y, z)); G.rotation.y = (hd - 90) * Math.PI / 180; root.add(G); }
 
   // ---- helicopter like the page (twin-engine air ambulance): rounded cabin with big windows, engine hump, tail boom,
   // shrouded tail rotor in the fin, skids, and a four-blade main rotor that turns
