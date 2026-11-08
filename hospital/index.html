@@ -78,6 +78,7 @@ const VIEWS = {
   front: { dir: [0.2, 0.75, 1], target: [0, 2, 5], halfW: 42, halfH: 22 },      // the whole site from above the street
 };
 let current = VIEWS.start;
+globalThis.__three = { camera, controls, scene, heli: () => heli };
 globalThis.__look = (pos, target) => { camera.position.set(...pos); controls.target.set(...target); controls.update(); };
 function setView(v) {
   current = v;
