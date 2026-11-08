@@ -378,7 +378,12 @@ function building(root) {
 // Front street: road y -174..-159 (dashes at -166.5), sidewalks -177..-174 and -159..-156. Side street: road x 181..196, sidewalks 178..181 and 196..199.
 // Road top -0.03, sidewalks 0..0.15, the lot 0.
 const PLOT = { x0: -14, x1: 178, y0: -156, y1: 120 };
-const DRIVES = { front: [[85, 92.1], [115.5, 122]], side: [[-25, -17], [80, 88]] };   // gaps in the fence, kerb and front planting
+// Site plan option A (Ahmed picked it): every customer drive sits exactly on a parking aisle (front: the aisles 84.2..92.1 and
+// 115..122.3; side: the fire lane in front of the store, -22.8..-15). Trucks have their own drive at the back of the side street
+// (105..117.3) onto a 7.3 m service and fire road that runs behind the store and down its west side to the fire lane, so the
+// fire brigade can drive all the way round the building and trucks never cross the customers' lot. US right-hand traffic.
+const DRIVES = { front: [[84.2, 92.1], [115, 122.3]], side: [[-22.8, -15], [105, 117.3]] };   // gaps in the fence, kerb and front planting
+const SRV = { w0: -12, w1: -4.7, b0: 110, b1: 117.3 };   // service road: west leg x w0..w1 (y -22.8..b1), back leg y b0..b1 (x w0..178)
 const WALK = [92.1, 96.1];   // the walk to the entrance, on the entrance axis, with a gate in the front fence
 const minus = (a, b, gaps) => { const out = []; let s = a; for (const [g0, g1] of gaps) { if (g0 > s) out.push([s, g0]); s = g1; } if (b > s) out.push([s, b]); return out; };
 function segs(root, list) {   // thin black lines, same weight as the model's edges
@@ -613,6 +618,62 @@ function solar(root) {
   }
   segs(root, s);
 }
+// paint: an arrow on the ground, at (x, y) pointing at angle a (radians, plan; 0 = +x), len long
+function arrowPaint(root, x, y, a, len = 4.5, w = 0.3, head = 1.4, hw = 0.75) {
+  const c = Math.cos(a), s = Math.sin(a), P = (u, v) => [x + u * c - v * s, y + u * s + v * c], L = len / 2;
+  flat(root, [P(-L, -w / 2), P(L - head, -w / 2), P(L - head, -hw), P(L, 0), P(L - head, hw), P(L - head, w / 2), P(-L, w / 2)], 0.025, M.line);
+}
+const paintRect = (root, x0, y0, x1, y1) => flat(root, [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], 0.025, M.line);
+function serviceRoad(root) {
+  const { w0, w1, b0, b1 } = SRV, c = (w0 + w1) / 2, cb = (b0 + b1) / 2, s = [];
+  // planting either side of the road: the strip on the plot edge (west and back), the strip behind the store
+  slab(root, [[PLOT.x0, -22.8], [w0, -22.8], [w0, b1], [PLOT.x1, b1], [PLOT.x1, PLOT.y1], [PLOT.x0, PLOT.y1]], 0, 0.15, M.plant);
+  slab(root, [[w1, -12], [-4, -12], [-4, 105], [82.7, 105], [82.7, b0], [w1, b0]], 0, 0.15, M.plant);
+  slab(root, [[134, 76], [PLOT.x1, 76], [PLOT.x1, 105], [134, 105]], 0, 0.15, M.plant);   // buffer between the side lot and the truck court
+  for (let y = 0; y < 100; y += 14) tree(root, PLOT.x0 + 1, y, 6, 1.4);
+  for (let x = 140; x < 178; x += 10) tree(root, x, 90, 7, 2.2);
+  // edge lines and dashed centre line
+  for (let y = -20; y < b0 - 4; y += 6) s.push([[c, y, 0.02], [c, y + 3, 0.02]]);
+  for (let x = w1 + 3; x < PLOT.x1 - 3; x += 6) if (x + 3 < 82 || x > 135) s.push([[x, cb, 0.02], [x + 3, cb, 0.02]]);
+  segs(root, s);
+  // two-way, keep right: down the west leg the right lane is the west one
+  arrowPaint(root, (w0 + c) / 2, 40, -Math.PI / 2); arrowPaint(root, (c + w1) / 2, 50, Math.PI / 2);
+  arrowPaint(root, 30, (cb + b1) / 2, Math.PI); arrowPaint(root, 40, (b0 + cb) / 2, 0);
+  arrowPaint(root, 155, (cb + b1) / 2, Math.PI); arrowPaint(root, 165, (b0 + cb) / 2, 0);
+  const fl = textMat("fire", [["FIRE LANE", 70]], 512, 128, false);
+  groundText(root, fl, c, 15, 6, 1.5, Math.PI / 2); groundText(root, fl, c, 80, 6, 1.5, Math.PI / 2); groundText(root, fl, 60, cb, 6, 1.5, 0);
+  groundText(root, textMat("trk", [["TRUCKS", 70]], 512, 128, false), 150, cb, 5, 1.25, 0);
+  // the east side: the aisle by the store's east wall reaches the truck court; a barrier arm (staff and fire only) keeps customers out
+  box(root, 118.2, 118.6, 81.8, 82.2, 0, 1.1, M.white); box(root, 118.4, 133.5, 81.95, 82.05, 0.95, 1.05, M.white);
+  paintRect(root, 118.3, 80.8, 133.7, 81.1);
+}
+function trafficMarks(root) {
+  // each customer drive: two-way, centre line, a stop bar across the exit lane (exiting south the right lane is the west one)
+  for (const [a, b] of DRIVES.front) {
+    const m = (a + b) / 2;
+    segs(root, [[[m, -156, 0.02], [m, -148, 0.02]]]);
+    paintRect(root, a + 0.2, -151.6, m - 0.15, -151.2);
+    groundText(root, textMat("stop", [["STOP", 80]], 256, 128, false), (a + m) / 2, -150.2, 2.8, 1.4, Math.PI);
+    arrowPaint(root, (a + m) / 2, -145, -Math.PI / 2); arrowPaint(root, (m + b) / 2, -147, Math.PI / 2);
+  }
+  { const [a, b] = DRIVES.side[0], m = (a + b) / 2;   // side drive onto the fire lane: entering westward keeps to the north lane
+    segs(root, [[[170, m, 0.02], [178, m, 0.02]]]);
+    paintRect(root, 175.2, a + 0.2, 175.6, m - 0.15);
+    groundText(root, textMat("stop", [["STOP", 80]], 256, 128, false), 174.2, (a + m) / 2, 2.8, 1.4, -Math.PI / 2);
+    arrowPaint(root, 170, (m + b) / 2, Math.PI); arrowPaint(root, 166, (a + m) / 2, 0);
+    arrowPaint(root, 60, -16.9, Math.PI); arrowPaint(root, 50, -20.9, 0);   // along the fire lane in front of the store
+  }
+  { const [a, b] = DRIVES.side[1], m = (a + b) / 2;   // the truck drive
+    segs(root, [[[176, SRV.b0 + 3.65, 0.02], [178, SRV.b0 + 3.65, 0.02]]]);
+    paintRect(root, 175.2, SRV.b0 + 0.2, 175.6, SRV.b0 + 3.5);
+  }
+  // the streets: lane arrows (westbound on the plot side of the front street, southbound on the plot side of the side street)
+  for (const x of [10, 140]) { arrowPaint(root, x, -162.75, Math.PI, 5); arrowPaint(root, x + 10, -170.25, 0, 5); }
+  for (const y of [-100, 40]) { arrowPaint(root, 184.75, y, -Math.PI / 2, 5); arrowPaint(root, 192.25, y - 10, Math.PI / 2, 5); }
+  // stop bars on the approaches to the junction (right-hand lanes)
+  paintRect(root, 181.2, -155.4, 188.3, -154.9); paintRect(root, 188.7, -178.1, 195.8, -177.6);
+  paintRect(root, 199.9, -166.3, 200.4, -159.2); paintRect(root, 176.6, -173.8, 177.1, -166.7);
+}
 function site(root) {
   flat(root, [[PLOT.x0, PLOT.y0], [PLOT.x1, PLOT.y0], [PLOT.x1, PLOT.y1], [PLOT.x0, PLOT.y1]], 0.0, M.asphalt, 6);   // the plot only: no ground around it
   streets(root);
@@ -633,7 +694,7 @@ function site(root) {
   for (let x = 140; x < 178; x += 10) tree(root, x, 74, 7, 2.2);
   // planters along the front (page foreground) + small trees by the left corner
   if (!BW) for (const [x0, x1] of [[30, 42], [52, 64]]) { slab(root, [[x0, -11], [x1, -11], [x1, -8], [x0, -8]], 0, 0.45, M.mulch); tree(root, (x0 + x1) / 2, -9.5, 6, 1.8); }
-  tree(root, -8.5, -8, 7, 2.2); tree(root, -8.5, 10, 7, 2.2);
+  serviceRoad(root); trafficMarks(root);
 }
 
 export function buildScene(scene, opts = {}) {
