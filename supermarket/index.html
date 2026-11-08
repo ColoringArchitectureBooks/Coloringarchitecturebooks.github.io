@@ -35,6 +35,7 @@
 <div class="bar">
   <button id="v-front">Front</button>
   <button id="v-aerial">Aerial</button>
+  <button id="v-top">Top</button>
   <button id="spin" aria-pressed="false">Spin</button>
 </div>
 
@@ -45,7 +46,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { mapTouch } from "./touch.js?v=4";
-import { buildScene, V, faceCamera } from "./scene.js?v=17";
+import { buildScene, V, faceCamera } from "./scene.js?v=18";
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -62,6 +63,7 @@ controls.maxPolarAngle = Math.PI / 2 - 0.03; controls.autoRotateSpeed = 1.0;
 const VIEWS = {
   start: { eye: [94, -62, 2.2], tgt: [93, 0, 5.5] },
   front: { eye: [175, -125, 95], tgt: [57, 30, 0] },
+  top: { eye: [85, -31, 620], tgt: [85, -30, 0] },   // straight down, the whole site plan (Ahmed)
 };
 function setView(v) { touch.stop(); camera.position.copy(V(...v.eye)); controls.target.copy(V(...v.tgt)); controls.update(); }
 function resize() {
@@ -77,6 +79,7 @@ const spinBtn = document.getElementById("spin");
 spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute("aria-pressed", controls.autoRotate); };
 document.getElementById("v-front").onclick = () => setView(VIEWS.start);
 document.getElementById("v-aerial").onclick = () => setView(VIEWS.front);
+document.getElementById("v-top").onclick = () => setView(VIEWS.top);
 const hint = document.getElementById("hint");
 controls.addEventListener("start", () => { hint.style.opacity = 0; }, { once: true });
 renderer.setAnimationLoop(() => { controls.update();
