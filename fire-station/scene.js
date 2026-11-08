@@ -345,23 +345,22 @@ function tree(root, x, y, r, h) {
   const t = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, h - r, 6), M.white); t.position.copy(V(x, y, (h - r) / 2)); root.add(t);
   const c = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), M.white); c.scale.set(r, r * 1.1, r); c.position.copy(V(x, y, h)); c.rotation.y = (x * 7 + y * 3) % 6.28; root.add(c);
 }
-// plot fence: posts every 3 m, two rails, bars between them; gates where cars and people come in
-function fenceRun(root, a, b) {          // straight run along x or y
-  const [x0, y0] = a, [x1, y1] = b, L = Math.hypot(x1 - x0, y1 - y0), alongX = y0 === y1, t = 0.03, bars = [];
-  for (const z of [0.25, 1.45]) alongX ? box(root, Math.min(x0, x1), Math.max(x0, x1), y0 - t, y0 + t, z, z + 0.08) : box(root, x0 - t, x0 + t, Math.min(y0, y1), Math.max(y0, y1), z, z + 0.08);
-  const n = Math.max(1, Math.round(L / 3));
-  for (let k = 0; k <= n; k++) { const x = x0 + (x1 - x0) * k / n, y = y0 + (y1 - y0) * k / n; box(root, x - 0.05, x + 0.05, y - 0.05, y + 0.05, 0, 1.65); }
-  for (let d = 0.25; d < L - 0.1; d += 0.25) { const x = x0 + (x1 - x0) * d / L, y = y0 + (y1 - y0) * d / L; bars.push([[x, y, 0.33], [x, y, 1.45]]); }
-  lines(root, bars);
+// plot fence like the school's: light, lines only (top rail at 1.8 m, bottom rail at 0.15 m, posts every 4 m)
+function fenceRun(root, a, b, h = 1.8) {
+  const [x0, y0] = a, [x1, y1] = b, L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.round(L / 4)), s = [];
+  s.push([[x0, y0, h], [x1, y1, h]], [[x0, y0, 0.15], [x1, y1, 0.15]]);
+  for (let k = 0; k <= n; k++) { const x = x0 + (x1 - x0) * k / n, y = y0 + (y1 - y0) * k / n; s.push([[x, y, 0], [x, y, h]]); }
+  lines(root, s);
 }
-function gate(root, a, b, swing) {        // two leaves hung on posts at a and b, swung open into the plot by swing (radians)
-  const [ax, ay] = a, [bx, by] = b, L = Math.hypot(bx - ax, by - ay) / 2 - 0.05, phi = Math.atan2(by - ay, bx - ax);
-  for (const [x, y] of [a, b]) box(root, x - 0.15, x + 0.15, y - 0.15, y + 0.15, 0, 1.9);
+function gate(root, a, b, swing, h = 1.8) {   // two light leaves (lines, like the fence) hung at a and b, swung open into the plot
+  const [ax, ay] = a, [bx, by] = b, L = Math.hypot(bx - ax, by - ay) / 2 - 0.05, phi = Math.atan2(by - ay, bx - ax), s = [];
   for (const [x, y, f] of [[ax, ay, phi + swing], [bx, by, phi + Math.PI - swing]]) {
-    const g = new THREE.Group(); g.position.copy(V(x, y, 0)); g.rotation.y = f; root.add(g);
-    box(g, 0.15, L, -0.03, 0.03, 0.2, 0.3); box(g, 0.15, L, -0.03, 0.03, 1.5, 1.6); box(g, 0.15, 0.25, -0.03, 0.03, 0.2, 1.6); box(g, L - 0.1, L, -0.03, 0.03, 0.2, 1.6);
-    const bars = []; for (let u = 0.45; u < L - 0.15; u += 0.25) bars.push([[u, 0, 0.3], [u, 0, 1.5]]); lines(g, bars);
+    const ex = x + L * Math.cos(f), ey = y + L * Math.sin(f);
+    s.push([[x, y, h], [ex, ey, h]], [[x, y, 0.15], [ex, ey, 0.15]], [[ex, ey, 0.15], [ex, ey, h]], [[x, y, 0], [x, y, h + 0.1]]);
+    const n = Math.max(2, Math.round(L / 0.5));
+    for (let k = 1; k < n; k++) { const t = k / n; s.push([[x + (ex - x) * t, y + (ey - y) * t, 0.15], [x + (ex - x) * t, y + (ey - y) * t, h]]); }
   }
+  lines(root, s);
 }
 function plotFence(root) {
   const P = D.plot, E = P.x1;
