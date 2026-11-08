@@ -476,6 +476,81 @@ function corral(root, xa, xb, y0, open) {   // xa..xb along the stall depth, y0.
   const yc = y0 + 1.35, d = -open;                                                                          // three nested carts, handles to the aisle
   for (let k = 0; k < 3; k++) { const hx = (open < 0 ? xs + 0.25 : xe - 0.25) + d * k * 0.32; cart(root, hx, yc, 0, d); }
 }
+
+// ---------- curb ramps, EV chargers, bike racks, order pickup (Ahmed; after US big-box stores, e.g. Target: Electrify America
+// DC fast chargers on the lot, inverted-U bike racks by the doors, signed and numbered Drive Up stalls near the entrance) ----------
+const tri = (root, a, b, c, mat = M.walk) => root.add(quad(a, b, c, c, mat));
+// a ramp from the road (zero at yFoot) up to the kerb top (0.15 at yTop), x0..x1 wide, with a truncated-dome band at the foot
+function curbRamp(root, x0, x1, yFoot, yTop) {
+  const h = 0.15;
+  root.add(quad(V(x0, yFoot, 0.001), V(x1, yFoot, 0.001), V(x1, yTop, h), V(x0, yTop, h), M.walk));
+  for (const x of [x0, x1]) tri(root, V(x, yFoot, 0), V(x, yTop, 0), V(x, yTop, h));
+  const d = Math.sign(yTop - yFoot), s = [];
+  for (let k = 0; k < 4; k++) { const y = yFoot + d * (0.1 + k * 0.15), z = h * (0.1 + k * 0.15) / Math.abs(yTop - yFoot) + 0.01;
+    for (let x = x0 + 0.15; x < x1 - 0.1; x += 0.2) s.push([[x - 0.04, y, z], [x + 0.04, y, z]]); }
+  segs(root, s);
+}
+const TXT = {};
+function textMat(key, lines, w = 256, h = 256, frame = true) {   // black words on white (a sign) or on clear (paint on the ground)
+  if (TXT[key]) return TXT[key];
+  const t = canvasTex(w, h, (g) => {
+    g.clearRect(0, 0, w, h);
+    if (frame) { g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.strokeStyle = "#111"; g.lineWidth = 8; g.strokeRect(6, 6, w - 12, h - 12); }
+    g.fillStyle = "#111"; g.textAlign = "center"; g.textBaseline = "middle";
+    lines.forEach(([txt, size], i) => { g.font = `900 ${size}px "Arial Black", Arial, "DejaVu Sans", sans-serif`; g.fillText(txt, w / 2, h * (i + 0.5) / lines.length); });
+  }, false);
+  return (TXT[key] = new THREE.MeshBasicMaterial({ map: t, transparent: !frame, alphaTest: frame ? 0 : 0.4, side: THREE.DoubleSide }));
+}
+function groundText(root, mat, x, y, w, h, rot) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.rotation.x = -Math.PI / 2; m.rotation.z = rot; m.position.copy(V(x, y, 0.03)); m.userData.noEdge = true; root.add(m); }
+function signPlate(root, mat, x, y, z, w, h, face) {   // a plate facing +x (face 1) or -x (face -1)
+  box(root, x - 0.015, x + 0.015, y - w / 2, y + w / 2, z - h / 2, z + h / 2, M.white);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.04, h - 0.04), mat); m.position.copy(V(x + face * 0.02, y, z)); m.rotation.y = face * Math.PI / 2; m.userData.noEdge = true; root.add(m);
+}
+const bollard = (root, x, y, z0 = 0, h = 1.0) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, h, 12), M.metal); m.position.copy(V(x, y, z0 + h / 2)); root.add(m); };
+// stall k (0 = nearest the store) of an upper-block row: centre y
+const stallY = (k) => -26.3 - 1.35 - 2.7 * k;
+// EV: 4 DC fast chargers on the centre line of the first row on the left (bay 0), each serving the stall on both sides = 8 EV stalls
+function evChargers(root) {
+  const cx = 5.5;
+  for (let k = 0; k < 4; k++) {
+    const y = stallY(k);
+    slab(root, [[cx - 0.6, y - 0.9], [cx + 0.6, y - 0.9], [cx + 0.6, y + 0.9], [cx - 0.6, y + 0.9]], 0, 0.12, M.concrete);   // pad
+    box(root, cx - 0.25, cx + 0.25, y - 0.35, y + 0.35, 0.12, 2.35, M.white);                                               // charger cabinet
+    box(root, cx - 0.27, cx + 0.27, y - 0.37, y + 0.37, 2.35, 2.45, M.white);                                               // cap
+    for (const f of [-1, 1]) {                                                                                                // a screen and a holstered cable on each face
+      box(root, cx + f * 0.25 - 0.01, cx + f * 0.25 + 0.01, y - 0.22, y + 0.22, 1.35, 1.85, M.dark);
+      box(root, cx + f * 0.25 - 0.06, cx + f * 0.25 + 0.06, y - 0.08, y + 0.08, 0.95, 1.15, M.dark);
+      segs(root, [[[cx + f * 0.31, y, 1.05], [cx + f * 0.45, y + 0.15, 0.6]], [[cx + f * 0.45, y + 0.15, 0.6], [cx + f * 0.3, y + 0.3, 0.3]]]);
+      groundText(root, textMat("ev", [["EV", 150]], 256, 256, false), cx + f * 3.0, y, 1.6, 1.6, f * Math.PI / 2);
+    }
+    for (const dy of [-0.8, 0.8]) bollard(root, cx, y + dy, 0.12, 0.9);
+  }
+  signPlate(root, textMat("evs", [["EV", 120], ["CHARGING", 40], ["ONLY", 40]], 256, 320), cx + 0.03, stallY(4) + 0.6, 1.9, 0.5, 0.62, 1);
+  box(root, cx - 0.03, cx + 0.03, stallY(4) + 0.57, stallY(4) + 0.63, 0, 2.2, M.white);
+}
+// bike racks: 5 inverted-U racks on the sidewalk right of the entrance, 0.9 m apart, set along the walk
+function bikeRacks(root) {
+  const z = 0.15, s = [];
+  for (let k = 0; k < 5; k++) {
+    const x = 110.6 + k * 0.85, y0 = -9.8, y1 = -9.0, top = z + 0.85;
+    for (const y of [y0, y1]) box(root, x - 0.025, x + 0.025, y - 0.025, y + 0.025, z, top - 0.1, M.metal);
+    box(root, x - 0.025, x + 0.025, y0, y1, top - 0.1, top - 0.05, M.metal);
+  }
+  segs(root, s);
+}
+// order pickup (like Drive Up): the first 8 stalls of the next row east (bay 122.3, west half), each with a numbered sign
+// at its head and its number painted at the aisle end; a "pickup" sign on the store sidewalk where staff come out
+function orderPickup(root) {
+  const cx = 127.8;   // bay 122.3, west half: its own row, across the aisle from the accessible stalls, still next to the door
+  for (let k = 0; k < 8; k++) {
+    const y = stallY(k), n = String(k + 1);
+    box(root, cx - 0.18, cx - 0.12, y - 0.03, y + 0.03, 0, 2.5, M.white);
+    signPlate(root, textMat("pu" + n, [["ORDER", 46], ["PICKUP", 46], [n, 110]], 256, 360), cx - 0.2, y, 2.0, 0.55, 0.78, -1);
+    groundText(root, textMat("pn" + n, [[n, 200]], 256, 256, false), cx - 4.3, y, 1.4, 1.4, -Math.PI / 2);
+  }
+  box(root, 103.5, 103.56, -12.6, -12.54, 0.15, 2.6, M.white);
+  signPlate(root, textMat("pus", [["ORDER", 46], ["PICKUP", 46], ["STAFF", 40], ["CROSSING", 40]], 256, 360), 103.59, -12.57, 2.1, 0.55, 0.78, 1);
+}
 function parking(root) {
   const lineAt = (x0, y0, x1, y1, w = 0.12) => flat(root, x0 === x1 ? [[x0 - w, y0], [x0 + w, y0], [x0 + w, y1], [x0 - w, y1]] : [[x0, y0 - w], [x1, y0 - w], [x1, y0 + w], [x0, y0 + w]], 0.02, M.line);
   const hatch = (xa, xb, y0, y1) => { const s = []; for (let t = 0; t < (xb - xa) + (y1 - y0); t += 0.6) {   // diagonal no-parking stripes inside a rectangle
@@ -511,11 +586,16 @@ function parking(root) {
   }
   for (const bx of [138, 156.3]) rowsAt(bx + 5.5, -6, 70, null, { half: -1, y0: -6 + 13 * 2.7 });
   // the walk: from the front gate to the fire lane, cut where it crosses the cross aisle; zebra crossings on both crossings
-  slab(root, [[WALK[0], -156], [WALK[1], -156], [WALK[1], -91], [WALK[0], -91]], 0, 0.15, M.walk);
-  slab(root, [[WALK[0], -83], [WALK[1], -83], [WALK[1], -20], [WALK[0], -20]], 0, 0.15, M.walk);
+  // curb ramps (ADA: 1:12, 1.8 m for the 0.15 m kerb, 1.2 m wide minimum, a band of truncated domes at the foot) at both ends
+  // of each crossing: cut into the walk, and into the store sidewalk in front of the walk
+  slab(root, [[WALK[0], -156], [WALK[1], -156], [WALK[1], -92.8], [WALK[0], -92.8]], 0, 0.15, M.walk);
+  slab(root, [[WALK[0], -81.2], [WALK[1], -81.2], [WALK[1], -21.8], [WALK[0], -21.8]], 0, 0.15, M.walk);
+  curbRamp(root, WALK[0], WALK[1], -91, -92.8); curbRamp(root, WALK[0], WALK[1], -83, -81.2);
+  curbRamp(root, WALK[0], WALK[1], -20, -21.8); curbRamp(root, WALK[0], WALK[1], -15, -13.2);
   for (const [y0, y1] of [[-91, -83], [-20, -15]]) for (let y = y0 + 0.4; y < y1 - 0.3; y += 1.0) flat(root, [[WALK[0] + 0.2, y], [WALK[1] - 0.2, y], [WALK[1] - 0.2, y + 0.5], [WALK[0] + 0.2, y + 0.5]], 0.02, M.line);
   // carts kept by the door, on the sidewalk in front of the SUPERMARKET block
   for (let k = 0; k < 8; k++) cart(root, 79.6 + k * 0.32, -9.6, 0.15, 1);
+  evChargers(root); bikeRacks(root); orderPickup(root);
   solar(root);
 }
 // ---------- rooftop solar (Ahmed: like the real store's roof, four arrays in a 2 x 2 block in the middle) ----------
@@ -538,7 +618,7 @@ function site(root) {
   streets(root);
   slab(root, [[82.7, 95.5], [93, 95.5], [93, 90.5], [114, 90.5], [114, 85], [134, 85], [134, 110], [82.7, 110]], 0, 0.03, M.concrete);
   // sidewalk following the stepped front, with the entrance bulge
-  slab(root, [[-4, 105], [-4, -12], [86, -12], [86, -15], [110, -15], [110, -12], [118, -12], [118, 90.5], [114, 90.5], [114, 3], [0, 3], [0, 105]], 0, 0.15, M.walk);   // one piece, no seam lines on the walk
+  slab(root, [[-4, 105], [-4, -12], [86, -12], [86, -15], [WALK[0], -15], [WALK[0], -13.2], [WALK[1], -13.2], [WALK[1], -15], [110, -15], [110, -12], [118, -12], [118, 90.5], [114, 90.5], [114, 3], [0, 3], [0, 105]], 0, 0.15, M.walk);   // one piece, no seam lines on the walk
   // where the sidewalk meets the building: a thin line (same weight as the other edges), so walk and wall read apart in black and white (Ahmed)
   const foot = [[0, 105], [0, 3], [6.1, 3], [6.1, -3], [18.6, -3], [18.6, 0], [72.98, 0], [72.98, -5.5], [87.88, -5.5], [87.88, -8.1], [102.82, -8.1], [102.82, -5], [104.3, -5], [104.3, -5.3], [109.6, -5.3], [109.6, -5], [114, -5], [114, 90.5]];   // entrance piers and the circle panel included
   const n = foot.length;
