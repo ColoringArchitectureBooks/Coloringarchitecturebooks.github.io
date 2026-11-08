@@ -333,13 +333,56 @@ function garage(root) {
 }
 
 // ---------- site ----------
+const SITE = {"walk":[{"o":[[0.0,29.0],[-5.0,29.0],[-5.0,-0.6],[0.0,-0.6],[0.0,-1.6],[-6.0,-1.6],[-6.0,30.0],[0.0,30.0]],"h":[]},{"o":[[41.0,49.0],[41.0,30.0],[63.0,30.0],[63.0,11.082],[63.224,11.345],[63.471,11.586],[63.739,11.804],[64.026,11.997],[64.33,12.163],[64.647,12.301],[64.975,12.409],[65.312,12.487],[65.655,12.534],[66.0,12.55],[66.345,12.534],[66.688,12.487],[67.025,12.409],[67.353,12.301],[67.67,12.163],[67.974,11.997],[68.261,11.804],[68.529,11.586],[68.776,11.345],[69.001,11.082],[69.2,10.799],[69.373,10.5],[72.5,10.5],[72.5,62.0],[26.0,62.0],[26.0,65.0],[72.5,65.0],[72.5,90.0],[76.0,90.0],[76.0,10.5],[112.0,10.5],[112.0,7.0],[69.373,7.0],[69.2,6.701],[69.001,6.418],[68.776,6.155],[68.529,5.914],[68.261,5.696],[67.974,5.503],[67.67,5.337],[67.353,5.199],[67.025,5.091],[66.688,5.013],[66.345,4.966],[66.0,4.95],[65.655,4.966],[65.312,5.013],[64.975,5.091],[64.647,5.199],[64.33,5.337],[64.026,5.503],[63.739,5.696],[63.471,5.914],[63.224,6.155],[62.999,6.418],[62.8,6.701],[62.627,7.0],[56.5,7.0],[56.5,4.5],[50.0,4.5],[50.0,-0.5],[31.0,-0.5],[31.0,-1.6],[25.0,-1.6],[25.0,-0.6],[30.0,-0.6],[30.0,0.5],[49.0,0.5],[49.0,5.5],[55.5,5.5],[55.5,12.0],[62.0,12.0],[62.0,29.0],[40.0,29.0],[40.0,48.0],[26.0,48.0],[26.0,29.0],[25.0,29.0],[25.0,49.0]],"h":[[[56.5,11.0],[56.5,10.5],[62.627,10.5],[62.8,10.799],[62.942,11.0]]]},{"o":[[5.0,89.0],[5.0,86.5],[4.0,86.5],[4.0,88.0],[-11.0,88.0],[-11.0,66.0],[4.0,66.0],[4.0,68.0],[5.0,68.0],[5.0,65.0],[-12.0,65.0],[-12.0,89.0]],"h":[]}],"trees":[[-7.99,-17.47,2.74,6.2],[-12.27,-11.05,3.09,7.58],[-15.12,-2.0,2.74,5.87],[-15.36,13.52,2.98,7.42],[52.05,36.9,2.63,6.19],[61.71,37.04,3.11,7.1],[68.76,38.5,2.49,5.68],[47.72,46.72,2.8,5.94],[55.1,45.11,2.44,6.77],[65.44,46.78,2.4,6.11],[44.42,53.59,2.71,6.41],[51.35,54.7,3.12,6.36],[60.22,54.52,3.34,7.31],[34.22,69.83,3.22,7.2],[44.36,70.68,3.1,6.5],[52.94,69.65,2.53,5.63],[60.01,69.29,3.08,6.5],[38.6,79.41,3.0,6.15],[48.44,77.76,2.45,6.92],[55.1,78.23,2.88,7.2],[65.18,77.15,2.68,5.98],[82.72,77.56,2.65,7.12],[93.52,79.05,3.02,6.62],[100.43,79.0,2.89,5.95],[61.9,85.59,2.99,7.01],[98.29,85.32,3.12,6.22]]};
+function slabH(root, pts, holes, z0, z1, mat = M.white) {
+  const sh = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
+  for (const h of holes) sh.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y))));
+  const g = new THREE.ExtrudeGeometry(sh, { depth: z1 - z0, bevelEnabled: false, curveSegments: 32 });
+  g.rotateX(-Math.PI / 2); const m = new THREE.Mesh(g, mat); m.position.y = z0; root.add(m); return m;
+}
+// low-poly tree like the school's: trunk + faceted crown
+function tree(root, x, y, r, h) {
+  const t = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, h - r, 6), M.white); t.position.copy(V(x, y, (h - r) / 2)); root.add(t);
+  const c = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), M.white); c.scale.set(r, r * 1.1, r); c.position.copy(V(x, y, h)); c.rotation.y = (x * 7 + y * 3) % 6.28; root.add(c);
+}
+// plot fence: posts every 3 m, two rails, bars between them; gates where cars and people come in
+function fenceRun(root, a, b) {          // straight run along x or y
+  const [x0, y0] = a, [x1, y1] = b, L = Math.hypot(x1 - x0, y1 - y0), alongX = y0 === y1, t = 0.03, bars = [];
+  for (const z of [0.25, 1.45]) alongX ? box(root, Math.min(x0, x1), Math.max(x0, x1), y0 - t, y0 + t, z, z + 0.08) : box(root, x0 - t, x0 + t, Math.min(y0, y1), Math.max(y0, y1), z, z + 0.08);
+  const n = Math.max(1, Math.round(L / 3));
+  for (let k = 0; k <= n; k++) { const x = x0 + (x1 - x0) * k / n, y = y0 + (y1 - y0) * k / n; box(root, x - 0.05, x + 0.05, y - 0.05, y + 0.05, 0, 1.65); }
+  for (let d = 0.25; d < L - 0.1; d += 0.25) { const x = x0 + (x1 - x0) * d / L, y = y0 + (y1 - y0) * d / L; bars.push([[x, y, 0.33], [x, y, 1.45]]); }
+  lines(root, bars);
+}
+function gate(root, a, b, swing) {        // two leaves hung on posts at a and b, swung open into the plot by swing (radians)
+  const [ax, ay] = a, [bx, by] = b, L = Math.hypot(bx - ax, by - ay) / 2 - 0.05, phi = Math.atan2(by - ay, bx - ax);
+  for (const [x, y] of [a, b]) box(root, x - 0.15, x + 0.15, y - 0.15, y + 0.15, 0, 1.9);
+  for (const [x, y, f] of [[ax, ay, phi + swing], [bx, by, phi + Math.PI - swing]]) {
+    const g = new THREE.Group(); g.position.copy(V(x, y, 0)); g.rotation.y = f; root.add(g);
+    box(g, 0.15, L, -0.03, 0.03, 0.2, 0.3); box(g, 0.15, L, -0.03, 0.03, 1.5, 1.6); box(g, 0.15, 0.25, -0.03, 0.03, 0.2, 1.6); box(g, L - 0.1, L, -0.03, 0.03, 0.2, 1.6);
+    const bars = []; for (let u = 0.45; u < L - 0.15; u += 0.25) bars.push([[u, 0, 0.3], [u, 0, 1.5]]); lines(g, bars);
+  }
+}
+function plotFence(root) {
+  const P = D.plot, E = P.x1;
+  // gaps: the apron (the trucks drive straight out), the entrance walk, the two parking drives and the yard drive
+  for (const [a, b] of [[[P.x0, P.y0], [0, P.y0]], [[25, P.y0], [E, P.y0]], [[E, P.y0], [E, 7]], [[E, 10.5], [E, 13]], [[E, 20], [E, 62]], [[E, 69], [E, 90]], [[E, 98], [E, P.y1]],
+    [[E, P.y1], [P.x0, P.y1]], [[P.x0, P.y1], [P.x0, P.y0]]]) fenceRun(root, a, b);
+  // gates open inward (toward -x: the leaves swing past the fence line into the plot)
+  gate(root, [E, 7], [E, 10.5], 1.2); gate(root, [E, 13], [E, 20], 1.3); gate(root, [E, 62], [E, 69], 1.3); gate(root, [E, 90], [E, 98], 1.3);
+}
 function site(root) {
-  flat(root, [[-60, -70], [170, -70], [170, 140], [-60, 140]], -0.03);
+  // only the plot shows; the two streets run on past it with their sidewalks
+  const P = D.plot;
+  flat(root, [[P.x0, P.y0], [P.x1, P.y0], [P.x1, P.y1], [P.x0, P.y1]], -0.03);
+  flat(root, [[-60, -48], [170, -48], [170, -27], [-60, -27]], -0.03);           // Airway Blvd with both sidewalks
+  flat(root, [[112, -70], [134, -70], [134, 140], [112, 140]], -0.03);           // side street with both sidewalks
   const kerb = (pts) => slab(root, pts, 0, 0.15);
   // Airway Blvd (y -45..-30) and the side street (x 115..131) run straight through and cross; a sidewalk on all four corners
   // near-side sidewalks, cut where the apron and the drives cross them so those stay level with the street
   for (const [y0, y1] of [[-30, 13], [20, 62], [69, 90], [98, 140]]) kerb([[112, y0], [115, y0], [115, y1], [112, y1]]);
-  kerb([[-60, -48], [115, -48], [115, -70], [112, -70], [112, -45], [-60, -45]]);
+  kerb([[-60, -30], [0, -30], [0, -27], [-60, -27]]); kerb([[25, -30], [112, -30], [112, -27], [25, -27]]);   // plot-side sidewalk of Airway Blvd, cut where the apron crosses it
+  kerb([[-60, -48], [112, -48], [112, -70], [115, -70], [115, -45], [-60, -45]]);
   kerb([[131, -30], [170, -30], [170, -27], [134, -27], [134, 140], [131, 140]]);
   kerb([[131, -45], [170, -45], [170, -48], [134, -48], [134, -70], [131, -70]]);
   const dash = [];
@@ -350,7 +393,6 @@ function site(root) {
     const b = 116 + k * 2.5; dash.push([[b, -27.5, 0.01], [b, -24, 0.01]], [[b, -51, 0.01], [b, -47.5, 0.01]]);
   }
   lines(root, dash);
-  lines(root, [[[-60, -30, 0.02], [112, -30, 0.02]]]);   // edge of Airway Blvd along the plot (no sidewalk on this side)
   // apron with the diagonal stripes, straight out to Airway Blvd
   slab(root, [[0, -30], [25, -30], [25, 28.6], [0, 28.6]], 0, 0.06);   // apron continues inside as the hall floor, so the trucks stand on the same level
   const st = [], x0 = 0, x1 = 25, y0 = -30, y1 = 0;
@@ -373,14 +415,15 @@ function site(root) {
   lines(root, stalls);
   // walks, plaza, flagpoles with flags
   { const pc = [66, 8.75], pr = 3.8, h = Math.atan2(1.75, Math.sqrt(pr * pr - 1.75 * 1.75)), arc = (t0, t1) => { const r = []; for (let k = 0; k <= 24; k++) { const t = t0 + (t1 - t0) * k / 24; r.push([pc[0] + pr * Math.cos(t), pc[1] + pr * Math.sin(t)]); } return r; };
-    slab(root, [[D.entry.x1, 7], ...arc(Math.PI + h, 2 * Math.PI - h), [112, 7], [112, 10.5], [76, 10.5], [76, 90], [72.5, 90], [72.5, 65], [26, 65], [26, 62], [72.5, 62], [72.5, 10.5], ...arc(h, Math.PI - h), [D.entry.x1, 10.5]], 0, 0.12);
+    for (const p of SITE.walk) slabH(root, p.o, p.h, 0, 0.12);   // walks, plaza and the 1 m sidewalk round every building (not where the trucks drive), one piece (layout-scripts/fire-site.py)
     const bed = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 0.03, 40), M.white); bed.position.copy(V(pc[0], pc[1], 0.135)); root.add(bed); }   // centre circle of the plaza, flush with the paving
   for (const x of [62.2]) {      // one flagpole with the flag
     cyl(root, x, 3.5, 0, 12, 0.08, 8); const ball = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), M.white); ball.position.copy(V(x, 3.5, 12.1)); root.add(ball);
     box(root, x + 0.08, x + 2.0, 3.48, 3.52, 10.6, 11.8);
     lines(root, [10.85, 11.1, 11.35, 11.6].map(z => [[x + 0.9, 3.45, z], [x + 2.0, 3.45, z]]).concat([[[x + 0.9, 3.45, 11.1], [x + 0.9, 3.45, 11.8]]]));
   }
-  lines(root, [[[-20, -27, 0.01], [-20, 104, 0.01]], [[-15, -27, 0.01], [-15, 104, 0.01]]]);      // ditch along the left edge
+  plotFence(root);
+  for (const [x, y, r, h] of SITE.trees) tree(root, x, y, r, h);   // the school's trees, on the open ground
 }
 
 // builds everything; resolves when the 3D letters are in
