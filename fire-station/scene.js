@@ -5,6 +5,8 @@
 import * as THREE from "three";
 import { FontLoader } from "three/addons/loaders/FontLoader.js";
 import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
+import { parkCars } from "./cars.js?v=2";
+import { fireTruck, flashLights, lightsOff } from "./firetruck.js?v=2";
 
 export const V = (x, y, z) => new THREE.Vector3(x, z, -y);
 
@@ -42,9 +44,37 @@ function brickTexture() {   // 4 m wide x 16 m high tile: stone base 0..1 m, bri
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping;
   t.anisotropy = 8; t.repeat.set(1 / 4, 1 / 16); return t;
 }
+function roofTexture() {   // 4 m along the ridge x 2.4 m up the slope: a thin course line every 0.4 m, tile joints staggered every 0.6 m (light, like the brick)
+  const pm = 64, w = 4 * pm, h = 2.4 * pm, c = document.createElement("canvas"); c.width = w; c.height = h;
+  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.strokeStyle = "#000"; g.lineWidth = 1.2;
+  for (let r = 0; r < 6; r++) { const y = h - r * 0.4 * pm - 0.5;
+    g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke();
+    g.lineWidth = 0.8; for (let x = (r % 2) * 0.3; x < 4; x += 0.6) { g.beginPath(); g.moveTo(x * pm, y); g.lineTo(x * pm, y - 0.4 * pm); g.stroke(); } g.lineWidth = 1.2; }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 8; t.repeat.set(1 / 4, 1 / 2.4); return t;
+}
+// roof UVs in world metres on every sloped face: u along the ridge, v up the slope (so the courses run parallel to the eave);
+// flat, vertical and underside faces get a blank spot between two courses
+function roofUV(root) {
+  root.updateMatrixWorld(true);
+  const up = new THREE.Vector3(0, 1, 0), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3(), r = new THREE.Vector3(), sl = new THREE.Vector3();
+  root.traverse(o => {
+    if (!o.isMesh || o.material !== M.roof) return;
+    if (o.geometry.index) o.geometry = o.geometry.toNonIndexed();
+    const pos = o.geometry.attributes.position, uv = new THREE.BufferAttribute(new Float32Array(pos.count * 2), 2);
+    for (let i = 0; i < pos.count; i += 3) {
+      a.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld); b.fromBufferAttribute(pos, i + 1).applyMatrix4(o.matrixWorld); c.fromBufferAttribute(pos, i + 2).applyMatrix4(o.matrixWorld);
+      n.subVectors(b, a).cross(c.clone().sub(a)).normalize();
+      const slope = n.y > 0.15 && n.y < 0.97;
+      if (slope) { r.crossVectors(up, n).normalize(); sl.copy(up).addScaledVector(n, -n.dot(up)).normalize(); }
+      [a, b, c].forEach((p, k) => slope ? uv.setXY(i + k, p.dot(r), p.dot(sl)) : uv.setXY(i + k, 0.31, 0.2));
+    }
+    o.geometry.setAttribute("uv", uv);
+  });
+}
 function mats() {
   const L = (o) => new THREE.MeshLambertMaterial({ side: THREE.DoubleSide, color: 0xffffff, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, ...o });
-  M.white = L({}); M.roof = L({}); M.ground = L({}); M.brick = L({ map: brickTexture() });
+  M.white = L({}); M.roof = L({ map: roofTexture() }); M.ground = L({}); M.brick = L({ map: brickTexture() });
   M.line = new THREE.LineBasicMaterial({ color: 0x000000 });
 }
 // brick UVs in world metres: u along the wall, v = height (so courses line up all round the building)
@@ -101,15 +131,28 @@ function gableRoof(root, x0, x1, y0, y1, z, r, along, mat = M.roof) {
   if (along === "x") side(root, [[y0, z], [y1, z], [(y0 + y1) / 2, z + r]], x0, x1, mat);
   else elev(root, [[x0, z], [x1, z], [(x0 + x1) / 2, z + r]], y0, y1, mat);
 }
+// roof courses (the roofing shows, like the train station's roof): a line every 0.4 m up each slope, parallel to the ridge.
+// The slope runs from (a0, z0) at the eave to (am, zr) at the ridge and on down to (a1, z0); b0..b1 is its length along the ridge.
+// Where a slope runs under another roof the lines are simply hidden by it.
+function roofCourses(root, along, a0, am, a1, z0, zr, b0, b1, step = 0.4) {
+  const s = [], L = Math.hypot(am - a0, zr - z0), n = Math.floor(L / step);
+  for (const ae of [a0, a1]) for (let k = 1; k < n; k++) {
+    const t = k / n, a = ae + (am - ae) * t, z = z0 + (zr - z0) * t + 0.015;
+    s.push(along === "y" ? [[a, b0, z], [a, b1, z]] : [[b0, a, z], [b1, a, z]]);
+  }
+  lines(root, s);
+}
 // a gabled block: walls and gable triangles are one brick extrusion (no seam at the eave), the roof is one folded strip with overhangs
+let HOUSE = 1;   // id per gabled block, so its own wall/roof contact is not drawn as a meeting line
 function house(root, x0, x1, y0, y1, e, pitch, along, emblems = [], ends = [0.35, 0.35]) {   // ends: roof overhang at each gable end (0 where it dies into a wall)
   const o = 0.5, t = 0.3, [e0, e1] = ends;
   const [a0, a1, b0, b1] = along === "y" ? [x0, x1, y0, y1] : [y0, y1, x0, x1];
   const mid = (a0 + a1) / 2, r = (a1 - a0) / 2 * pitch, k = pitch;
   const body = [[a0, 0], [a1, 0], [a1, e], [mid, e + r], [a0, e]];
   const roof = [[a0 - o, e - o * k], [mid, e + r], [a1 + o, e - o * k], [a1 + o, e - o * k + t], [mid, e + r + t], [a0 - o, e - o * k + t]];
-  if (along === "y") { elev(root, body, y0, y1, M.brick); elev(root, roof, y0 - e0, y1 + e1, M.roof); }
-  else { side(root, body, x0, x1, M.brick); side(root, roof, x0 - e0, x1 + e1, M.roof); }
+  if (along === "y") { elev(root, body, y0, y1, M.brick).userData.house = HOUSE; elev(root, roof, y0 - e0, y1 + e1, M.roof).userData.house = HOUSE; }
+  else { side(root, body, x0, x1, M.brick).userData.house = HOUSE; side(root, roof, x0 - e0, x1 + e1, M.roof).userData.house = HOUSE; }
+  HOUSE++;
   const size = Math.min(r * 0.8, 2.0), ez = e + r * 0.38;
   for (const f of emblems) {
     if (f === "+x" || f === "-x") emblem(root, f === "+x" ? x1 + 0.05 : x0 - 0.05, mid, ez, size, f);
@@ -239,43 +282,7 @@ function hall(root) {
   }
 }
 
-// ---------- fire trucks in the bays (page): engine, ladder truck, engine, ambulance ----------
-function wheel(root, x, y) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.35, 24), M.white); w.rotation.z = Math.PI / 2; w.position.copy(V(x, y, 0.56)); root.add(w);   // tyres touch the hall floor (top 0.06)
-  const h = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.38, 16), M.white); h.rotation.z = Math.PI / 2; h.position.copy(V(x, y, 0.56)); root.add(h); }
-function truck(root, cx, y0, kind) {
-  const amb = kind === "ambulance", hw = amb ? 1.12 : 1.22, top = amb ? 3.2 : 3.0;
-  if (amb) {
-    box(root, cx - hw, cx + hw, y0 + 0.9, y0 + 2.4, 0.45, 2.6);                  // cab
-    box(root, cx - hw, cx + hw, y0, y0 + 0.9, 0.45, 1.4);                        // bonnet
-    box(root, cx - hw - 0.05, cx + hw + 0.05, y0 + 2.4, y0 + 7.2, 0.45, top);    // box body
-    opening(root, "-y", y0 + 0.9, cx - hw + 0.15, cx + hw - 0.15, 1.6, 2.45, 2, 1, false);
-    box(root, cx - 0.9, cx + 0.9, y0 + 2.3, y0 + 2.4, 2.65, 2.85);               // light bar
-    for (const s of [-1, 1]) lines(root, [[[cx + s * (hw + 0.06), y0 + 3, 1.2], [cx + s * (hw + 0.06), y0 + 6.6, 1.2]], [[cx + s * (hw + 0.06), y0 + 3, 2.6], [cx + s * (hw + 0.06), y0 + 6.6, 2.6]]]);
-    box(root, cx - 0.5, cx + 0.5, y0 + 2.39, y0 + 2.41, 2.75, 3.1);              // cross panel above the cab
-  } else {
-    box(root, cx - hw, cx + hw, y0, y0 + 2.6, 0.45, top);                        // cab
-    box(root, cx - hw, cx + hw, y0 + 2.6, y0 + 9, 0.45, top - 0.1);              // body
-    opening(root, "-y", y0, cx - hw + 0.15, cx + hw - 0.15, 1.75, 2.75, 2, 1, false);   // windscreen
-    box(root, cx - 0.6, cx + 0.6, y0 - 0.06, y0, 0.75, 1.55);                     // grille
-    lines(root, [0.95, 1.15, 1.35].map(z => [[cx - 0.5, y0 - 0.07, z], [cx + 0.5, y0 - 0.07, z]]));
-    box(root, cx - 0.9, cx + 0.9, y0 + 0.3, y0 + 1.2, top, top + 0.22);          // light bar
-    for (const s of [-1, 1]) {
-      lines(root, [2.6, 4.3, 6.0, 7.7].map(y => [[cx + s * (hw + 0.01), y0 + y, 0.9], [cx + s * (hw + 0.01), y0 + y, 2.6]]));   // locker doors
-      lines(root, [[[cx + s * (hw + 0.01), y0 + 2.6, 2.6], [cx + s * (hw + 0.01), y0 + 9, 2.6]], [[cx + s * (hw + 0.01), y0 + 2.6, 0.9], [cx + s * (hw + 0.01), y0 + 9, 0.9]]]);
-      opening(root, s < 0 ? "-x" : "+x", cx + s * hw, y0 + 0.5, y0 + 2.1, 1.75, 2.7, 1, 1, false);   // cab side window
-    }
-    if (kind === "ladder") {
-      for (const s of [-1, 1]) box(root, cx + s * 0.55 - 0.06, cx + s * 0.55 + 0.06, y0 - 0.6, y0 + 8.6, top + 0.15, top + 0.4);
-      const r = []; for (let y = y0 - 0.4; y < y0 + 8.6; y += 0.5) r.push([[cx - 0.55, y, top + 0.3], [cx + 0.55, y, top + 0.3]]); lines(root, r);
-      box(root, cx - 0.3, cx + 0.3, y0 + 7.6, y0 + 8.4, top - 0.1, top + 0.15);
-    }
-  }
-  box(root, cx - hw - 0.08, cx + hw + 0.08, y0 - 0.3, y0 + 0.02, 0.45, 0.8);   // bumper
-  for (const s of [-1, 1]) { box(root, cx + s * 0.85 - 0.18, cx + s * 0.85 + 0.18, y0 - 0.05, y0, 1.0, 1.3); }   // headlights
-  const axles = amb ? [y0 + 1.4, y0 + 5.8] : [y0 + 1.5, y0 + 6.4, y0 + 7.6];
-  for (const y of axles) for (const s of [-1, 1]) wheel(root, cx + s * (hw - 0.15), y);
-}
-
+// ---------- fire trucks in the bays (page): engine, ladder truck, engine, water tanker ----------
 // ---------- wings ----------
 function wings(root) {
   const L = D.low, A = D.wingA, B = D.wingB, e = D.eave, p = D.pitch;
@@ -333,13 +340,79 @@ function garage(root) {
 }
 
 // ---------- site ----------
+const SITE = {"walk":[{"o":[[0.0,29.0],[-5.0,29.0],[-5.0,-0.6],[0.0,-0.6],[0.0,-1.0],[-5.4,-1.0],[-5.4,29.4],[0.0,29.4]],"h":[]},{"o":[[40.4,48.4],[40.4,29.4],[62.4,29.4],[62.4,11.6],[55.9,11.6],[55.9,10.5],[62.627,10.5],[62.8,10.799],[62.999,11.082],[63.224,11.345],[63.471,11.586],[63.739,11.804],[64.026,11.997],[64.33,12.163],[64.647,12.301],[64.975,12.409],[65.312,12.487],[65.655,12.534],[66.0,12.55],[66.345,12.534],[66.688,12.487],[67.025,12.409],[67.353,12.301],[67.67,12.163],[67.974,11.997],[68.261,11.804],[68.529,11.586],[68.776,11.345],[69.001,11.082],[69.2,10.799],[69.373,10.5],[72.5,10.5],[72.5,62.0],[26.0,62.0],[26.0,65.0],[72.5,65.0],[72.5,90.0],[76.0,90.0],[76.0,10.5],[112.0,10.5],[112.0,7.0],[69.373,7.0],[69.2,6.701],[69.001,6.418],[68.776,6.155],[68.529,5.914],[68.261,5.696],[67.974,5.503],[67.67,5.337],[67.353,5.199],[67.025,5.091],[66.688,5.013],[66.345,4.966],[66.0,4.95],[65.655,4.966],[65.312,5.013],[64.975,5.091],[64.647,5.199],[64.33,5.337],[64.026,5.503],[63.739,5.696],[63.471,5.914],[63.224,6.155],[62.999,6.418],[62.8,6.701],[62.627,7.0],[55.9,7.0],[55.9,5.1],[49.4,5.1],[49.4,0.1],[30.4,0.1],[30.4,-1.0],[25.0,-1.0],[25.0,-0.6],[30.0,-0.6],[30.0,0.5],[49.0,0.5],[49.0,5.5],[55.5,5.5],[55.5,12.0],[62.0,12.0],[62.0,29.0],[40.0,29.0],[40.0,48.0],[26.0,48.0],[26.0,29.0],[25.0,29.0],[25.0,29.4],[25.6,29.4],[25.6,48.4]],"h":[]},{"o":[[4.4,88.4],[4.4,86.5],[4.0,86.5],[4.0,88.0],[-11.0,88.0],[-11.0,66.0],[4.0,66.0],[4.0,68.0],[4.4,68.0],[4.4,65.6],[-11.4,65.6],[-11.4,88.4]],"h":[]}],"trees":[[95.0,-17.46,1.92,5.2,1],[102.31,-13.17,1.55,4.29,2],[99.5,-20.34,2.28,5.4,1],[103.16,-23.97,1.39,4.22,2],[105.54,-16.38,1.64,4.55,2],[106.22,-20.68,1.38,4.71,2],[84.11,-7.26,1.33,4.43,2],[88.37,-10.04,1.82,4.43,0],[90.72,-7.81,1.57,4.32,2],[105.03,-4.17,2.05,4.74,1],[109.21,-2.41,1.54,4.81,2],[-16.62,-18.46,2.01,4.8,0],[-13.77,-20.32,1.46,4.26,2],[-16.83,-21.14,1.31,3.93,2],[-13.88,6.66,2.02,4.68,0],[-17.31,6.69,1.54,4.21,2],[-16.78,10.34,1.37,4.69,2],[-17.07,46.32,1.88,4.68,1],[-17.71,49.52,1.35,4.35,2],[-14.4,46.29,1.36,4.39,2],[-16.3,84.09,1.35,3.95,2],[-15.41,80.19,1.5,4.37,2],[-17.83,79.98,1.38,4.49,2],[48.18,36.66,1.53,4.24,2],[55.09,37.58,1.37,4.45,2],[52.96,42.19,1.78,4.46,0],[47.6,44.24,1.58,4.69,2],[56.18,40.8,1.49,4.24,2],[67.25,53.1,2.29,5.63,0],[62.86,54.12,2.14,5.35,1],[64.83,49.99,2.0,5.03,1],[57.69,35.92,2.13,5.52,0],[62.33,34.34,1.91,4.91,1],[35.4,74.38,1.4,4.22,2],[32.22,84.33,1.51,4.79,2],[38.78,82.73,1.54,4.75,2],[41.48,81.89,1.49,4.22,2],[29.53,80.15,1.68,4.61,2],[32.06,75.66,1.59,4.42,2],[61.47,77.22,2.04,4.97,0],[59.7,81.18,1.6,4.24,2],[60.58,73.45,1.55,4.51,2],[57.78,78.42,1.92,4.73,1],[43.31,69.04,1.63,4.34,2],[47.08,68.34,1.79,4.88,1],[107.61,37.52,1.41,4.2,2],[108.72,40.18,1.78,4.4,1],[106.41,42.18,1.35,4.35,2],[94.55,80.48,1.67,4.59,2],[96.26,77.65,2.18,5.49,1],[98.63,80.74,1.58,4.83,2],[90.57,83.84,1.6,4.99,2],[94.64,83.35,1.61,4.6,1],[108.52,78.41,1.73,4.5,0],[108.23,82.53,1.39,4.14,2],[42.06,100.91,1.32,4.38,2],[37.28,101.34,1.52,4.52,2],[82.11,101.63,1.53,4.56,2],[87.21,101.42,1.68,4.91,1],[84.76,102.14,1.32,4.07,2]]};
+function slabH(root, pts, holes, z0, z1, mat = M.white) {
+  const sh = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
+  for (const h of holes) sh.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y))));
+  const g = new THREE.ExtrudeGeometry(sh, { depth: z1 - z0, bevelEnabled: false, curveSegments: 32 });
+  g.rotateX(-Math.PI / 2); const m = new THREE.Mesh(g, mat); m.position.y = z0; root.add(m); return m;
+}
+// low-poly trees, mixed: the school's tree (one faceted ball), Ahmed's #3 oak (three balls) and #6 small round tree
+function tree(root, x, y, r, h, kind = 0) {
+  const T = (r0, r1, th) => { const t = new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, th, 6), M.white); t.position.copy(V(x, y, th / 2)); root.add(t); };
+  const ball = (geo, cx, cy, cz, sx, sz, ry) => { const c = new THREE.Mesh(geo, M.white); c.scale.set(sx, sz, sx); c.position.copy(V(cx, cy, cz)); c.rotation.y = ry; root.add(c); };
+  const ry = (x * 7 + y * 3) % 6.28;
+  if (kind === 1) {            // oak: a cluster of three balls, trunk up into the middle one
+    const q = r * 0.75, I = new THREE.IcosahedronGeometry(1, 0); T(0.15, 0.22, h);
+    ball(I, x, y, h, q, q, ry); ball(I, x - q * 0.9, y + q * 0.3, h - 0.7, q * 0.8, q * 0.8, ry + 1.1); ball(I, x + q * 0.85, y - q * 0.35, h - 0.6, q * 0.85, q * 0.8, ry + 2.3);
+  } else if (kind === 2) {     // small round tree: short trunk, rounded crown low down
+    const q = r * 0.85, hz = h * 0.65; T(0.12, 0.16, hz); ball(new THREE.DodecahedronGeometry(1, 0), x, y, hz, q, q * 0.95, ry);
+  } else {                     // the school's tree; the trunk runs up into the crown so the two touch
+    T(0.12, 0.17, h); ball(new THREE.IcosahedronGeometry(1, 0), x, y, h, r, r * 1.1, ry);
+  }
+}
+// plot fence, between the school's line fence and a solid one: slim posts every 3 m, a slim top rail, a bottom wire, pickets every 0.5 m
+function fenceRun(root, a, b, h = 1.6) {
+  const [x0, y0] = a, [x1, y1] = b, L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.round(L / 3)), s = [], t = 0.025;
+  y0 === y1 ? box(root, Math.min(x0, x1), Math.max(x0, x1), y0 - t, y0 + t, h - 0.05, h) : box(root, x0 - t, x0 + t, Math.min(y0, y1), Math.max(y0, y1), h - 0.05, h);
+  for (let k = 0; k <= n; k++) { const x = x0 + (x1 - x0) * k / n, y = y0 + (y1 - y0) * k / n; box(root, x - 0.035, x + 0.035, y - 0.035, y + 0.035, 0, h + 0.05); }
+  s.push([[x0, y0, 0.15], [x1, y1, 0.15]]);
+  for (let d = 0.5; d < L - 0.1; d += 0.5) { const x = x0 + (x1 - x0) * d / L, y = y0 + (y1 - y0) * d / L; s.push([[x, y, 0.15], [x, y, h - 0.05]]); }
+  lines(root, s);
+}
+function walkGate(root, a, b, swing, h = 1.6) {   // one light leaf hung at a, swung open into the plot; a latch post at b
+  const [ax, ay] = a, [bx, by] = b, L = Math.hypot(bx - ax, by - ay) - 0.1, f = Math.atan2(by - ay, bx - ax) + swing, s = [];
+  const ex = ax + L * Math.cos(f), ey = ay + L * Math.sin(f);
+  s.push([[ax, ay, h], [ex, ey, h]], [[ax, ay, 0.15], [ex, ey, 0.15]], [[ex, ey, 0.15], [ex, ey, h]], [[ax, ay, 0.15], [ex, ey, h]]);
+  const n = Math.max(2, Math.round(L / 0.5)); for (let k = 1; k < n; k++) { const t = k / n; s.push([[ax + (ex - ax) * t, ay + (ey - ay) * t, 0.15], [ax + (ex - ax) * t, ay + (ey - ay) * t, h]]); }
+  for (const [x, y] of [a, b]) box(root, x - 0.07, x + 0.07, y - 0.07, y + 0.07, 0, h + 0.15);
+  lines(root, s);
+}
+// a sliding gate across a drive on the fence line x: a framed leaf on two wheels with pickets and a brace, gate posts at both sides
+// of the opening and a guide post at the far end of its track. slide: how far it is pushed open along the inside of the fence (+y).
+function slideGate(root, x, y0, y1, slide, h = 1.6) {
+  const xg = slide ? x - 0.18 : x, a = y0 - 0.25 + slide, b = y1 + 0.25 + slide, t = 0.03, s = [];
+  box(root, xg - t, xg + t, a, b, h - 0.06, h); box(root, xg - t, xg + t, a, b, 0.1, 0.18);          // top and bottom rails
+  for (const y of [a, b]) box(root, xg - t, xg + t, y - 0.04, y + 0.04, 0.1, h);                     // end stiles
+  for (let y = a + 0.5; y < b - 0.1; y += 0.5) s.push([[xg, y, 0.18], [xg, y, h - 0.06]]);           // pickets like the fence
+  s.push([[xg, a + 0.05, 0.18], [xg, (a + b) / 2, h - 0.06]], [[xg, (a + b) / 2, h - 0.06], [xg, b - 0.05, 0.18]]);   // braces
+  for (const y of [a + 0.5, b - 0.5]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.05, 14), M.white); w.rotation.z = Math.PI / 2; w.position.copy(V(xg, y, 0.08)); root.add(w); }
+  for (const y of [y0, y1]) box(root, x - 0.08, x + 0.08, y - 0.08, y + 0.08, 0, h + 0.2);          // gate posts
+  const gy = y1 + slide + 0.4; box(root, xg - 0.22, xg - 0.08, gy - 0.05, gy + 0.05, 0, h + 0.1);      // guide post, inside the leaf's track
+  lines(root, s);
+}
+function plotFence(root) {
+  const P = D.plot, E = P.x1;
+  // gaps: the apron (the trucks drive straight out), the entrance walk, the two parking drives and the yard drive
+  for (const [a, b] of [[[P.x0, P.y0], [0, P.y0]], [[25, P.y0], [E, P.y0]], [[E, P.y0], [E, 7]], [[E, 10.5], [E, 13]], [[E, 20], [E, 62]], [[E, 69], [E, 90]], [[E, 98], [E, P.y1]],
+    [[E, P.y1], [P.x0, P.y1]], [[P.x0, P.y1], [P.x0, P.y0]]]) fenceRun(root, a, b);
+  // the walk gate: one hinged leaf, open into the plot; the drives: sliding gates (parking ones slid open behind the fence, the yard one shut)
+  walkGate(root, [E, 7], [E, 10.5], 1.25);
+  slideGate(root, E, 13, 20, 7.0); slideGate(root, E, 62, 69, 7.0); slideGate(root, E, 90, 98, 0);
+}
 function site(root) {
-  flat(root, [[-60, -70], [170, -70], [170, 140], [-60, 140]], -0.03);
+  // only the plot shows; the two streets run on past it with their sidewalks
+  const P = D.plot;
+  // the ground stops at the apron's edges, so no ground edge lies under the apron (it showed through when zoomed far out)
+  flat(root, [[P.x0, P.y0], [0, P.y0], [0, 28.6], [25, 28.6], [25, P.y0], [P.x1, P.y0], [P.x1, P.y1], [P.x0, P.y1]], -0.03);
+  flat(root, [[-60, -48], [170, -48], [170, -27], [25, -27], [25, -30], [0, -30], [0, -27], [-60, -27]], -0.03);   // Airway Blvd with both sidewalks
+  flat(root, [[112, -70], [134, -70], [134, 140], [112, 140]], -0.03);           // side street with both sidewalks
   const kerb = (pts) => slab(root, pts, 0, 0.15);
   // Airway Blvd (y -45..-30) and the side street (x 115..131) run straight through and cross; a sidewalk on all four corners
   // near-side sidewalks, cut where the apron and the drives cross them so those stay level with the street
   for (const [y0, y1] of [[-30, 13], [20, 62], [69, 90], [98, 140]]) kerb([[112, y0], [115, y0], [115, y1], [112, y1]]);
-  kerb([[-60, -48], [115, -48], [115, -70], [112, -70], [112, -45], [-60, -45]]);
+  kerb([[-60, -30], [0, -30], [0, -27], [-60, -27]]); kerb([[25, -30], [112, -30], [112, -27], [25, -27]]);   // plot-side sidewalk of Airway Blvd, cut where the apron crosses it
+  kerb([[-60, -48], [112, -48], [112, -70], [115, -70], [115, -45], [-60, -45]]);
   kerb([[131, -30], [170, -30], [170, -27], [134, -27], [134, 140], [131, 140]]);
   kerb([[131, -45], [170, -45], [170, -48], [134, -48], [134, -70], [131, -70]]);
   const dash = [];
@@ -350,7 +423,6 @@ function site(root) {
     const b = 116 + k * 2.5; dash.push([[b, -27.5, 0.01], [b, -24, 0.01]], [[b, -51, 0.01], [b, -47.5, 0.01]]);
   }
   lines(root, dash);
-  lines(root, [[[-60, -30, 0.02], [112, -30, 0.02]]]);   // edge of Airway Blvd along the plot (no sidewalk on this side)
   // apron with the diagonal stripes, straight out to Airway Blvd
   slab(root, [[0, -30], [25, -30], [25, 28.6], [0, 28.6]], 0, 0.06);   // apron continues inside as the hall floor, so the trucks stand on the same level
   const st = [], x0 = 0, x1 = 25, y0 = -30, y1 = 0;
@@ -371,34 +443,179 @@ function site(root) {
   }
   for (let y = 36; y < 62; y += 3) stalls.push([[-11.5, y, 0.05], [-6.5, y, 0.05]]);
   lines(root, stalls);
+  // parked cars (the school's models), about 40% of the stalls taken, noses toward the aisle
+  { const st = [], has = (y) => !(y > 12 && y < 21) && !(y > 61 && y < 70);
+    const rt = []; for (let y = 14; y + 3 <= 68; y += 3) { st.push([76.2, 82, y + 1.5, 1]); if (has(y) && has(y + 3)) rt.push([98, 103.8, y + 1.5, -1]); }
+    parkCars(root, st, 0.4, 0.04); parkCars(root, rt, 0.4, 0.04, 515, 7);   // the right-hand row: seven cars
+    const yard = []; for (let y = 36; y + 3 <= 60; y += 3) yard.push([-11.8, -6.5, y + 1.5, 1]);
+    parkCars(root, yard, 0.4, 0.04, 77, 5); }   // the yard by the garage: five cars
   // walks, plaza, flagpoles with flags
   { const pc = [66, 8.75], pr = 3.8, h = Math.atan2(1.75, Math.sqrt(pr * pr - 1.75 * 1.75)), arc = (t0, t1) => { const r = []; for (let k = 0; k <= 24; k++) { const t = t0 + (t1 - t0) * k / 24; r.push([pc[0] + pr * Math.cos(t), pc[1] + pr * Math.sin(t)]); } return r; };
-    slab(root, [[D.entry.x1, 7], ...arc(Math.PI + h, 2 * Math.PI - h), [112, 7], [112, 10.5], [76, 10.5], [76, 90], [72.5, 90], [72.5, 65], [26, 65], [26, 62], [72.5, 62], [72.5, 10.5], ...arc(h, Math.PI - h), [D.entry.x1, 10.5]], 0, 0.12);
+    for (const p of SITE.walk) slabH(root, p.o, p.h, 0, 0.12);   // walks, plaza and the 40 cm sidewalk round every building (not where the trucks drive), one piece (layout-scripts/fire-site.py)
     const bed = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 0.03, 40), M.white); bed.position.copy(V(pc[0], pc[1], 0.135)); root.add(bed); }   // centre circle of the plaza, flush with the paving
   for (const x of [62.2]) {      // one flagpole with the flag
     cyl(root, x, 3.5, 0, 12, 0.08, 8); const ball = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), M.white); ball.position.copy(V(x, 3.5, 12.1)); root.add(ball);
     box(root, x + 0.08, x + 2.0, 3.48, 3.52, 10.6, 11.8);
     lines(root, [10.85, 11.1, 11.35, 11.6].map(z => [[x + 0.9, 3.45, z], [x + 2.0, 3.45, z]]).concat([[[x + 0.9, 3.45, 11.1], [x + 0.9, 3.45, 11.8]]]));
   }
-  lines(root, [[[-20, -27, 0.01], [-20, 104, 0.01]], [[-15, -27, 0.01], [-15, 104, 0.01]]]);      // ditch along the left edge
+  plotFence(root);
+  for (const [x, y, r, h, kind] of SITE.trees) tree(root, x, y, r, h, kind);   // planted in groups (layout-scripts/fire-site.py)   // the school's trees, on the open ground
 }
 
+// ---------- call-out: the engine in bay 1 drives out with its siren on and the light bar flashing ----------
+// Its path (centre of the truck): straight out of the bay and across the apron, a right turn into the near lane of
+// Airway Blvd, then west along the street; when it reaches the end of the street the call ends (truck back in its bay, sound off).
+export const FIRE = { group: null, s: -1, v: 0, t: 0, lights: null, onEnd: null };
+function callOut(root, cx) {
+  const T = fireTruck("engine"), g = T.group; root.add(g);
+  const y0 = 6.6, R = 7.75, y1 = -26, lane = y1 - R, L1 = y0 - y1, L2 = Math.PI * R / 2, END = L1 + L2 + (cx - R + 55);   // ends when its nose reaches the end of the street (x -60)
+  const at = (s) => {        // position (plan) and heading at distance s along the path
+    if (s <= L1) return [cx, y0 - s, -Math.PI / 2];
+    if (s <= L1 + L2) { const th = -(s - L1) / R; return [cx - R + R * Math.cos(th), y1 + R * Math.sin(th), Math.atan2(-Math.cos(th), Math.sin(th))]; }
+    return [cx - R - (s - L1 - L2), lane, Math.PI];
+  };
+  const place = (s) => { const [x, y, h] = at(Math.max(0, s));
+    const z = y > -29.5 ? 0 : y < -30.5 ? -0.09 : -0.09 * (-29.5 - y);   // the apron top is 0.06, the street -0.03: tyres stay on the surface
+    g.position.copy(V(x, y, z)); g.rotation.y = h + Math.PI / 2; };
+  place(0);
+  Object.assign(FIRE, { group: g, lights: T.lights, wheels: T.wheels, wr: T.r, END, place, L1, L2 });
+}
+FIRE.start = () => { if (FIRE.s >= 0) return false; FIRE.s = 0; FIRE.v = 0; FIRE.t = 0; return true; };
+// advance by dt seconds; returns the truck's world position while it is out, or null when it is home
+FIRE.tick = (dt) => {
+  if (!FIRE.group || FIRE.s < 0) return null;
+  FIRE.t += dt;
+  flashLights(FIRE.lights, FIRE.t);                                  // all the warning lamps double-flash, left and right in turn
+  if (FIRE.t > 1.2) {                                                // a moment with the siren on before it pulls out
+    const target = FIRE.s < FIRE.L1 - 4 ? 6 : FIRE.s < FIRE.L1 + FIRE.L2 ? 5 : 13;
+    FIRE.v += Math.max(-4 * dt, Math.min(2.5 * dt, target - FIRE.v)); FIRE.s += FIRE.v * dt;
+    for (const w of FIRE.wheels) w.rotation.x -= FIRE.v * dt / FIRE.wr;   // the wheels roll
+  }
+  if (FIRE.s >= FIRE.END) {                                          // end of the street: back home in its bay, lights and sound off
+    FIRE.s = -1; FIRE.place(0); FIRE.group.visible = true; lightsOff(FIRE.lights); if (FIRE.onEnd) FIRE.onEnd(); return null;
+  }
+  FIRE.place(FIRE.s);
+  return FIRE.group.position;
+};
+
 // builds everything; resolves when the 3D letters are in
+// ---------- the streets: traffic signals at the junction, the fire station's emergency signal, warning and speed signs,
+// street names on the signal arms and fire hydrants (kept light so the station stays the subject).
+// Airway Blvd: westbound lane y -37.5..-30 (plot side), eastbound y -45..-37.5. Side street: southbound x 115..123, northbound 123..131.
+// Sidewalk tops are at 0.15, the road at -0.03.
+function streets(root, font) {
+  const SW = 0.15, RD = -0.03;
+  const B = (x0, x1, y0, y1, z0, z1) => box(root, Math.min(x0, x1), Math.max(x0, x1), Math.min(y0, y1), Math.max(y0, y1), z0, z1);
+  const P = (a) => new THREE.Vector3(a[0], a[2], -a[1]);           // plan vector -> three
+  // put a flat geometry (x right, y up, z out of its face) into the plan with right R, up U, normal N at plan point o
+  const place = (geo, R, U, N, o) => { geo.applyMatrix4(new THREE.Matrix4().makeBasis(P(R), P(U), P(N))); const m = new THREE.Mesh(geo, M.white); m.position.copy(V(...o)); root.add(m); return m; };
+  const rightOf = (n) => [-n[1], n[0], 0];                         // seen from in front of a face with normal n, the reader's right
+  const text = (str, size, o, n, up = [0, 0, 1], R = null) => { if (!font) return;
+    const g = new TextGeometry(str, { font, size, height: 0.015, curveSegments: 4 }); g.computeBoundingBox(); const bb = g.boundingBox;
+    g.translate(-(bb.max.x + bb.min.x) / 2, -(bb.max.y + bb.min.y) / 2, 0); place(g, R || rightOf(n), up, n, o); };
+  const plate = (shape, o, n, d = 0.04) => place(new THREE.ExtrudeGeometry(shape, { depth: d, bevelEnabled: false, curveSegments: 6 }), rightOf(n), [0, 0, 1], n, o);
+  const rect = (w, h, r = 0.04) => { const s = new THREE.Shape(), a = w / 2, b = h / 2; s.moveTo(-a + r, -b); s.lineTo(a - r, -b); s.quadraticCurveTo(a, -b, a, -b + r); s.lineTo(a, b - r); s.quadraticCurveTo(a, b, a - r, b);
+    s.lineTo(-a + r, b); s.quadraticCurveTo(-a, b, -a, b - r); s.lineTo(-a, -b + r); s.quadraticCurveTo(-a, -b, -a + r, -b); return s; };
+  const diamond = (d) => { const s = new THREE.Shape(); s.moveTo(0, -d); s.lineTo(d, 0); s.lineTo(0, d); s.lineTo(-d, 0); s.lineTo(0, -d); return s; };
+  const post = (x, y, h) => cyl(root, x, y, SW, h, 0.035, 8);
+  const off = (o, n, d) => [o[0] + n[0] * d, o[1] + n[1] * d, o[2]];
+  // a sign on a post: the panel faces n (toward the drivers it is for)
+  const signPost = (x, y, n, z, panel, lines2) => { post(x, y, z + 0.4 - SW); const o = off([x, y, z], n, 0.05); panel(o, n);
+    for (const [str, size, dz] of lines2) text(str, size, off([x, y, z + dz], n, 0.1), n); };
+  // traffic signal head: housing, three lamps with visors, a backplate; faces n
+  const head = (x, y, z, n) => { const t = [Math.abs(n[1]) * 0.36 + Math.abs(n[0]) * 0.3, Math.abs(n[0]) * 0.36 + Math.abs(n[1]) * 0.3];
+    B(x - t[0] / 2, x + t[0] / 2, y - t[1] / 2, y + t[1] / 2, z - 0.5, z + 0.5);
+    plate(rect(0.6, 1.2, 0.05), off([x, y, z], n, -0.17), n, 0.02);   // backplate
+    for (const dz of [0.3, 0, -0.3]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.04, 16), M.white); c.rotation.copy(new THREE.Euler(n[1] ? Math.PI / 2 : 0, 0, n[0] ? Math.PI / 2 : 0));
+      const q = off([x, y, z + dz], n, 0.17); c.position.copy(V(...q)); root.add(c);
+      const v = off([x, y, z + dz + 0.12], n, 0.26); B(v[0] - (n[1] ? 0.13 : 0.09), v[0] + (n[1] ? 0.13 : 0.09), v[1] - (n[0] ? 0.13 : 0.09), v[1] + (n[0] ? 0.13 : 0.09), z + dz + 0.11, z + dz + 0.14); } };
+  // signal mast: pole on the corner, an arm reaching over the lanes, heads over each lane facing the traffic
+  const mast = (x, y, dir, len, n, heads, name = null) => {
+    cyl(root, x, y, SW, 7.0, 0.16, 14); cyl(root, x, y, SW, 0.4, 0.3, 14);
+    const ex = x + dir[0] * len, ey = y + dir[1] * len; B(x, ex + dir[1] * 0.0 + (dir[0] ? 0 : 0.07), y, ey + (dir[1] ? 0 : 0.07), 6.3, 6.45);
+    B(x - (dir[0] ? 0 : 0.03), x + dir[0] * len * 0.35 + (dir[0] ? 0 : 0.03), y - (dir[1] ? 0 : 0.03), y + dir[1] * len * 0.35 + (dir[1] ? 0 : 0.03), 6.45, 6.5);
+    lines(root, [[[x, y, 7.0], [x + dir[0] * len * 0.45, y + dir[1] * len * 0.45, 6.45]]]);   // tie rod
+    for (const d of heads) head(x + dir[0] * d, y + dir[1] * d, 5.75, n);
+    if (name) { const o = [x + dir[0] * len * 0.55, y + dir[1] * len * 0.55, 6.85]; plate(rect(2.0, 0.42), off(o, n, 0.02), n, 0.03); text(name, 0.2, off(o, n, 0.06), n); B(o[0] - 0.02, o[0] + 0.02, o[1] - 0.02, o[1] + 0.02, 6.5, 6.65); }
+  };
+  // the junction of Airway Blvd and the side street
+  mast(113.6, -28.6, [0, -1], 8.2, [1, 0], [3.2, 6.6], "AIRWAY BLVD");     // for westbound traffic
+  mast(132.4, -46.4, [0, 1], 8.2, [-1, 0], [3.2, 6.6], "AIRWAY BLVD");     // eastbound
+  mast(132.4, -28.6, [-1, 0], 8.6, [0, -1], [3.4, 6.8], "STATION ST");     // northbound
+  mast(113.6, -46.4, [1, 0], 8.6, [0, 1], [3.4, 6.8], "STATION ST");       // southbound
+  // the fire station's emergency signal: it stops the street when the trucks go out
+  mast(27.4, -28.6, [0, -1], 13.5, [1, 0], [3.6], "FIRE STATION");
+  for (const d of [12.2]) head(27.4, -28.6 - d, 5.75, [-1, 0]);
+  B(27.32, 27.48, -28.6 - 12.25, -28.6 - 12.15, 6.25, 6.3);
+  // yellow-diamond style warning signs ahead of the station, both directions, and the speed limit
+  signPost(82, -28.9, [1, 0], 2.4, (o, n) => plate(diamond(0.62), o, n), [["FIRE", 0.13, 0.1], ["STATION", 0.11, -0.12]]);
+  signPost(-42, -46.1, [-1, 0], 2.4, (o, n) => plate(diamond(0.62), o, n), [["FIRE", 0.13, 0.1], ["STATION", 0.11, -0.12]]);
+  for (const [x, y, n] of [[98, -28.9, [1, 0]], [-24, -46.1, [-1, 0]], [133.1, -60, [0, -1]]])
+    signPost(x, y, n, 2.2, (o, nn) => plate(rect(0.6, 0.78), o, nn), [["SPEED", 0.1, 0.26], ["LIMIT", 0.1, 0.12], [n[1] ? "25" : "35", 0.26, -0.13]]);
+  // fire hydrants on the sidewalks
+  const hydrant = (x, y) => { cyl(root, x, y, SW, 0.08, 0.2, 12); cyl(root, x, y, SW + 0.08, 0.55, 0.13, 14); cyl(root, x, y, SW + 0.63, 0.06, 0.17, 14);
+    const d = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), M.white); d.position.copy(V(x, y, SW + 0.69)); root.add(d);
+    cyl(root, x, y, SW + 0.8, 0.06, 0.03, 6);
+    for (const s of [-1, 1]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.3, 10), M.white); c.rotation.z = Math.PI / 2; c.position.copy(V(x, y, SW + 0.45)); root.add(c); }
+    const f = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.14, 12), M.white); f.rotation.x = Math.PI / 2; f.position.copy(V(x, y - 0.17, SW + 0.42)); root.add(f); };
+  for (const [x, y] of [[33, -28.4], [-30, -28.4], [113.5, -22], [113.5, 45], [132.6, -51], [60, -46.6]]) hydrant(x, y);
+}
 export function buildScene(scene) {
   mats();
   const root = new THREE.Group();
   hall(root);
   const bc = D.bays.map(([a, b]) => (a + b) / 2);
-  truck(root, bc[0], 1.2, "engine"); truck(root, bc[1], 1.2, "ladder"); truck(root, bc[2], 1.2, "engine"); truck(root, bc[3], 1.6, "ambulance");
+  callOut(root, bc[0]);
+  for (const [x, kind, y] of [[bc[1], "ladder", 7.4], [bc[2], "engine", 6.6], [bc[3], "tanker", 6.6]]) { const t = fireTruck(kind); t.group.position.copy(V(x, y, 0)); root.add(t.group); }   // noses just inside the bays
   wings(root); garage(root); site(root);
   scene.add(root);
   scene.background = new THREE.Color(0xffffff);
   scene.add(new THREE.HemisphereLight(0xffffff, 0xdddddd, 2.3));
   const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(-50, 80, 90); scene.add(sun);
   const signRoot = new THREE.Group(); root.add(signRoot);
-  const finish = (font) => { sign(signRoot, font); brickUV(root); outline(root); };
+  const finish = (font) => { sign(signRoot, font); streets(signRoot, font); brickUV(root); roofUV(root); outline(root); meetLines(root); };
   return new Promise((res) => new FontLoader().load(new URL("./helvetiker_bold.typeface.json", import.meta.url).href,
     (font) => { finish(font); res(root); }, undefined, () => { finish(null); res(root); }));
+}
+// lines where a roof meets another roof or a wall of another block (valleys, roofs dying into a taller wall): separate solids
+// that pass through each other have no shared edge, so these are found by intersecting their triangles
+function meetLines(root) {
+  const roofs = [], solids = [];
+  root.updateMatrixWorld(true);
+  // roofs and brick walls are checked against roofs, walls and the white solids (flat roof caps, the apron/hall floor, slabs)
+  root.traverse(o => { if (!o.isMesh || o.parent !== root) return; if (o.material === M.roof || o.material === M.brick) roofs.push(o); if (o.material === M.roof || o.material === M.brick || o.material === M.white) solids.push(o); });
+  const tris = (m) => { const g = m.geometry, p = g.attributes.position, idx = g.index, out = [], n = idx ? idx.count : p.count;
+    for (let i = 0; i < n; i += 3) { const v = [0, 1, 2].map(k => new THREE.Vector3().fromBufferAttribute(p, idx ? idx.getX(i + k) : i + k).applyMatrix4(m.matrixWorld)); out.push(v); } return out; };
+  const T = new Map(), B = new Map(), get = (m) => { if (!T.has(m)) { T.set(m, tris(m)); B.set(m, new THREE.Box3().setFromObject(m).expandByScalar(0.01)); } return T.get(m); };
+  const seg = [], E = 1e-6;
+  function cut(a, b) {              // segment where triangle a crosses the plane of b, clipped to b's plane: returns [p, q] or null
+    const n = new THREE.Vector3().subVectors(b[1], b[0]).cross(new THREE.Vector3().subVectors(b[2], b[0])); if (n.lengthSq() < E) return null; n.normalize();
+    const d = a.map(v => n.dot(v) - n.dot(b[0])); if ((d[0] > E && d[1] > E && d[2] > E) || (d[0] < -E && d[1] < -E && d[2] < -E)) return null;
+    const pts = []; for (let i = 0; i < 3; i++) { const j = (i + 1) % 3; if ((d[i] > E) !== (d[j] > E) && Math.abs(d[i] - d[j]) > E) pts.push(a[i].clone().lerp(a[j], d[i] / (d[i] - d[j]))); }
+    return pts.length >= 2 ? [pts[0], pts[1]] : null;
+  }
+  function inTri(p, t) { const [a, b, c] = t, n = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a));
+    for (const [u, v] of [[a, b], [b, c], [c, a]]) if (new THREE.Vector3().subVectors(v, u).cross(new THREE.Vector3().subVectors(p, u)).dot(n) < -1e-7) return false; return true; }
+  for (const r of roofs) for (const o of solids) {
+    if (o === r || (r.userData.house && r.userData.house === o.userData.house)) continue;
+    get(r); get(o); if (!B.get(r).intersectsBox(B.get(o))) continue;
+    if (roofs.includes(o) && roofs.indexOf(o) < roofs.indexOf(r)) continue;    // each pair once
+    for (const a of T.get(r)) for (const b of T.get(o)) {
+      const na = new THREE.Vector3().subVectors(a[1], a[0]).cross(new THREE.Vector3().subVectors(a[2], a[0])).normalize();
+      const nb = new THREE.Vector3().subVectors(b[1], b[0]).cross(new THREE.Vector3().subVectors(b[2], b[0])).normalize();
+      if (Math.abs(na.dot(nb)) > 0.999) continue;                                    // parallel faces: they touch, not cross
+      const s1 = cut(a, b), s2 = cut(b, a); if (!s1 || !s2) continue;
+      // overlap of the two segments along their common line
+      const dir = new THREE.Vector3().crossVectors(na, nb).normalize(), P = [...s1, ...s2].map(p => [p, p.dot(dir)]);
+      const [a0, a1] = [P[0][1], P[1][1]].sort((x, y) => x - y), [b0, b1] = [P[2][1], P[3][1]].sort((x, y) => x - y);
+      const lo = Math.max(a0, b0), hi = Math.min(a1, b1); if (hi - lo < 0.05) continue;
+      const base = P[0][0], t0 = P[0][1], p = base.clone().addScaledVector(dir, lo - t0), q = base.clone().addScaledVector(dir, hi - t0);
+      // keep only the part that lies on the outside of the other solid's surface (both ends on real faces)
+      if (!inTri(p, b) && !inTri(p, a)) continue;
+      seg.push(p, q);
+    }
+  }
+  if (seg.length) root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(seg), M.line));
 }
 // black outlines on every edge where faces meet at an angle (like the page)
 function outline(root) {
