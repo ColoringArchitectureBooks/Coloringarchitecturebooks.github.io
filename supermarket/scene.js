@@ -648,8 +648,6 @@ function parking(root) {
   curbRamp(root, WALK[0], WALK[1], -91, -92.8); curbRamp(root, WALK[0], WALK[1], -83, -81.2);
   curbRamp(root, WALK[0], WALK[1], -20, -21.8); curbRamp(root, WALK[0], WALK[1], -15, -13.2);
   for (const [y0, y1] of [[-91, -83], [-20, -15]]) for (let y = y0 + 0.4; y < y1 - 0.3; y += 1.0) flat(root, [[WALK[0] + 0.2, y], [WALK[1] - 0.2, y], [WALK[1] - 0.2, y + 0.5], [WALK[0] + 0.2, y + 0.5]], 0.02, M.line);
-  // carts kept by the door, on the sidewalk in front of the SUPERMARKET block
-  for (let k = 0; k < 8; k++) cart(root, 79.6 + k * 0.32, -9.6, 0.15, 1);
   evChargers(root); bikeRacks(root); orderPickup(root);
   solar(root);
 }
@@ -742,10 +740,20 @@ function site(root) {
   parking(root);
   if (!BW) for (let y = -30; y > -146; y -= 14) { tree(root, 92, y, 6, 1.8); tree(root, 101, y, 6, 1.8); }   // the page keeps this aisle open
   // front planting along the street, one piece with the heads of the rows (Ahmed), cut at the drives and the walk
-  const HEADS = [[-14, -8.5], [177.5, 183], ...[0, 18.3, 36.6, 54.9, 73.2, 104, 122.3, 140.6, 158.9].map((b) => [b, b + 11])];
+  // (Ahmed) the green steps up into each half row by 1, 2 or 3 stalls, like notes on a stave, so the street edge isn't one hard line
+  const STEP = [2, 1, 3, 1, 2, 3, 1, 2, 1, 3, 2, 1, 3, 2, 1, 2, 3, 1, 2, 1];
+  const HALVES = [[-14, -8.5], ...[0, 18.3, 36.6, 54.9, 73.2, 104, 122.3, 140.6, 158.9].flatMap((b) => [[b, b + 5.5], [b + 5.5, b + 11]]), [177.5, 183]]
+    .map(([h0, h1], i) => [h0, h1, -148 + STEP[i % STEP.length] * 2.7]);
   for (const [a, b] of minus(-14, 183, [...DRIVES.front, WALK].sort((a, b) => a[0] - b[0]))) {
     const pts = [[a, -156], [b, -156], [b, -151.2]];
-    for (const [h0, h1] of HEADS.filter(([h0, h1]) => h0 >= a - 0.01 && h1 <= b + 0.01).reverse()) pts.push([h1, -151.2], [h1, -148], [h0, -148], [h0, -151.2]);
+    let last = null;
+    for (const [h0, h1, top] of HALVES.filter(([h0, h1]) => h0 >= a - 0.01 && h1 <= b + 0.01).reverse()) {
+      if (last === null || Math.abs(last - h1) > 0.01) pts.push([h1, -151.2]);
+      pts.push([h1, top], [h0, top]); last = h0;
+      const nxt = HALVES.find(([q0, q1]) => Math.abs(q1 - h0) < 0.01 && q0 >= a - 0.01);
+      if (!nxt) pts.push([h0, -151.2]);
+      if (top > -145) tree(root, (h0 + h1) / 2, top - 2.7, 5.5, 1.6);
+    }
     pts.push([a, -151.2]); slab(root, pts, 0, 0.15, M.plant);
   }
   for (let x = -8; x < 183; x += 16) tree(root, x, -153.5, 8, 2.6);
