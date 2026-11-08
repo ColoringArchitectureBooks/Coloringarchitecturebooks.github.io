@@ -373,12 +373,52 @@ function building(root) {
 }
 
 // ---------- site ----------
+// ---------- plot and streets (Ahmed, as in the other models): only the plot shows, with a light fence on its edge; the two
+// streets on its corner run on past it, with sidewalks on both sides. Plot x -14..178, y -156..120.
+// Front street: road y -174..-159 (dashes at -166.5), sidewalks -177..-174 and -159..-156. Side street: road x 181..196, sidewalks 178..181 and 196..199.
+// Road top -0.03, sidewalks 0..0.15, the lot 0.
+const PLOT = { x0: -14, x1: 178, y0: -156, y1: 120 };
+const DRIVES = { front: [[85, 92.5], [115.5, 122]], side: [[-25, -17], [80, 88]] };   // gaps in the fence, kerb and front planting
+const minus = (a, b, gaps) => { const out = []; let s = a; for (const [g0, g1] of gaps) { if (g0 > s) out.push([s, g0]); s = g1; } if (b > s) out.push([s, b]); return out; };
+function segs(root, list) {   // thin black lines, same weight as the model's edges
+  const pts = []; for (const [a, b] of list) pts.push(V(...a), V(...b));
+  root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x000000 })));
+}
+// light fence: slim posts every 3 m, a slim top rail, a bottom wire, pickets every 0.5 m (as on the fire station)
+function fenceRun(root, a, b, h = 1.6) {
+  const [x0, y0] = a, [x1, y1] = b, L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.round(L / 3)), s = [], t = 0.025;
+  y0 === y1 ? box(root, Math.min(x0, x1), Math.max(x0, x1), y0 - t, y0 + t, h - 0.05, h, M.white) : box(root, x0 - t, x0 + t, Math.min(y0, y1), Math.max(y0, y1), h - 0.05, h, M.white);
+  for (let k = 0; k <= n; k++) { const x = x0 + (x1 - x0) * k / n, y = y0 + (y1 - y0) * k / n; box(root, x - 0.035, x + 0.035, y - 0.035, y + 0.035, 0, h + 0.05, M.white); }
+  s.push([[x0, y0, 0.15], [x1, y1, 0.15]]);
+  for (let d = 0.5; d < L - 0.1; d += 0.5) { const x = x0 + (x1 - x0) * d / L, y = y0 + (y1 - y0) * d / L; s.push([[x, y, 0.15], [x, y, h - 0.05]]); }
+  segs(root, s);
+}
+function plotFence(root) {
+  const P = PLOT;
+  for (const [a, b] of minus(P.x0, P.x1, DRIVES.front)) fenceRun(root, [a, P.y0], [b, P.y0]);
+  for (const [a, b] of minus(P.y0, P.y1, DRIVES.side)) fenceRun(root, [P.x1, a], [P.x1, b]);
+  fenceRun(root, [P.x1, P.y1], [P.x0, P.y1]); fenceRun(root, [P.x0, P.y1], [P.x0, P.y0]);
+  for (const [g0, g1] of DRIVES.front) for (const x of [g0, g1]) box(root, x - 0.08, x + 0.08, P.y0 - 0.08, P.y0 + 0.08, 0, 1.8, M.white);   // drive posts
+  for (const [g0, g1] of DRIVES.side) for (const y of [g0, g1]) box(root, P.x1 - 0.08, P.x1 + 0.08, y - 0.08, y + 0.08, 0, 1.8, M.white);
+}
+function streets(root) {
+  const E = 320, W = -120, N = 260, S = -320;
+  flat(root, [[W, -177], [178, -177], [178, S], [199, S], [199, -177], [E, -177], [E, -156], [199, -156], [199, N], [178, N], [178, -156], [W, -156]], -0.03, M.asphalt, 6);   // both roads in one piece
+  const kerb = (pts) => slab(root, pts, 0, 0.15, M.walk);
+  for (const [a, b] of minus(W, 181, DRIVES.front)) kerb([[a, -159], [b, -159], [b, -156], [a, -156]]);       // plot-side sidewalks, cut at the drives
+  for (const [a, b] of minus(-156, N, DRIVES.side)) kerb([[178, a], [181, a], [181, b], [178, b]]);
+  kerb([[W, -177], [178, -177], [178, S], [181, S], [181, -174], [W, -174]]);                                   // the three other corners
+  kerb([[196, N], [196, -159], [E, -159], [E, -156], [199, -156], [199, N]]);
+  kerb([[196, S], [199, S], [199, -177], [E, -177], [E, -174], [196, -174]]);
+  const d = [];
+  for (let x = W + 2; x < E - 4; x += 8) if (x + 4 < 180 || x > 197) d.push([[x, -166.5, 0.01], [x + 4, -166.5, 0.01]]);
+  for (let y = S + 2; y < N - 4; y += 8) if (y + 4 < -178 || y > -155) d.push([[188.5, y, 0.01], [188.5, y + 4, 0.01]]);
+  segs(root, d);
+  plotFence(root);
+}
 function site(root) {
-  flat(root, [[-45, -175], [200, -175], [200, 150], [-45, 150]], -0.02, M.grass, 4);
-  flat(root, [[-14, -156], [178, -156], [178, 120], [-14, 120]], 0.0, M.asphalt, 6);
-  flat(root, [[182, -175], [200, -175], [200, 150], [182, 150]], 0.0, M.asphalt, 6);
-  flat(root, [[-45, -175], [182, -175], [182, -160], [-45, -160]], 0.0, M.asphalt, 6);
-  flat(root, [[-24, -156], [-20, -156], [-20, 150], [-24, 150]], 0.01, BW ? M.grass : new THREE.MeshLambertMaterial({ color: 0x6f9fcf }), 4);
+  flat(root, [[PLOT.x0, PLOT.y0], [PLOT.x1, PLOT.y0], [PLOT.x1, PLOT.y1], [PLOT.x0, PLOT.y1]], 0.0, M.asphalt, 6);   // the plot only: no ground around it
+  streets(root);
   slab(root, [[82.7, 95.5], [93, 95.5], [93, 90.5], [114, 90.5], [114, 85], [134, 85], [134, 110], [82.7, 110]], 0, 0.03, M.concrete);
   // sidewalk following the stepped front, with the entrance bulge
   slab(root, [[-4, 105], [-4, -12], [86, -12], [86, -15], [110, -15], [110, -12], [118, -12], [118, 90.5], [114, 90.5], [114, 3], [0, 3], [0, 105]], 0, 0.15, M.walk);   // one piece, no seam lines on the walk
@@ -401,7 +441,7 @@ function site(root) {
   for (const bx of [138, 156.3]) rowsAt(bx + 5.5, -6, 70);
   slab(root, [[93.5, -152], [99.5, -152], [99.5, -20], [93.5, -20]], 0, 0.15, M.walk);
   if (!BW) for (let y = -30; y > -146; y -= 14) { tree(root, 92, y, 6, 1.8); tree(root, 101, y, 6, 1.8); }   // the page keeps this aisle open
-  slab(root, [[-14, -156], [178, -156], [178, -151], [-14, -151]], 0, 0.15, M.plant);
+  for (const [a, b] of minus(-14, 178, DRIVES.front)) slab(root, [[a, -156], [b, -156], [b, -151], [a, -151]], 0, 0.15, M.plant);   // front planting, cut at the drives
   for (let x = -8; x < 178; x += 16) tree(root, x, -153.5, 8, 2.6);
   slab(root, [[136, 72], [178, 72], [178, 76], [136, 76]], 0, 0.15, M.plant);
   for (let x = 140; x < 178; x += 10) tree(root, x, 74, 7, 2.2);
