@@ -391,8 +391,9 @@ function plotFence(root) {
 function site(root) {
   // only the plot shows; the two streets run on past it with their sidewalks
   const P = D.plot;
-  flat(root, [[P.x0, P.y0], [P.x1, P.y0], [P.x1, P.y1], [P.x0, P.y1]], -0.03);
-  flat(root, [[-60, -48], [170, -48], [170, -27], [-60, -27]], -0.03);           // Airway Blvd with both sidewalks
+  // the ground stops at the apron's edges, so no ground edge lies under the apron (it showed through when zoomed far out)
+  flat(root, [[P.x0, P.y0], [0, P.y0], [0, 28.6], [25, 28.6], [25, P.y0], [P.x1, P.y0], [P.x1, P.y1], [P.x0, P.y1]], -0.03);
+  flat(root, [[-60, -48], [170, -48], [170, -27], [25, -27], [25, -30], [0, -30], [0, -27], [-60, -27]], -0.03);   // Airway Blvd with both sidewalks
   flat(root, [[112, -70], [134, -70], [134, 140], [112, 140]], -0.03);           // side street with both sidewalks
   const kerb = (pts) => slab(root, pts, 0, 0.15);
   // Airway Blvd (y -45..-30) and the side street (x 115..131) run straight through and cross; a sidewalk on all four corners
@@ -508,7 +509,8 @@ export function buildScene(scene) {
 function meetLines(root) {
   const roofs = [], solids = [];
   root.updateMatrixWorld(true);
-  root.traverse(o => { if (!o.isMesh || o.parent !== root) return; if (o.material === M.roof) roofs.push(o); if (o.material === M.roof || o.material === M.brick) solids.push(o); });
+  // roofs and brick walls are checked against roofs, walls and the white solids (flat roof caps, the apron/hall floor, slabs)
+  root.traverse(o => { if (!o.isMesh || o.parent !== root) return; if (o.material === M.roof || o.material === M.brick) roofs.push(o); if (o.material === M.roof || o.material === M.brick || o.material === M.white) solids.push(o); });
   const tris = (m) => { const g = m.geometry, p = g.attributes.position, idx = g.index, out = [], n = idx ? idx.count : p.count;
     for (let i = 0; i < n; i += 3) { const v = [0, 1, 2].map(k => new THREE.Vector3().fromBufferAttribute(p, idx ? idx.getX(i + k) : i + k).applyMatrix4(m.matrixWorld)); out.push(v); } return out; };
   const T = new Map(), B = new Map(), get = (m) => { if (!T.has(m)) { T.set(m, tris(m)); B.set(m, new THREE.Box3().setFromObject(m).expandByScalar(0.01)); } return T.get(m); };
@@ -524,7 +526,7 @@ function meetLines(root) {
   for (const r of roofs) for (const o of solids) {
     if (o === r || (r.userData.house && r.userData.house === o.userData.house)) continue;
     get(r); get(o); if (!B.get(r).intersectsBox(B.get(o))) continue;
-    if (o.material === M.roof && roofs.indexOf(o) < roofs.indexOf(r)) continue;    // each roof pair once
+    if (roofs.includes(o) && roofs.indexOf(o) < roofs.indexOf(r)) continue;    // each pair once
     for (const a of T.get(r)) for (const b of T.get(o)) {
       const na = new THREE.Vector3().subVectors(a[1], a[0]).cross(new THREE.Vector3().subVectors(a[2], a[0])).normalize();
       const nb = new THREE.Vector3().subVectors(b[1], b[0]).cross(new THREE.Vector3().subVectors(b[2], b[0])).normalize();
