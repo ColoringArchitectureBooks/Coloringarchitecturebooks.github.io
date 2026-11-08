@@ -125,13 +125,13 @@ function loadTex(name, tile, dir = "textures") {
 const W0 = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
 const LINE = new THREE.LineBasicMaterial({ color: 0x000000 });
 const M = { line: LINE };
-let CX = 20, CY = 10;
-const V = (x, y, z) => new THREE.Vector3(x - CX, z, -(y - CY));   // site plan -> three (y up)
+let CX = 20, CY = 10, BASE = 0;
+const V = (x, y, z) => new THREE.Vector3(x - CX, z + BASE, -(y - CY));   // site plan -> three (y up), on the raised site
 const L = (x, y, z) => new THREE.Vector3(x, z, -y);               // a model's own frame: nose toward +y
 const heli = { G: null, rotor: null, tail: null, z: 0 };
 
 function buildProps(P, root) {
-  [CX, CY] = P.centre;
+  [CX, CY] = P.centre; BASE = P.base || 0;
   // ---- low-poly tree: trunk + faceted crown (school)
   const crownG = new THREE.IcosahedronGeometry(1, 0), crownE = new THREE.EdgesGeometry(crownG, 1);
   const trunkG = new THREE.CylinderGeometry(0.18, 0.25, 1, 6);
