@@ -71,8 +71,7 @@ export function sirenUpdate(dist, speed, side = 0) {
 
 export function sirenStop() {
   if (!ctx || !out) return;
-  const t = ctx.currentTime, o = out; o.gain.setTargetAtTime(0.0001, t, 0.3);
-  for (const n of sir) n.frequency.setTargetAtTime(200, t, 0.6);   // the siren winds down
-  for (const n of nodes) { try { n.stop(t + 1.5); } catch (e) {} }
+  const t = ctx.currentTime, o = out; o.gain.setTargetAtTime(0.0001, t, 0.05);   // cut off with the truck
+  for (const n of nodes) { try { n.stop(t + 0.4); } catch (e) {} }
   out = null; eng = null; sir = []; nodes = [];
 }

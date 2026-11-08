@@ -2,6 +2,7 @@
 // Local frame (plan metres): x across (left -, right +), y along the truck (nose at -y), z up; the tyres stand on z = 0.06.
 //   engine  : custom cab with crew doors, roof light bar, pump panel behind the cab, roll-up compartment doors, ground ladders
 //             on the left side, hard suction hoses on the right, hose bed on top, tailboard, rear warning lights
+//   tanker  : the same cab with a pump house, low compartments and an oval water tank, dump chute and rear ladder
 //   ladder  : the same cab and chassis with a turntable at the back and the aerial ladder lying forward over the cab, outriggers
 // Returns { group, lights, wheels }: lights are [material, phase] pairs (phase 0/1 flash in turn), wheels spin when it drives.
 import * as THREE from "three";
@@ -67,8 +68,9 @@ export function fireTruck(kind = "engine") {
     lamp(x - 0.01, x + 0.03, -2.65, -2.35, 2.8, 2.98, s < 0 ? 0 : 1);
   }
   // ---- body behind the cab, with the rear wheel arch
-  const yB = yC + 0.05, top = kind === "ladder" ? 2.7 : 2.85;
-  { const s = new THREE.Shape(); s.moveTo(yB, sill); s.lineTo(ra - arch, sill); s.absarc(ra, ac, arch, Math.PI, 0, true); s.lineTo(yR, sill); s.lineTo(yR, top); s.lineTo(yB, top); s.lineTo(yB, sill);
+  const yB = yC + 0.05, tk = kind === "tanker", top = kind === "ladder" ? 2.7 : tk ? 2.0 : 2.85;
+  { const s = new THREE.Shape(); s.moveTo(yB, sill); s.lineTo(ra - arch, sill); s.absarc(ra, ac, arch, Math.PI, 0, true); s.lineTo(yR, sill); s.lineTo(yR, top);
+    if (tk) { s.lineTo(yB + 0.8, top); s.lineTo(yB + 0.8, 2.85); s.lineTo(yB, 2.85); } else s.lineTo(yB, top); s.lineTo(yB, sill);   // a tanker keeps a tall pump house behind the cab
     prof(s, -hw, hw); }
   // pump panel just behind the cab (both sides): gauges, discharge outlets with caps, intake
   for (const s of [-1, 1]) { const x = s * (hw + 0.01);
@@ -78,9 +80,9 @@ export function fireTruck(kind = "engine") {
     cyl(s * (hw + 0.09), yB + 0.4, 1.65, 0.13, 0.12, "x", 16);
   }
   // compartments with roll-up doors: frames, slats and a lift bar along the bottom
-  const comps = kind === "ladder" ? [[yB + 0.85, 1.85, 1.0], [ra + arch + 0.1, yR - 0.15, 1.0]] : [[yB + 0.85, 0.3, 1.0], [0.4, ra - arch - 0.1, 1.0], [ra - arch + 0.05, ra + arch - 0.05, 1.42], [ra + arch + 0.1, yR - 0.15, 1.0]];
+  const comps = tk ? [[yB + 0.85, 0.3, 1.0], [0.4, ra - arch - 0.1, 1.0], [ra + arch + 0.1, yR - 0.15, 1.0]] : kind === "ladder" ? [[yB + 0.85, 1.85, 1.0], [ra + arch + 0.1, yR - 0.15, 1.0]] : [[yB + 0.85, 0.3, 1.0], [0.4, ra - arch - 0.1, 1.0], [ra - arch + 0.05, ra + arch - 0.05, 1.42], [ra + arch + 0.1, yR - 0.15, 1.0]];
   for (const s of [-1, 1]) { const x = s * (hw + 0.006);
-    for (const [y0, y1, z0] of comps) { const z1 = top - 0.2; rect(x, y0, y1, z0, z1); for (let z = z0 + 0.15; z < z1 - 0.05; z += 0.15) ln([x, y0, z], [x, y1, z]);
+    for (const [y0, y1, z0] of comps) { const z1 = top - 0.15; rect(x, y0, y1, z0, z1); for (let z = z0 + 0.15; z < z1 - 0.05; z += 0.15) ln([x, y0, z], [x, y1, z]);
       box(x - 0.02, x + 0.02, y0 + 0.1, y1 - 0.1, z0 + 0.04, z0 + 0.1); }
     ln([x, yB, sill + 0.08], [x, yR, sill + 0.08]);                 // rub rail line
     lamp(x - 0.01, x + 0.03, yR - 0.4, yR - 0.15, top - 0.12, top - 0.02, s < 0 ? 1 : 0);   // upper rear side lamps
@@ -99,6 +101,21 @@ export function fireTruck(kind = "engine") {
     for (let k = 0; k < 4; k++) { const x0 = -1.1 + k * 0.56; box(x0, x0 + 0.5, yB + 0.85, yR - 0.05, top, top + 0.16 + (k % 2) * 0.03); }
     box(-1.17, 1.17, yB + 0.05, yB + 0.8, top, top + 0.12);            // deck over the pump with the deck gun
     cyl(0, yB + 0.42, top + 0.25, 0.12, 0.26, "z", 12); { const n = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.7, 10), W); n.rotation.x = -1.2; n.position.copy(V(0, yB + 0.2, top + 0.45)); g.add(n); }
+  } else if (tk) {
+    // water tank (tender): an oval tank on saddles over the low compartments, with bands, a fill hatch and a top rail;
+    // a dump chute and a ladder at the back, hard suction hoses on the right, the folded portable drop tank on the left
+    const t0 = yB + 0.85, t1 = yR + 0.02, zc = top + 0.62, rx = 1.18, rz = 0.62;
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, t1 - t0, 40, 1), W); m.rotation.x = Math.PI / 2; m.scale.set(rx, 1, rz); m.position.copy(V(0, (t0 + t1) / 2, zc)); g.add(m);
+    for (const y of [t0 + 0.5, (t0 + t1) / 2, t1 - 0.5]) { box(-0.9, 0.9, y - 0.1, y + 0.1, top, zc - 0.35);   // saddles
+      for (let k = 0; k < 32; k++) { const a = 2 * Math.PI * k / 32, b = 2 * Math.PI * (k + 1) / 32; ln([1.01 * rx * Math.cos(a), y, zc + 1.02 * rz * Math.sin(a)], [1.01 * rx * Math.cos(b), y, zc + 1.02 * rz * Math.sin(b)]); } }   // bands
+    cyl(0, (t0 + t1) / 2 - 0.7, zc + rz, 0.26, 0.14, "z", 18); cyl(0, (t0 + t1) / 2 - 0.7, zc + rz + 0.08, 0.3, 0.03, "z", 18);   // fill hatch
+    for (const s of [-1, 1]) { const x = s * 0.42, zt = zc + rz * Math.sqrt(1 - (x / rx) ** 2);
+      cyl(x, (t0 + t1) / 2, zt + 0.3, 0.025, t1 - t0 - 0.6, "y", 8); for (const y of [t0 + 0.3, (t0 + t1) / 2, t1 - 0.3]) cyl(x, y, zt + 0.15, 0.025, 0.3, "z", 8); }   // top rail
+    box(-0.22, 0.22, t1, t1 + 0.18, top - 0.25, top + 0.15); box(-0.18, 0.18, t1 + 0.18, t1 + 0.5, top - 0.2, top + 0.05);   // dump valve and chute
+    for (const x of [0.72, 1.02]) cyl(x, yR + 0.12, (0.7 + zc + rz) / 2, 0.025, zc + rz - 0.7, "z", 8);
+    for (let z = 0.95; z < zc + rz - 0.1; z += 0.3) ln([0.72, yR + 0.12, z], [1.02, yR + 0.12, z]);   // rear ladder
+    for (const z of [top + 0.1, top + 0.3]) cyl(hw - 0.12, (t0 + t1) / 2, z, 0.08, t1 - t0 - 0.4, "y", 12);   // hard suction hoses
+    box(-hw, -0.88, t0 + 0.2, t0 + 2.2, top, top + 0.55); for (let z = top + 0.1; z < top + 0.5; z += 0.1) ln([-hw - 0.005, t0 + 0.25, z], [-hw - 0.005, t0 + 2.15, z]);   // drop tank, folded
   } else {
     // aerial ladder: turntable at the back, the ladder lying forward over the cab on its rest, outriggers under the body
     cyl(0, ra + 0.2, top + 0.15, 0.95, 0.3, "z", 28); box(-0.55, 0.55, ra - 0.3, ra + 0.8, top + 0.3, top + 0.95);   // turntable + ladder base
@@ -113,7 +130,7 @@ export function fireTruck(kind = "engine") {
   box(-hw, hw, yR, yR + 0.35, 0.55, 0.7);
   for (const s of [-1, 1]) { box(s * 1.0 - 0.13, s * 1.0 + 0.13, yR, yR + 0.04, 1.0, 1.25); lamp(s * 1.0 - 0.13, s * 1.0 + 0.13, yR, yR + 0.04, 1.35, 1.6, s < 0 ? 0 : 1);
     lamp(s * 1.0 - 0.13, s * 1.0 + 0.13, yR, yR + 0.04, top - 0.3, top - 0.05, s < 0 ? 1 : 0); cyl(s * 0.75, yR + 0.08, 1.8, 0.025, 1.4, "z", 8); }
-  ln([-0.6, yR + 0.005, 0.95], [0.6, yR + 0.005, 0.95]); ln([0.6, yR + 0.005, 0.95], [0.6, yR + 0.005, top - 0.4]); ln([0.6, yR + 0.005, top - 0.4], [-0.6, yR + 0.005, top - 0.4]); ln([-0.6, yR + 0.005, top - 0.4], [-0.6, yR + 0.005, 0.95]);
+  if (!tk) { ln([-0.6, yR + 0.005, 0.95], [0.6, yR + 0.005, 0.95]); ln([0.6, yR + 0.005, 0.95], [0.6, yR + 0.005, top - 0.4]); ln([0.6, yR + 0.005, top - 0.4], [-0.6, yR + 0.005, top - 0.4]); ln([-0.6, yR + 0.005, top - 0.4], [-0.6, yR + 0.005, 0.95]); }
   K.done();
   return { group: g, lights, wheels, r };
 }

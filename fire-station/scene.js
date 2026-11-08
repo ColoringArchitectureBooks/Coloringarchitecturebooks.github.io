@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { FontLoader } from "three/addons/loaders/FontLoader.js";
 import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
 import { parkCars } from "./cars.js?v=2";
-import { fireTruck, flashLights, lightsOff } from "./firetruck.js?v=1";
+import { fireTruck, flashLights, lightsOff } from "./firetruck.js?v=2";
 
 export const V = (x, y, z) => new THREE.Vector3(x, z, -y);
 
@@ -282,44 +282,7 @@ function hall(root) {
   }
 }
 
-// ---------- fire trucks in the bays (page): engine, ladder truck, engine, ambulance ----------
-function wheel(root, x, y) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.35, 24), M.white); w.rotation.z = Math.PI / 2; w.position.copy(V(x, y, 0.56)); root.add(w);   // tyres touch the hall floor (top 0.06)
-  const h = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.38, 16), M.white); h.rotation.z = Math.PI / 2; h.position.copy(V(x, y, 0.56)); root.add(h); }
-function truck(root, cx, y0, kind, lights = null) {   // lights: two materials for the two halves of the light bar (they flash on a call-out)
-  const amb = kind === "ambulance", hw = amb ? 1.12 : 1.22, top = amb ? 3.2 : 3.0;
-  if (amb) {
-    box(root, cx - hw, cx + hw, y0 + 0.9, y0 + 2.4, 0.45, 2.6);                  // cab
-    box(root, cx - hw, cx + hw, y0, y0 + 0.9, 0.45, 1.4);                        // bonnet
-    box(root, cx - hw - 0.05, cx + hw + 0.05, y0 + 2.4, y0 + 7.2, 0.45, top);    // box body
-    opening(root, "-y", y0 + 0.9, cx - hw + 0.15, cx + hw - 0.15, 1.6, 2.45, 2, 1, false);
-    box(root, cx - 0.9, cx + 0.9, y0 + 2.3, y0 + 2.4, 2.65, 2.85);               // light bar
-    for (const s of [-1, 1]) lines(root, [[[cx + s * (hw + 0.06), y0 + 3, 1.2], [cx + s * (hw + 0.06), y0 + 6.6, 1.2]], [[cx + s * (hw + 0.06), y0 + 3, 2.6], [cx + s * (hw + 0.06), y0 + 6.6, 2.6]]]);
-    box(root, cx - 0.5, cx + 0.5, y0 + 2.39, y0 + 2.41, 2.75, 3.1);              // cross panel above the cab
-  } else {
-    box(root, cx - hw, cx + hw, y0, y0 + 2.6, 0.45, top);                        // cab
-    box(root, cx - hw, cx + hw, y0 + 2.6, y0 + 9, 0.45, top - 0.1);              // body
-    opening(root, "-y", y0, cx - hw + 0.15, cx + hw - 0.15, 1.75, 2.75, 2, 1, false);   // windscreen
-    box(root, cx - 0.6, cx + 0.6, y0 - 0.06, y0, 0.75, 1.55);                     // grille
-    lines(root, [0.95, 1.15, 1.35].map(z => [[cx - 0.5, y0 - 0.07, z], [cx + 0.5, y0 - 0.07, z]]));
-    if (lights) { box(root, cx - 0.9, cx - 0.02, y0 + 0.3, y0 + 1.2, top, top + 0.22, lights[0]); box(root, cx + 0.02, cx + 0.9, y0 + 0.3, y0 + 1.2, top, top + 0.22, lights[1]); }
-    else box(root, cx - 0.9, cx + 0.9, y0 + 0.3, y0 + 1.2, top, top + 0.22);          // light bar
-    for (const s of [-1, 1]) {
-      lines(root, [2.6, 4.3, 6.0, 7.7].map(y => [[cx + s * (hw + 0.01), y0 + y, 0.9], [cx + s * (hw + 0.01), y0 + y, 2.6]]));   // locker doors
-      lines(root, [[[cx + s * (hw + 0.01), y0 + 2.6, 2.6], [cx + s * (hw + 0.01), y0 + 9, 2.6]], [[cx + s * (hw + 0.01), y0 + 2.6, 0.9], [cx + s * (hw + 0.01), y0 + 9, 0.9]]]);
-      opening(root, s < 0 ? "-x" : "+x", cx + s * hw, y0 + 0.5, y0 + 2.1, 1.75, 2.7, 1, 1, false);   // cab side window
-    }
-    if (kind === "ladder") {
-      for (const s of [-1, 1]) box(root, cx + s * 0.55 - 0.06, cx + s * 0.55 + 0.06, y0 - 0.6, y0 + 8.6, top + 0.15, top + 0.4);
-      const r = []; for (let y = y0 - 0.4; y < y0 + 8.6; y += 0.5) r.push([[cx - 0.55, y, top + 0.3], [cx + 0.55, y, top + 0.3]]); lines(root, r);
-      box(root, cx - 0.3, cx + 0.3, y0 + 7.6, y0 + 8.4, top - 0.1, top + 0.15);
-    }
-  }
-  box(root, cx - hw - 0.08, cx + hw + 0.08, y0 - 0.3, y0 + 0.02, 0.45, 0.8);   // bumper
-  for (const s of [-1, 1]) { box(root, cx + s * 0.85 - 0.18, cx + s * 0.85 + 0.18, y0 - 0.05, y0, 1.0, 1.3); }   // headlights
-  const axles = amb ? [y0 + 1.4, y0 + 5.8] : [y0 + 1.5, y0 + 6.4, y0 + 7.6];
-  for (const y of axles) for (const s of [-1, 1]) wheel(root, cx + s * (hw - 0.15), y);
-}
-
+// ---------- fire trucks in the bays (page): engine, ladder truck, engine, water tanker ----------
 // ---------- wings ----------
 function wings(root) {
   const L = D.low, A = D.wingA, B = D.wingB, e = D.eave, p = D.pitch;
@@ -377,7 +340,7 @@ function garage(root) {
 }
 
 // ---------- site ----------
-const SITE = {"walk":[{"o":[[0.0,29.0],[-5.0,29.0],[-5.0,-0.6],[0.0,-0.6],[0.0,-1.6],[-6.0,-1.6],[-6.0,30.0],[0.0,30.0]],"h":[]},{"o":[[41.0,49.0],[41.0,30.0],[63.0,30.0],[63.0,11.082],[63.224,11.345],[63.471,11.586],[63.739,11.804],[64.026,11.997],[64.33,12.163],[64.647,12.301],[64.975,12.409],[65.312,12.487],[65.655,12.534],[66.0,12.55],[66.345,12.534],[66.688,12.487],[67.025,12.409],[67.353,12.301],[67.67,12.163],[67.974,11.997],[68.261,11.804],[68.529,11.586],[68.776,11.345],[69.001,11.082],[69.2,10.799],[69.373,10.5],[72.5,10.5],[72.5,62.0],[26.0,62.0],[26.0,65.0],[72.5,65.0],[72.5,90.0],[76.0,90.0],[76.0,10.5],[112.0,10.5],[112.0,7.0],[69.373,7.0],[69.2,6.701],[69.001,6.418],[68.776,6.155],[68.529,5.914],[68.261,5.696],[67.974,5.503],[67.67,5.337],[67.353,5.199],[67.025,5.091],[66.688,5.013],[66.345,4.966],[66.0,4.95],[65.655,4.966],[65.312,5.013],[64.975,5.091],[64.647,5.199],[64.33,5.337],[64.026,5.503],[63.739,5.696],[63.471,5.914],[63.224,6.155],[62.999,6.418],[62.8,6.701],[62.627,7.0],[56.5,7.0],[56.5,4.5],[50.0,4.5],[50.0,-0.5],[31.0,-0.5],[31.0,-1.6],[25.0,-1.6],[25.0,-0.6],[30.0,-0.6],[30.0,0.5],[49.0,0.5],[49.0,5.5],[55.5,5.5],[55.5,12.0],[62.0,12.0],[62.0,29.0],[40.0,29.0],[40.0,48.0],[26.0,48.0],[26.0,29.0],[25.0,29.0],[25.0,49.0]],"h":[[[56.5,11.0],[56.5,10.5],[62.627,10.5],[62.8,10.799],[62.942,11.0]]]},{"o":[[5.0,89.0],[5.0,86.5],[4.0,86.5],[4.0,88.0],[-11.0,88.0],[-11.0,66.0],[4.0,66.0],[4.0,68.0],[5.0,68.0],[5.0,65.0],[-12.0,65.0],[-12.0,89.0]],"h":[]}],"trees":[[95.0,-17.46,1.92,5.2,1],[102.31,-13.17,1.55,4.29,2],[99.5,-20.34,2.28,5.4,1],[103.16,-23.97,1.39,4.22,2],[105.54,-16.38,1.64,4.55,2],[106.22,-20.68,1.38,4.71,2],[84.11,-7.26,1.33,4.43,2],[88.37,-10.04,1.82,4.43,0],[90.72,-7.81,1.57,4.32,2],[105.03,-4.17,2.05,4.74,1],[109.21,-2.41,1.54,4.81,2],[-16.62,-18.46,2.01,4.8,0],[-13.77,-20.32,1.46,4.26,2],[-16.83,-21.14,1.31,3.93,2],[-13.88,6.66,2.02,4.68,0],[-17.31,6.69,1.54,4.21,2],[-16.78,10.34,1.37,4.69,2],[-17.07,46.32,1.88,4.68,1],[-17.71,49.52,1.35,4.35,2],[-14.4,46.29,1.36,4.39,2],[-16.3,84.09,1.35,3.95,2],[-15.41,80.19,1.5,4.37,2],[-17.83,79.98,1.38,4.49,2],[48.18,36.66,1.53,4.24,2],[55.09,37.58,1.37,4.45,2],[52.96,42.19,1.78,4.46,0],[47.6,44.24,1.58,4.69,2],[56.18,40.8,1.49,4.24,2],[67.25,53.1,2.29,5.63,0],[62.86,54.12,2.14,5.35,1],[64.83,49.99,2.0,5.03,1],[57.69,35.92,2.13,5.52,0],[62.33,34.34,1.91,4.91,1],[35.4,74.38,1.4,4.22,2],[32.22,84.33,1.51,4.79,2],[38.78,82.73,1.54,4.75,2],[41.48,81.89,1.49,4.22,2],[29.53,80.15,1.68,4.61,2],[32.06,75.66,1.59,4.42,2],[61.47,77.22,2.04,4.97,0],[59.7,81.18,1.6,4.24,2],[60.58,73.45,1.55,4.51,2],[57.78,78.42,1.92,4.73,1],[43.31,69.04,1.63,4.34,2],[47.08,68.34,1.79,4.88,1],[107.61,37.52,1.41,4.2,2],[108.72,40.18,1.78,4.4,1],[106.41,42.18,1.35,4.35,2],[94.55,80.48,1.67,4.59,2],[96.26,77.65,2.18,5.49,1],[98.63,80.74,1.58,4.83,2],[90.57,83.84,1.6,4.99,2],[94.64,83.35,1.61,4.6,1],[108.52,78.41,1.73,4.5,0],[108.23,82.53,1.39,4.14,2],[42.06,100.91,1.32,4.38,2],[37.28,101.34,1.52,4.52,2],[82.11,101.63,1.53,4.56,2],[87.21,101.42,1.68,4.91,1],[84.76,102.14,1.32,4.07,2]]};
+const SITE = {"walk":[{"o":[[0.0,29.0],[-5.0,29.0],[-5.0,-0.6],[0.0,-0.6],[0.0,-1.0],[-5.4,-1.0],[-5.4,29.4],[0.0,29.4]],"h":[]},{"o":[[40.4,48.4],[40.4,29.4],[62.4,29.4],[62.4,11.6],[55.9,11.6],[55.9,10.5],[62.627,10.5],[62.8,10.799],[62.999,11.082],[63.224,11.345],[63.471,11.586],[63.739,11.804],[64.026,11.997],[64.33,12.163],[64.647,12.301],[64.975,12.409],[65.312,12.487],[65.655,12.534],[66.0,12.55],[66.345,12.534],[66.688,12.487],[67.025,12.409],[67.353,12.301],[67.67,12.163],[67.974,11.997],[68.261,11.804],[68.529,11.586],[68.776,11.345],[69.001,11.082],[69.2,10.799],[69.373,10.5],[72.5,10.5],[72.5,62.0],[26.0,62.0],[26.0,65.0],[72.5,65.0],[72.5,90.0],[76.0,90.0],[76.0,10.5],[112.0,10.5],[112.0,7.0],[69.373,7.0],[69.2,6.701],[69.001,6.418],[68.776,6.155],[68.529,5.914],[68.261,5.696],[67.974,5.503],[67.67,5.337],[67.353,5.199],[67.025,5.091],[66.688,5.013],[66.345,4.966],[66.0,4.95],[65.655,4.966],[65.312,5.013],[64.975,5.091],[64.647,5.199],[64.33,5.337],[64.026,5.503],[63.739,5.696],[63.471,5.914],[63.224,6.155],[62.999,6.418],[62.8,6.701],[62.627,7.0],[55.9,7.0],[55.9,5.1],[49.4,5.1],[49.4,0.1],[30.4,0.1],[30.4,-1.0],[25.0,-1.0],[25.0,-0.6],[30.0,-0.6],[30.0,0.5],[49.0,0.5],[49.0,5.5],[55.5,5.5],[55.5,12.0],[62.0,12.0],[62.0,29.0],[40.0,29.0],[40.0,48.0],[26.0,48.0],[26.0,29.0],[25.0,29.0],[25.0,29.4],[25.6,29.4],[25.6,48.4]],"h":[]},{"o":[[4.4,88.4],[4.4,86.5],[4.0,86.5],[4.0,88.0],[-11.0,88.0],[-11.0,66.0],[4.0,66.0],[4.0,68.0],[4.4,68.0],[4.4,65.6],[-11.4,65.6],[-11.4,88.4]],"h":[]}],"trees":[[95.0,-17.46,1.92,5.2,1],[102.31,-13.17,1.55,4.29,2],[99.5,-20.34,2.28,5.4,1],[103.16,-23.97,1.39,4.22,2],[105.54,-16.38,1.64,4.55,2],[106.22,-20.68,1.38,4.71,2],[84.11,-7.26,1.33,4.43,2],[88.37,-10.04,1.82,4.43,0],[90.72,-7.81,1.57,4.32,2],[105.03,-4.17,2.05,4.74,1],[109.21,-2.41,1.54,4.81,2],[-16.62,-18.46,2.01,4.8,0],[-13.77,-20.32,1.46,4.26,2],[-16.83,-21.14,1.31,3.93,2],[-13.88,6.66,2.02,4.68,0],[-17.31,6.69,1.54,4.21,2],[-16.78,10.34,1.37,4.69,2],[-17.07,46.32,1.88,4.68,1],[-17.71,49.52,1.35,4.35,2],[-14.4,46.29,1.36,4.39,2],[-16.3,84.09,1.35,3.95,2],[-15.41,80.19,1.5,4.37,2],[-17.83,79.98,1.38,4.49,2],[48.18,36.66,1.53,4.24,2],[55.09,37.58,1.37,4.45,2],[52.96,42.19,1.78,4.46,0],[47.6,44.24,1.58,4.69,2],[56.18,40.8,1.49,4.24,2],[67.25,53.1,2.29,5.63,0],[62.86,54.12,2.14,5.35,1],[64.83,49.99,2.0,5.03,1],[57.69,35.92,2.13,5.52,0],[62.33,34.34,1.91,4.91,1],[35.4,74.38,1.4,4.22,2],[32.22,84.33,1.51,4.79,2],[38.78,82.73,1.54,4.75,2],[41.48,81.89,1.49,4.22,2],[29.53,80.15,1.68,4.61,2],[32.06,75.66,1.59,4.42,2],[61.47,77.22,2.04,4.97,0],[59.7,81.18,1.6,4.24,2],[60.58,73.45,1.55,4.51,2],[57.78,78.42,1.92,4.73,1],[43.31,69.04,1.63,4.34,2],[47.08,68.34,1.79,4.88,1],[107.61,37.52,1.41,4.2,2],[108.72,40.18,1.78,4.4,1],[106.41,42.18,1.35,4.35,2],[94.55,80.48,1.67,4.59,2],[96.26,77.65,2.18,5.49,1],[98.63,80.74,1.58,4.83,2],[90.57,83.84,1.6,4.99,2],[94.64,83.35,1.61,4.6,1],[108.52,78.41,1.73,4.5,0],[108.23,82.53,1.39,4.14,2],[42.06,100.91,1.32,4.38,2],[37.28,101.34,1.52,4.52,2],[82.11,101.63,1.53,4.56,2],[87.21,101.42,1.68,4.91,1],[84.76,102.14,1.32,4.07,2]]};
 function slabH(root, pts, holes, z0, z1, mat = M.white) {
   const sh = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
   for (const h of holes) sh.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y))));
@@ -475,7 +438,7 @@ function site(root) {
     parkCars(root, yard, 0.4, 0.04, 77, 5); }   // the yard by the garage: five cars
   // walks, plaza, flagpoles with flags
   { const pc = [66, 8.75], pr = 3.8, h = Math.atan2(1.75, Math.sqrt(pr * pr - 1.75 * 1.75)), arc = (t0, t1) => { const r = []; for (let k = 0; k <= 24; k++) { const t = t0 + (t1 - t0) * k / 24; r.push([pc[0] + pr * Math.cos(t), pc[1] + pr * Math.sin(t)]); } return r; };
-    for (const p of SITE.walk) slabH(root, p.o, p.h, 0, 0.12);   // walks, plaza and the 1 m sidewalk round every building (not where the trucks drive), one piece (layout-scripts/fire-site.py)
+    for (const p of SITE.walk) slabH(root, p.o, p.h, 0, 0.12);   // walks, plaza and the 40 cm sidewalk round every building (not where the trucks drive), one piece (layout-scripts/fire-site.py)
     const bed = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 0.03, 40), M.white); bed.position.copy(V(pc[0], pc[1], 0.135)); root.add(bed); }   // centre circle of the plaza, flush with the paving
   for (const x of [62.2]) {      // one flagpole with the flag
     cyl(root, x, 3.5, 0, 12, 0.08, 8); const ball = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), M.white); ball.position.copy(V(x, 3.5, 12.1)); root.add(ball);
@@ -488,11 +451,11 @@ function site(root) {
 
 // ---------- call-out: the engine in bay 1 drives out with its siren on and the light bar flashing ----------
 // Its path (centre of the truck): straight out of the bay and across the apron, a right turn into the near lane of
-// Airway Blvd, then west along the street until it is out of sight; a moment later it is back in its bay.
+// Airway Blvd, then west along the street; when it reaches the end of the street the call ends (truck back in its bay, sound off).
 export const FIRE = { group: null, s: -1, v: 0, t: 0, lights: null, onEnd: null };
 function callOut(root, cx) {
   const T = fireTruck("engine"), g = T.group; root.add(g);
-  const y0 = 6.6, R = 7.75, y1 = -26, lane = y1 - R, L1 = y0 - y1, L2 = Math.PI * R / 2, END = L1 + L2 + (cx - R + 80);
+  const y0 = 6.6, R = 7.75, y1 = -26, lane = y1 - R, L1 = y0 - y1, L2 = Math.PI * R / 2, END = L1 + L2 + (cx - R + 55);   // ends when its nose reaches the end of the street (x -60)
   const at = (s) => {        // position (plan) and heading at distance s along the path
     if (s <= L1) return [cx, y0 - s, -Math.PI / 2];
     if (s <= L1 + L2) { const th = -(s - L1) / R; return [cx - R + R * Math.cos(th), y1 + R * Math.sin(th), Math.atan2(-Math.cos(th), Math.sin(th))]; }
@@ -515,10 +478,10 @@ FIRE.tick = (dt) => {
     FIRE.v += Math.max(-4 * dt, Math.min(2.5 * dt, target - FIRE.v)); FIRE.s += FIRE.v * dt;
     for (const w of FIRE.wheels) w.rotation.x -= FIRE.v * dt / FIRE.wr;   // the wheels roll
   }
-  if (FIRE.s > FIRE.END + 40) {                                      // gone: back home in its bay, lights off
+  if (FIRE.s >= FIRE.END) {                                          // end of the street: back home in its bay, lights and sound off
     FIRE.s = -1; FIRE.place(0); FIRE.group.visible = true; lightsOff(FIRE.lights); if (FIRE.onEnd) FIRE.onEnd(); return null;
   }
-  FIRE.group.visible = FIRE.s < FIRE.END; FIRE.place(Math.min(FIRE.s, FIRE.END));
+  FIRE.place(FIRE.s);
   return FIRE.group.position;
 };
 
@@ -529,8 +492,7 @@ export function buildScene(scene) {
   hall(root);
   const bc = D.bays.map(([a, b]) => (a + b) / 2);
   callOut(root, bc[0]);
-  for (const [x, kind, y] of [[bc[1], "ladder", 7.4], [bc[2], "engine", 6.6]]) { const t = fireTruck(kind); t.group.position.copy(V(x, y, 0)); root.add(t.group); }   // noses just inside the bays
-  truck(root, bc[3], 1.6, "ambulance");
+  for (const [x, kind, y] of [[bc[1], "ladder", 7.4], [bc[2], "engine", 6.6], [bc[3], "tanker", 6.6]]) { const t = fireTruck(kind); t.group.position.copy(V(x, y, 0)); root.add(t.group); }   // noses just inside the bays
   wings(root); garage(root); site(root);
   scene.add(root);
   scene.background = new THREE.Color(0xffffff);
