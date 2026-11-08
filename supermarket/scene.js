@@ -365,24 +365,28 @@ function building(root) {
   decal(root, -0.06, 11, 6.2, 4.4, "-x", M.logo);
 
   // (7) dock: 2 doors on the east-facing wall of the notch, trailers, compactor, brick screen wall
-  for (const yy of [98.2, 102.2]) { box(root, 82.62, 82.7, yy - 1.5, yy + 1.5, 1.2, 4.0, M.dark); box(root, 83.8, 99.8, yy - 1.3, yy + 1.3, 1.2, 4.1, M.trailer); }
-  box(root, 95, 100, 90.6, 94.4, 0, 2.6, M.beige);
-  wall(root, [116, 105.4], [82.7, 105.4], 0, 4.0, M.brick); wall(root, [82.7, 105.0], [116, 105.0], 0, 4.0, M.brick);
-  box(root, 82.7, 116, 105.0, 105.4, 4.0, 4.15, M.cap); box(root, 115.6, 116, 105, 105.4, 0, 4.0, M.brick);
+  // (Ahmed) reversed: the doors face the service road behind the store, so a truck drives along the road, pulls past and backs straight in
+  for (const xx of [102.5, 109]) { box(root, xx - 1.5, xx + 1.5, 90.42, 90.5, 1.2, 4.0, M.dark); box(root, xx - 1.3, xx + 1.3, 90.7, 106.7, 1.2, 4.1, M.trailer); }
+  box(root, 94, 98.5, 90.6, 94.4, 0, 2.6, M.beige);   // compactor
+  wall(root, [96, 105.4], [82.7, 105.4], 0, 4.0, M.brick); wall(root, [82.7, 105.0], [96, 105.0], 0, 4.0, M.brick);   // screen wall behind the compactor
+  box(root, 82.7, 96, 105.0, 105.4, 4.0, 4.15, M.cap); box(root, 95.6, 96, 105, 105.4, 0, 4.0, M.brick);
 
 }
 
 // ---------- site ----------
 // ---------- plot and streets (Ahmed, as in the other models): only the plot shows, with a light fence on its edge; the two
-// streets on its corner run on past it, with sidewalks on both sides. Plot x -14..178, y -156..120.
-// Front street: road y -174..-159 (dashes at -166.5), sidewalks -177..-174 and -159..-156. Side street: road x 181..196, sidewalks 178..181 and 196..199.
+// streets on its corner run on past it, with sidewalks on both sides. Plot x -14..183, y -156..120 (widened 5 m east for the row along the east fence, Ahmed).
+// Front street: road y -174..-159 (dashes at -166.5), sidewalks -177..-174 and -159..-156. Side street: road x 186..201, sidewalks 183..186 and 201..204.
 // Road top -0.03, sidewalks 0..0.15, the lot 0.
-const PLOT = { x0: -14, x1: 178, y0: -156, y1: 120 };
+const PLOT = { x0: -14, x1: 183, y0: -156, y1: 120 };
 // Site plan option A (Ahmed picked it): every customer drive sits exactly on a parking aisle (front: the aisles 84.2..92.1 and
 // 115..122.3; side: the fire lane in front of the store, -22.8..-15). Trucks have their own drive at the back of the side street
 // (105..117.3) onto a 7.3 m service and fire road that runs behind the store and down its west side to the fire lane, so the
 // fire brigade can drive all the way round the building and trucks never cross the customers' lot. US right-hand traffic.
-const DRIVES = { front: [[84.2, 92.1], [115, 122.3]], side: [[-22.8, -15], [105, 117.3]] };   // gaps in the fence, kerb and front planting
+// Ahmed's mark-up: the front drive by the walk is exit only, the other one entry only; a second exit at the west corner on the
+// aisle along the west fence; side drives on the fire lane, the cross aisle and the side lot's top aisle; trucks at the back.
+const DRIVES = { front: [[-8.5, 0], [84.2, 92.1], [115, 122.3]], side: [[-91, -83], [-22.8, -15], [67.2, 74.5], [110, 117.3]] };
+const FRONT_KIND = ["exit", "exit", "entry"];   // gaps in the fence, kerb and front planting
 const SRV = { w0: -12, w1: -4.7, b0: 110, b1: 117.3 };   // service road: west leg x w0..w1 (y -22.8..b1), back leg y b0..b1 (x w0..178)
 const WALK = [92.1, 96.1];   // the walk to the entrance, on the entrance axis, with a gate in the front fence
 const minus = (a, b, gaps) => { const out = []; let s = a; for (const [g0, g1] of gaps) { if (g0 > s) out.push([s, g0]); s = g1; } if (b > s) out.push([s, b]); return out; };
@@ -410,17 +414,17 @@ function plotFence(root) {
   for (const [g0, g1] of DRIVES.side) for (const y of [g0, g1]) box(root, P.x1 - 0.08, P.x1 + 0.08, y - 0.08, y + 0.08, 0, 1.8, M.white);
 }
 function streets(root) {
-  const E = 225, W = -40, N = 150, S = -200;   // the streets end a little past the plot and the junction (Ahmed)
-  flat(root, [[W, -177], [178, -177], [178, S], [199, S], [199, -177], [E, -177], [E, -156], [199, -156], [199, N], [178, N], [178, -156], [W, -156]], -0.03, M.asphalt, 6);   // both roads in one piece
+  const E = 230, W = -40, N = 150, S = -200;   // the streets end a little past the plot and the junction (Ahmed)
+  flat(root, [[W, -177], [183, -177], [183, S], [204, S], [204, -177], [E, -177], [E, -156], [204, -156], [204, N], [183, N], [183, -156], [W, -156]], -0.03, M.asphalt, 6);   // both roads in one piece
   const kerb = (pts) => slab(root, pts, 0, 0.15, M.walk);
-  for (const [a, b] of minus(W, 181, DRIVES.front)) kerb([[a, -159], [b, -159], [b, -156], [a, -156]]);       // plot-side sidewalks, cut at the drives
-  for (const [a, b] of minus(-156, N, DRIVES.side)) kerb([[178, a], [181, a], [181, b], [178, b]]);
-  kerb([[W, -177], [178, -177], [178, S], [181, S], [181, -174], [W, -174]]);                                   // the three other corners
-  kerb([[196, N], [196, -159], [E, -159], [E, -156], [199, -156], [199, N]]);
-  kerb([[196, S], [199, S], [199, -177], [E, -177], [E, -174], [196, -174]]);
+  for (const [a, b] of minus(W, 186, DRIVES.front)) kerb([[a, -159], [b, -159], [b, -156], [a, -156]]);       // plot-side sidewalks, cut at the drives
+  for (const [a, b] of minus(-156, N, DRIVES.side)) kerb([[183, a], [186, a], [186, b], [183, b]]);
+  kerb([[W, -177], [183, -177], [183, S], [186, S], [186, -174], [W, -174]]);                                   // the three other corners
+  kerb([[201, N], [201, -159], [E, -159], [E, -156], [204, -156], [204, N]]);
+  kerb([[201, S], [204, S], [204, -177], [E, -177], [E, -174], [201, -174]]);
   const d = [];
-  for (let x = W + 2; x < E - 4; x += 8) if (x + 4 < 180 || x > 197) d.push([[x, -166.5, 0.01], [x + 4, -166.5, 0.01]]);
-  for (let y = S + 2; y < N - 4; y += 8) if (y + 4 < -178 || y > -155) d.push([[188.5, y, 0.01], [188.5, y + 4, 0.01]]);
+  for (let x = W + 2; x < E - 4; x += 8) if (x + 4 < 185 || x > 202) d.push([[x, -166.5, 0.01], [x + 4, -166.5, 0.01]]);
+  for (let y = S + 2; y < N - 4; y += 8) if (y + 4 < -178 || y > -155) d.push([[193.5, y, 0.01], [193.5, y + 4, 0.01]]);
   segs(root, d);
   plotFence(root);
 }
@@ -562,9 +566,10 @@ function parking(root) {
       const p0 = [xa + Math.max(0, t - (y1 - y0)), y0 + Math.min(t, y1 - y0)], p1 = [xa + Math.min(t, xb - xa), y0 + Math.max(0, t - (xb - xa))];
       s.push([[p0[0], p0[1], 0.025], [p1[0], p1[1], 0.025]]); } segs(root, s); };
   // one double row: centre line, stall lines per half; acc = { half: -1|+1 } puts the accessible run at the store end of that half
-  const rowsAt = (cx, ya, yb, acc, cor) => {
+  const rowsAt = (cx, ya, yb, acc, cor, only = 0) => {
     lineAt(cx, ya, cx, yb);
     for (const h of [-1, 1]) {
+      if (only && h !== only) continue;
       const xa = h < 0 ? cx - 5.5 : cx, xb = h < 0 ? cx : cx + 5.5;
       if (acc && acc.half === h) {
         let y = yb; lineAt(xa, y, xb, y);
@@ -581,15 +586,33 @@ function parking(root) {
   };
   const BAYS = [0, 18.3, 36.6, 54.9, 73.2, 104, 122.3, 140.6, 158.9];
   for (const bx of BAYS) {
-    for (const [ya, yb] of [[-83, -26], [-148, -91]]) {
+    for (const [ya, yb] of [[-80.3, -26], [-148, -93.7]]) {
       const acc = yb === -26 && bx === 73.2 ? { half: 1 } : yb === -26 && bx === 104 ? { half: -1 } : null;   // the halves facing the walk's aisles
       const cor = { half: bx === 73.2 ? -1 : bx === 104 ? 1 : -1, y0: ya + 10 * 2.7 };
       rowsAt(bx + 5.5, ya, yb, acc, cor);
-      if (yb !== -26) { slab(root, [[bx, ya - 3.2], [bx + 11, ya - 3.2], [bx + 11, ya], [bx, ya]], 0, 0.15, M.plant); tree(root, bx + 5.5, ya - 1.6, 5.5, 1.6); }   // planted head by the street
+      if (yb !== -26) tree(root, bx + 5.5, ya - 1.6, 5.5, 1.6);   // planted head by the street (part of the front planting, see site())
+      slab(root, yb === -26 ? [[bx, -83], [bx + 11, -83], [bx + 11, -80.3], [bx, -80.3]] : [[bx, -93.7], [bx + 11, -93.7], [bx + 11, -91], [bx, -91]], 0, 0.15, M.plant);   // island at the cross aisle (Ahmed)
       if (yb === -26) slab(root, [[bx, yb], [bx + 11, yb], [bx + 11, yb + 3.2], [bx, yb + 3.2]], 0, 0.15, M.plant);   // planted head of the row, by the store
     }
   }
-  for (const bx of [138, 156.3]) rowsAt(bx + 5.5, -6, 70, null, { half: -1, y0: -6 + 13 * 2.7 });
+  // side lot: rows on the same lines as the front lot's (Ahmed): bay 122.3 east half only (its west half is the aisle by the store), 140.6, 158.9
+  for (const bx of [122.3, 140.6, 158.9]) {
+    rowsAt(bx + 5.5, -2.8, 64, null, { half: 1, y0: -2.8 + 12 * 2.7 }, bx === 122.3 ? 1 : 0);
+    const x0 = bx === 122.3 ? bx + 5.5 : bx;
+    for (const [y0, y1] of [[-6, -2.8], [64, 67.2]]) slab(root, [[x0, y0], [bx + 11, y0], [bx + 11, y1], [x0, y1]], 0, 0.15, M.plant);
+  }
+  // single row along the east fence (plot widened 5 m for it), on the same lines as the blocks and the side lot
+  for (const [ya, yb] of [[-80.3, -26], [-148, -93.7], [-2.8, 64]]) {
+    for (let y = ya; y <= yb + 0.01; y += 2.7) lineAt(177.5, y, 183, y);
+    lineAt(177.5, ya, 177.5, yb, 0.06);
+  }
+  for (const [y0, y1] of [[-83, -80.3], [-93.7, -91], [-26, -22.8], [-6, -2.8], [64, 67.2]]) slab(root, [[177.5, y0], [183, y0], [183, y1], [177.5, y1]], 0, 0.15, M.plant);
+  // single row along the west fence, on the same lines as the blocks
+  for (const [ya, yb] of [[-80.3, -26], [-148, -93.7]]) {
+    for (let y = ya; y <= yb + 0.01; y += 2.7) lineAt(-14, y, -8.5, y);
+    lineAt(-8.5, ya, -8.5, yb, 0.06);
+  }
+  for (const [y0, y1] of [[-83, -80.3], [-93.7, -91], [-26, -22.8]]) slab(root, [[-14, y0], [-8.5, y0], [-8.5, y1], [-14, y1]], 0, 0.15, M.plant);
   // the walk: from the front gate to the fire lane, cut where it crosses the cross aisle; zebra crossings on both crossings
   // curb ramps (ADA: 1:12, 1.8 m for the 0.15 m kerb, 1.2 m wide minimum, a band of truncated domes at the foot) at both ends
   // of each crossing: cut into the walk, and into the store sidewalk in front of the walk
@@ -629,12 +652,12 @@ function serviceRoad(root) {
   // planting either side of the road: the strip on the plot edge (west and back), the strip behind the store
   slab(root, [[PLOT.x0, -22.8], [w0, -22.8], [w0, b1], [PLOT.x1, b1], [PLOT.x1, PLOT.y1], [PLOT.x0, PLOT.y1]], 0, 0.15, M.plant);
   slab(root, [[w1, -12], [-4, -12], [-4, 105], [82.7, 105], [82.7, b0], [w1, b0]], 0, 0.15, M.plant);
-  slab(root, [[134, 76], [PLOT.x1, 76], [PLOT.x1, 105], [134, 105]], 0, 0.15, M.plant);   // buffer between the side lot and the truck court
+  slab(root, [[118, 74.5], [PLOT.x1, 74.5], [PLOT.x1, b0], [118, b0]], 0, 0.15, M.plant);   // green area between the side lot and the service road (Ahmed)
   for (let y = 0; y < 100; y += 14) tree(root, PLOT.x0 + 1, y, 6, 1.4);
-  for (let x = 140; x < 178; x += 10) tree(root, x, 90, 7, 2.2);
+  for (let x = 124; x < 176; x += 10) for (const y of [82, 100]) tree(root, x + (y > 90 ? 5 : 0), y, 7, 2.2);
   // edge lines and dashed centre line
   for (let y = -20; y < b0 - 4; y += 6) s.push([[c, y, 0.02], [c, y + 3, 0.02]]);
-  for (let x = w1 + 3; x < PLOT.x1 - 3; x += 6) if (x + 3 < 82 || x > 135) s.push([[x, cb, 0.02], [x + 3, cb, 0.02]]);
+  for (let x = w1 + 3; x < PLOT.x1 - 3; x += 6) if (x + 3 < 82 || x > 119) s.push([[x, cb, 0.02], [x + 3, cb, 0.02]]);
   segs(root, s);
   // two-way, keep right: down the west leg the right lane is the west one
   arrowPaint(root, (w0 + c) / 2, 40, -Math.PI / 2); arrowPaint(root, (c + w1) / 2, 50, Math.PI / 2);
@@ -643,41 +666,44 @@ function serviceRoad(root) {
   const fl = textMat("fire", [["FIRE LANE", 70]], 512, 128, false);
   groundText(root, fl, c, 15, 6, 1.5, Math.PI / 2); groundText(root, fl, c, 80, 6, 1.5, Math.PI / 2); groundText(root, fl, 60, cb, 6, 1.5, 0);
   groundText(root, textMat("trk", [["TRUCKS", 70]], 512, 128, false), 150, cb, 5, 1.25, 0);
-  // the east side: the aisle by the store's east wall reaches the truck court; a barrier arm (staff and fire only) keeps customers out
-  box(root, 118.2, 118.6, 81.8, 82.2, 0, 1.1, M.white); box(root, 118.4, 133.5, 81.95, 82.05, 0.95, 1.05, M.white);
-  paintRect(root, 118.3, 80.8, 133.7, 81.1);
 }
 function trafficMarks(root) {
-  // each customer drive: two-way, centre line, a stop bar across the exit lane (exiting south the right lane is the west one)
-  for (const [a, b] of DRIVES.front) {
+  // front drives, one way each (Ahmed): exit = stop bar across the whole drive, arrows out; entry = arrows in
+  DRIVES.front.forEach(([a, b], k) => {
+    const m = (a + b) / 2, q = (b - a) / 4;
+    if (FRONT_KIND[k] === "exit") {
+      paintRect(root, a + 0.2, -151.6, b - 0.2, -151.2);
+      groundText(root, textMat("stop", [["STOP", 80]], 256, 128, false), m, -150.2, 2.8, 1.4, Math.PI);
+      arrowPaint(root, m - q, -145, -Math.PI / 2); arrowPaint(root, m + q, -145, -Math.PI / 2);
+    } else {
+      groundText(root, textMat("enter", [["ENTER", 80]], 320, 128, false), m, -146.5, 3.5, 1.4, 0);
+      arrowPaint(root, m - q, -152.5, Math.PI / 2); arrowPaint(root, m + q, -152.5, Math.PI / 2);
+    }
+  });
+  // customer side drives, two-way: centre line, stop bar on the exit lane (leaving eastward keeps to the south lane)
+  for (const [a, b] of DRIVES.side.slice(0, 3)) {
     const m = (a + b) / 2;
-    segs(root, [[[m, -156, 0.02], [m, -148, 0.02]]]);
-    paintRect(root, a + 0.2, -151.6, m - 0.15, -151.2);
-    groundText(root, textMat("stop", [["STOP", 80]], 256, 128, false), (a + m) / 2, -150.2, 2.8, 1.4, Math.PI);
-    arrowPaint(root, (a + m) / 2, -145, -Math.PI / 2); arrowPaint(root, (m + b) / 2, -147, Math.PI / 2);
+    segs(root, [[[175, m, 0.02], [183, m, 0.02]]]);
+    paintRect(root, 180.2, a + 0.2, 180.6, m - 0.15);
+    groundText(root, textMat("stop", [["STOP", 80]], 256, 128, false), 179.2, (a + m) / 2, 2.8, 1.4, -Math.PI / 2);
+    arrowPaint(root, 175, (m + b) / 2, Math.PI); arrowPaint(root, 171, (a + m) / 2, 0);
   }
-  { const [a, b] = DRIVES.side[0], m = (a + b) / 2;   // side drive onto the fire lane: entering westward keeps to the north lane
-    segs(root, [[[170, m, 0.02], [178, m, 0.02]]]);
-    paintRect(root, 175.2, a + 0.2, 175.6, m - 0.15);
-    groundText(root, textMat("stop", [["STOP", 80]], 256, 128, false), 174.2, (a + m) / 2, 2.8, 1.4, -Math.PI / 2);
-    arrowPaint(root, 170, (m + b) / 2, Math.PI); arrowPaint(root, 166, (a + m) / 2, 0);
-    arrowPaint(root, 60, -16.9, Math.PI); arrowPaint(root, 50, -20.9, 0);   // along the fire lane in front of the store
-  }
-  { const [a, b] = DRIVES.side[1], m = (a + b) / 2;   // the truck drive
-    segs(root, [[[176, SRV.b0 + 3.65, 0.02], [178, SRV.b0 + 3.65, 0.02]]]);
-    paintRect(root, 175.2, SRV.b0 + 0.2, 175.6, SRV.b0 + 3.5);
+  arrowPaint(root, 60, -16.9, Math.PI); arrowPaint(root, 50, -20.9, 0);   // along the fire lane in front of the store
+  { const [a, b] = DRIVES.side[3], m = (a + b) / 2;   // the truck drive
+    segs(root, [[[181, m, 0.02], [183, m, 0.02]]]);
+    paintRect(root, 180.2, a + 0.2, 180.6, m - 0.15);
   }
   // the streets: lane arrows (westbound on the plot side of the front street, southbound on the plot side of the side street)
   for (const x of [10, 140]) { arrowPaint(root, x, -162.75, Math.PI, 5); arrowPaint(root, x + 10, -170.25, 0, 5); }
-  for (const y of [-100, 40]) { arrowPaint(root, 184.75, y, -Math.PI / 2, 5); arrowPaint(root, 192.25, y - 10, Math.PI / 2, 5); }
+  for (const y of [-100, 40]) { arrowPaint(root, 189.75, y, -Math.PI / 2, 5); arrowPaint(root, 197.25, y - 10, Math.PI / 2, 5); }
   // stop bars on the approaches to the junction (right-hand lanes)
-  paintRect(root, 181.2, -155.4, 188.3, -154.9); paintRect(root, 188.7, -178.1, 195.8, -177.6);
-  paintRect(root, 199.9, -166.3, 200.4, -159.2); paintRect(root, 176.6, -173.8, 177.1, -166.7);
+  paintRect(root, 186.2, -155.4, 193.3, -154.9); paintRect(root, 193.7, -178.1, 200.8, -177.6);
+  paintRect(root, 204.9, -166.3, 205.4, -159.2); paintRect(root, 181.6, -173.8, 182.1, -166.7);
 }
 function site(root) {
   flat(root, [[PLOT.x0, PLOT.y0], [PLOT.x1, PLOT.y0], [PLOT.x1, PLOT.y1], [PLOT.x0, PLOT.y1]], 0.0, M.asphalt, 6);   // the plot only: no ground around it
   streets(root);
-  slab(root, [[82.7, 95.5], [93, 95.5], [93, 90.5], [114, 90.5], [114, 85], [134, 85], [134, 110], [82.7, 110]], 0, 0.03, M.concrete);
+  slab(root, [[82.7, 95.5], [93, 95.5], [93, 90.5], [118, 90.5], [118, SRV.b0], [82.7, SRV.b0]], 0, 0.03, M.concrete);   // dock apron, open to the service road
   // sidewalk following the stepped front, with the entrance bulge
   slab(root, [[-4, 105], [-4, -12], [86, -12], [86, -15], [WALK[0], -15], [WALK[0], -13.2], [WALK[1], -13.2], [WALK[1], -15], [110, -15], [110, -12], [118, -12], [118, 90.5], [114, 90.5], [114, 3], [0, 3], [0, 105]], 0, 0.15, M.walk);   // one piece, no seam lines on the walk
   // where the sidewalk meets the building: a thin line (same weight as the other edges), so walk and wall read apart in black and white (Ahmed)
@@ -688,10 +714,14 @@ function site(root) {
   // parking: double rows perpendicular to the front, stalls 2.7 x 5.5, aisles 7.3+ (see parking() below)
   parking(root);
   if (!BW) for (let y = -30; y > -146; y -= 14) { tree(root, 92, y, 6, 1.8); tree(root, 101, y, 6, 1.8); }   // the page keeps this aisle open
-  for (const [a, b] of minus(-14, 178, [...DRIVES.front, WALK].sort((a, b) => a[0] - b[0]))) slab(root, [[a, -156], [b, -156], [b, -151], [a, -151]], 0, 0.15, M.plant);   // front planting, cut at the drives
-  for (let x = -8; x < 178; x += 16) tree(root, x, -153.5, 8, 2.6);
-  slab(root, [[136, 72], [178, 72], [178, 76], [136, 76]], 0, 0.15, M.plant);
-  for (let x = 140; x < 178; x += 10) tree(root, x, 74, 7, 2.2);
+  // front planting along the street, one piece with the heads of the rows (Ahmed), cut at the drives and the walk
+  const HEADS = [[-14, -8.5], [177.5, 183], ...[0, 18.3, 36.6, 54.9, 73.2, 104, 122.3, 140.6, 158.9].map((b) => [b, b + 11])];
+  for (const [a, b] of minus(-14, 183, [...DRIVES.front, WALK].sort((a, b) => a[0] - b[0]))) {
+    const pts = [[a, -156], [b, -156], [b, -151.2]];
+    for (const [h0, h1] of HEADS.filter(([h0, h1]) => h0 >= a - 0.01 && h1 <= b + 0.01).reverse()) pts.push([h1, -151.2], [h1, -148], [h0, -148], [h0, -151.2]);
+    pts.push([a, -151.2]); slab(root, pts, 0, 0.15, M.plant);
+  }
+  for (let x = -8; x < 183; x += 16) tree(root, x, -153.5, 8, 2.6);
   // planters along the front (page foreground) + small trees by the left corner
   if (!BW) for (const [x0, x1] of [[30, 42], [52, 64]]) { slab(root, [[x0, -11], [x1, -11], [x1, -8], [x0, -8]], 0, 0.45, M.mulch); tree(root, (x0 + x1) / 2, -9.5, 6, 1.8); }
   serviceRoad(root); trafficMarks(root);
