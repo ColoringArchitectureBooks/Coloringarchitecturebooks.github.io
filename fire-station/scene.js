@@ -500,7 +500,7 @@ FIRE.tick = (dt) => {
 
 // builds everything; resolves when the 3D letters are in
 // ---------- the streets: traffic signals at the junction, the fire station's emergency signal, warning and speed signs,
-// street name signs, street lights, fire hydrants and the markings on the road (stop lines, KEEP CLEAR in front of the apron).
+// street names on the signal arms and fire hydrants (kept light so the station stays the subject).
 // Airway Blvd: westbound lane y -37.5..-30 (plot side), eastbound y -45..-37.5. Side street: southbound x 115..123, northbound 123..131.
 // Sidewalk tops are at 0.15, the road at -0.03.
 function streets(root, font) {
@@ -543,40 +543,15 @@ function streets(root, font) {
   mast(132.4, -46.4, [0, 1], 8.2, [-1, 0], [3.2, 6.6], "AIRWAY BLVD");     // eastbound
   mast(132.4, -28.6, [-1, 0], 8.6, [0, -1], [3.4, 6.8], "STATION ST");     // northbound
   mast(113.6, -46.4, [1, 0], 8.6, [0, 1], [3.4, 6.8], "STATION ST");       // southbound
-  // street name blades on two corner poles, both names, readable from both sides
-  for (const [x, y] of [[113.6, -28.6], [132.4, -46.4]]) {
-    for (const [str, n] of [["AIRWAY BLVD", [0, 1]], ["STATION ST", [1, 0]]]) { const z = str[0] === "A" ? 7.35 : 7.7;
-      plate(rect(1.7, 0.3, 0.03), off([x, y, z], n, -0.02), n, 0.04); text(str, 0.15, off([x, y, z], n, 0.04), n); text(str, 0.15, off([x, y, z], n, -0.04), [-n[0], -n[1], 0]); }
-    cyl(root, x, y, 7.0, 0.95, 0.05, 8);
-  }
-  // stop lines at the junction and the fire station's signal
-  const bar = (x0, x1, y0, y1) => B(x0, x1, y0, y1, RD, RD + 0.012);
-  bar(137.3, 137.7, -37.4, -30.1); bar(108.3, 108.7, -44.9, -37.6); bar(123.1, 130.9, -52.2, -51.8); bar(115.1, 122.9, -23.4, -23.0);
-  bar(29.0, 29.4, -37.4, -30.1); bar(-4.4, -4.0, -44.9, -37.6);
   // the fire station's emergency signal: it stops the street when the trucks go out
   mast(27.4, -28.6, [0, -1], 13.5, [1, 0], [3.6], "FIRE STATION");
   for (const d of [12.2]) head(27.4, -28.6 - d, 5.75, [-1, 0]);
   B(27.32, 27.48, -28.6 - 12.25, -28.6 - 12.15, 6.25, 6.3);
-  signPost(31, -28.9, [1, 0], 2.2, (o, n) => plate(rect(0.6, 0.75), o, n), [["STOP", 0.12, 0.2], ["HERE ON", 0.09, 0.02], ["RED", 0.12, -0.18]]);
-  signPost(-6, -46.1, [-1, 0], 2.2, (o, n) => plate(rect(0.6, 0.75), o, n), [["STOP", 0.12, 0.2], ["HERE ON", 0.09, 0.02], ["RED", 0.12, -0.18]]);
-  // KEEP CLEAR painted in each lane in front of the apron, read by the drivers coming toward it
-  if (font) for (const [y, fw] of [[-33.75, [-1, 0, 0]], [-41.25, [1, 0, 0]]]) {
-    const g = new TextGeometry("KEEP CLEAR", { font, size: 0.85, height: 0.01, curveSegments: 4 }); g.computeBoundingBox(); const bb = g.boundingBox;
-    g.translate(-(bb.max.x + bb.min.x) / 2, -(bb.max.y + bb.min.y) / 2, 0); place(g, [-fw[1], fw[0], 0].map(v => -v), fw, [0, 0, 1], [12.5, y, RD + 0.002]);
-  }
   // yellow-diamond style warning signs ahead of the station, both directions, and the speed limit
   signPost(82, -28.9, [1, 0], 2.4, (o, n) => plate(diamond(0.62), o, n), [["FIRE", 0.13, 0.1], ["STATION", 0.11, -0.12]]);
   signPost(-42, -46.1, [-1, 0], 2.4, (o, n) => plate(diamond(0.62), o, n), [["FIRE", 0.13, 0.1], ["STATION", 0.11, -0.12]]);
   for (const [x, y, n] of [[98, -28.9, [1, 0]], [-24, -46.1, [-1, 0]], [133.1, -60, [0, -1]]])
     signPost(x, y, n, 2.2, (o, nn) => plate(rect(0.6, 0.78), o, nn), [["SPEED", 0.1, 0.26], ["LIMIT", 0.1, 0.12], [n[1] ? "25" : "35", 0.26, -0.13]]);
-  // street lights along both streets (pole, arm out over the road, lamp head)
-  const light = (x, y, n) => { cyl(root, x, y, SW, 8.0, 0.09, 10); cyl(root, x, y, SW, 0.5, 0.16, 10);
-    const ex = x + n[0] * 1.9, ey = y + n[1] * 1.9; B(x, ex + (n[0] ? 0 : 0.05), y, ey + (n[1] ? 0 : 0.05), 7.9, 7.98);
-    B(ex - (n[0] ? 0.45 : 0.17), ex + (n[0] ? 0.15 : 0.17), ey - (n[1] ? 0.45 : 0.17), ey + (n[1] ? 0.15 : 0.17), 7.75, 7.95); };
-  for (const x of [-45, -15, 45, 70, 105]) light(x, -29.6, [0, -1]);
-  for (const x of [-30, 5, 35, 65, 95, 150]) light(x, -45.4, [0, 1]);
-  for (const y of [-60, 40, 80, 120]) light(114.6, y, [1, 0]);
-  for (const y of [-62, 0, 40, 80, 120]) light(131.4, y, [-1, 0]);
   // fire hydrants on the sidewalks
   const hydrant = (x, y) => { cyl(root, x, y, SW, 0.08, 0.2, 12); cyl(root, x, y, SW + 0.08, 0.55, 0.13, 14); cyl(root, x, y, SW + 0.63, 0.06, 0.17, 14);
     const d = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), M.white); d.position.copy(V(x, y, SW + 0.69)); root.add(d);
