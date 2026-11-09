@@ -5,6 +5,15 @@
 
 let ctx = null, master = null, noise = null, bed = null, on = false, lastBeat = -1;
 
+// iPhone: let the sound play even with the ring/silent switch on. Safari 17+ has audioSession;
+// older iPhones do the same once any <audio> element is playing, so a short silent clip loops quietly.
+function playThroughSilentSwitch() {
+  try { if (navigator.audioSession) { navigator.audioSession.type = "playback"; return; } } catch (e) {}
+  if (!/iPhone|iPad|iPod/.test(navigator.userAgent) || playThroughSilentSwitch.el) return;
+  const a = new Audio("data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=="); a.loop = true; a.setAttribute("playsinline", "");
+  playThroughSilentSwitch.el = a; a.play().catch(() => { playThroughSilentSwitch.el = null; });
+}
+
 function setup() {
   if (ctx) return true;
   const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
@@ -62,7 +71,7 @@ export function whistle() {                                                   //
 
 export function isSoundOn() { return on; }
 export function setSound(v) {                                                 // call from a tap or click, so the browser lets the sound start
-  on = v; if (!setup()) return;
+  on = v; if (on) playThroughSilentSwitch(); if (!setup()) return;
   if (ctx.state !== "running") ctx.resume();
   if (on) startBed();
   master.gain.setTargetAtTime(on ? 0.9 : 0, ctx.currentTime, 0.08);
