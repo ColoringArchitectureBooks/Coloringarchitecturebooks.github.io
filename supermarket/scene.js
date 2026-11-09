@@ -17,7 +17,7 @@ export const D = {
   annex: { x0: 6.1, x1: 18.6, y0: -3, y1: 3, h: 4.5 },
   band: 11 / 3,         // 11 brick rows, so the band top falls on a mortar line            // brick band with light stripes at the bottom of the side/back walls
 };
-const FOOT = [[0, 3], [18.6, 3], [18.6, 0], [73, 0], [73, -5], [114, -5], [114, 90.5], [93, 90.5], [93, 95.5], [82.7, 95.5], [82.7, 105], [0, 105]];
+const FOOT = [[0, 3], [18.6, 3], [18.6, 0], [73, 0], [73, -5], [114, -5], [114, 105], [102, 105], [102, 102], [70, 102], [70, 105], [0, 105]];   // (Ahmed) the back is whole again, with a shallow recess for the loading walk
 
 // ---------- black & white (coloring-book) mode ----------
 // BW: every face white, outlines black, line-art textures; faces the page shows head-on take the page's own pixels.
@@ -219,7 +219,7 @@ function slab(root, pts, z0, z1, mat) {
   const m = new THREE.Mesh(g, mat); m.position.y = z0; m.castShadow = m.receiveShadow = true; root.add(m); return m;
 }
 // medium box truck (about 10 m, like a 26 ft truck), nose toward -x at xNose, centred on y: cab, box body, rear lift gate folded up
-const LOAD_Y = 97.3;   // the loading lane's centre line
+const LOAD_Y = 108.25;   // the lay-by's centre line: bays y 106.5..110, against the service road
 function boxTruck(root, xNose, y) {
   const x = xNose, wheel = (wx, wy, r = 0.48) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.3, 18), M.dark); m.rotation.x = Math.PI / 2; m.position.copy(V(wx, wy, r)); m.castShadow = true; root.add(m); };
   box(root, x, x + 0.5, y - 1.2, y + 1.2, 0.5, 1.3, M.white);                    // bumper and hood
@@ -282,7 +282,7 @@ function building(root) {
   }
   flat(root, FOOT, R, M.roof, 6);
   // parapet cap
-  capStrip(root, [[D.blk.x1, -5], [114, -5], [114, 90.5], [93, 90.5], [93, 95.5], [82.7, 95.5], [82.7, 105], [0, 105], [0, 3], [18.6, 3], [18.6, 0], [73, 0]], R, 0.15, 0.2);
+  capStrip(root, [[D.blk.x1, -5], [114, -5], [114, 105], [102, 105], [102, 102], [70, 102], [70, 105], [0, 105], [0, 3], [18.6, 3], [18.6, 0], [73, 0]], R, 0.15, 0.2);
   // light lower sections on the two sides (photos: plain white/cream panel along the side walls)
   if (!BW) { wall(root, [0, 62], [0, 30], 0.02, 3.8, M.white); root.children.at(-1).position.x -= 0.03;
     wall(root, [114, 8], [114, 40], 0.02, 3.8, M.white); root.children.at(-1).position.x += 0.03; }
@@ -378,17 +378,12 @@ function building(root) {
   // round sign on the left side wall near the front corner + on the right side near the back
   decal(root, -0.06, 11, 6.2, 4.4, "-x", M.logo);
 
-  // (7) dock: 2 doors on the east-facing wall of the notch, trailers, compactor, brick screen wall
-  // (Ahmed) a loading lane instead of a backed-in dock: two medium box trucks (about 10 m) park one behind the other, lengthwise
-  // and nose west, clear of the back wall's corner. A truck turns in off the service road at the east end, unloads from the
-  // rear with its lift gate onto the strip along the wall, then rolls on forward and back onto the road, so no truck ever reverses.
-  // A wide door at ground level behind each truck's rear, a man door between them; the compactor is gone (Ahmed's mark-up)
-  for (const [d0, d1] of [[99.4, 103.6], [109.4, 113.6]]) { box(root, d0, d1, 90.42, 90.5, 0, 4.0, M.dark); box(root, d0 - 0.2, d1 + 0.2, 90.5, 91.2, 4.1, 4.3, M.cap); }
-  box(root, 105.8, 106.8, 90.42, 90.5, 0, 2.2, M.dark);
-  boxTruck(root, 89, LOAD_Y); boxTruck(root, 104.5, LOAD_Y);
-  // (Ahmed) a long screen wall on the side facing the green area, hiding the trucks; the drive stays open to the service road
-  wall(root, [117.4, 90.5], [117.4, 108], 0, 4.0, M.brick); wall(root, [117.8, 108], [117.8, 90.5], 0, 4.0, M.brick);
-  box(root, 117.4, 117.8, 90.5, 108, 4.0, 4.15, M.cap); box(root, 117.4, 117.8, 107.6, 108, 0, 4.0, M.brick);
+  // (7) loading (Ahmed's sketch): the building stays a whole rectangle; two small box trucks pull into a lay-by beside the
+  // service road, park lengthwise nose west, set the goods down from the rear lift gate onto a loading walk in a shallow
+  // recess of the back wall, and pull out forward. Two wide doors at ground level behind the trucks' rears, a man door between.
+  for (const [d0, d1] of [[84.6, 88.6], [97.4, 101.4]]) { box(root, d0, d1, 101.92, 102, 0, 4.0, M.dark); box(root, d0 - 0.2, d1 + 0.2, 102, 102.8, 4.1, 4.3, M.cap); }
+  box(root, 92, 93, 101.92, 102, 0.15, 2.35, M.dark);
+  boxTruck(root, 74.6, LOAD_Y); boxTruck(root, 87.9, LOAD_Y);
 
 }
 
@@ -735,13 +730,16 @@ function serviceRoad(root) {
   const { w0, w1, b0, b1 } = SRV, c = (w0 + w1) / 2, cb = (b0 + b1) / 2, s = [];
   // planting either side of the road: the strip on the plot edge (west and back), the strip behind the store
   plantSlab(root, [[PLOT.x0, -22.8], [w0, -22.8], [w0, b1], [PLOT.x1, b1], [PLOT.x1, PLOT.y1], [PLOT.x0, PLOT.y1]]);
-  slab(root, [[w1, -12], [-4, -12], [-4, 105], [82.7, 105], [82.7, b0], [w1, b0]], 0, 0.15, M.plant);
+  // planting behind the store, cut for the loading lay-by (tapers 64..74 and 100..108) and its walk (x 70..102, y 102..106.5)
+  slab(root, [[w1, -12], [-4, -12], [-4, 105], [70, 105], [70, 107.9], [64, b0], [w1, b0]], 0, 0.15, M.plant);
+  slab(root, [[102, 105], [118, 105], [118, b0], [108, b0], [102, 107.4]], 0, 0.15, M.plant);
+  slab(root, [[70, 102], [102, 102], [102, 106.5], [70, 106.5]], 0, 0.15, M.walk);   // the loading walk
   plantSlab(root, [[118, 74.5], [PLOT.x1, 74.5], [PLOT.x1, b0], [118, b0]]);   // green area between the side lot and the service road (Ahmed)
   for (let y = 0; y < 100; y += 14) tree(root, PLOT.x0 + 1, y, 6, 1.4);
   for (let x = 124; x < 176; x += 10) for (const y of [82, 100]) tree(root, x + (y > 90 ? 5 : 0), y, 7, 2.2);
   // edge lines and dashed centre line
   for (let y = -20; y < b0 - 4; y += 6) s.push([[c, y, 0.02], [c, y + 3, 0.02]]);
-  for (let x = w1 + 3; x < PLOT.x1 - 3; x += 6) if (x + 3 < 82 || x > 119) s.push([[x, cb, 0.02], [x + 3, cb, 0.02]]);
+  for (let x = w1 + 3; x < PLOT.x1 - 3; x += 6) s.push([[x, cb, 0.02], [x + 3, cb, 0.02]]);
   segs(root, s);
   // two-way, keep right: down the west leg the right lane is the west one
   arrowPaint(root, (w0 + c) / 2, 40, -Math.PI / 2); arrowPaint(root, (c + w1) / 2, 50, Math.PI / 2);
@@ -764,15 +762,13 @@ function trafficMarks(root) {
       arrowPaint(root, m - q, -152.5, Math.PI / 2); arrowPaint(root, m + q, -152.5, Math.PI / 2);
     }
   });
-  // loading lane behind the store (Ahmed): one lane painted lengthwise with two bays, a hatched strip along the wall where the
-  // lift gates set the goods down and they roll to the doors; arrows: in off the road at the east end, out at the west end
-  { const s = [], L = (x0, y0, x1, y1) => s.push([[x0, y0, 0.03], [x1, y1, 0.03]]), y0 = LOAD_Y - 1.75, y1 = LOAD_Y + 1.75;
-    L(88, y0, 117, y0); L(88, y1, 117, y1); for (const x of [88, 103.5, 117]) L(x, y0, x, y1);
-    L(93, 95.2, 117, 95.2);
-    for (let x = 94; x < 117.1; x += 1.0) { const xb = Math.max(93, x - 4.7); L(x, 95.2, xb, 95.2 - (x - xb)); }   // keep-clear hatching along the wall
+  // loading lay-by (Ahmed): two bays painted lengthwise along the road, LOADING in each; in at the east taper, out at the west
+  { const s = [], L = (x0, y0, x1, y1) => s.push([[x0, y0, 0.03], [x1, y1, 0.03]]);
+    for (const x of [74, 87, 100]) L(x, 106.5, x, 110);
+    L(74, 110, 100, 110);
     segs(root, s);
-    for (const x of [96, 111.5]) groundText(root, textMat("load", [["LOADING", 70]], 512, 128, false), x, LOAD_Y, 3.2, 0.8, 0);
-    arrowPaint(root, 114, 105.5, Math.PI + 0.55); arrowPaint(root, 89, 103.5, Math.PI - 0.55);   // in from the road at the east end, out at the west end
+    for (const x of [79, 92.5]) groundText(root, textMat("load", [["LOADING", 70]], 512, 128, false), x, LOAD_Y, 3.2, 0.8, 0);
+    arrowPaint(root, 104.5, 109.4, Math.PI + 0.35, 3.5); arrowPaint(root, 68.5, 109.4, Math.PI - 0.35, 3.5);
   }
   // customer side drives, one way each (Ahmed): the middle one (fire lane) in, the other two out
   DRIVES.side.slice(0, 3).forEach(([a, b], k) => {
@@ -801,11 +797,10 @@ function trafficMarks(root) {
 function site(root) {
   flat(root, [[PLOT.x0, PLOT.y0], [PLOT.x1, PLOT.y0], [PLOT.x1, PLOT.y1], [PLOT.x0, PLOT.y1]], 0.0, M.asphalt, 6);   // the plot only: no ground around it
   streets(root);
-  slab(root, [[82.7, 95.5], [93, 95.5], [93, 90.5], [118, 90.5], [118, SRV.b0], [82.7, SRV.b0]], 0, 0.03, M.concrete);   // dock apron, open to the service road
   // sidewalk following the stepped front, its edge straight along y -12 (Ahmed), notched for the curb ramps
-  slab(root, [[-4, 105], [-4, -12], ...CART_RAMPS.flatMap(([a, b]) => [[a, -12], [a, -10.2], [b, -10.2], [b, -12]]), [118, -12], ...CART_RAMPS_SIDE.flatMap(([a, b]) => [[118, a], [116.2, a], [116.2, b], [118, b]]), [118, 90.5], [114, 90.5], [114, 3], [0, 3], [0, 105]], 0, 0.15, M.walk);   // one piece, no seam lines on the walk
+  slab(root, [[-4, 105], [-4, -12], ...CART_RAMPS.flatMap(([a, b]) => [[a, -12], [a, -10.2], [b, -10.2], [b, -12]]), [118, -12], ...CART_RAMPS_SIDE.flatMap(([a, b]) => [[118, a], [116.2, a], [116.2, b], [118, b]]), [118, 105], [114, 105], [114, 3], [0, 3], [0, 105]], 0, 0.15, M.walk);   // one piece, no seam lines on the walk
   // where the sidewalk meets the building: a thin line (same weight as the other edges), so walk and wall read apart in black and white (Ahmed)
-  const foot = [[0, 105], [0, 3], [6.1, 3], [6.1, -3], [18.6, -3], [18.6, 0], [72.98, 0], [72.98, -5.5], [87.88, -5.5], [87.88, -8.1], [102.82, -8.1], [102.82, -5], [104.3, -5], [104.3, -5.3], [109.6, -5.3], [109.6, -5], [114, -5], [114, 90.5]];   // entrance piers and the circle panel included
+  const foot = [[0, 105], [0, 3], [6.1, 3], [6.1, -3], [18.6, -3], [18.6, 0], [72.98, 0], [72.98, -5.5], [87.88, -5.5], [87.88, -8.1], [102.82, -8.1], [102.82, -5], [104.3, -5], [104.3, -5.3], [109.6, -5.3], [109.6, -5], [114, -5], [114, 105]];   // entrance piers and the circle panel included
   const n = foot.length;
   { const pts = []; for (let i = 0; i < n - 1; i++) pts.push(V(foot[i][0], foot[i][1], 0.16), V(foot[i + 1][0], foot[i + 1][1], 0.16));   // a plain 1 px line, same weight as the other edges (Ahmed)
     root.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x000000 }))); }
