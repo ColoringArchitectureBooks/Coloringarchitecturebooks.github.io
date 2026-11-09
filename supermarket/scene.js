@@ -428,6 +428,15 @@ const plantSlab = (root, pts, r, keep) => slab(root, roundPoly(pts, r, keep), 0,
 // stall: the y edge(s) the stalls sit against ("y0", "y1" or "both")
 const island = (root, x0, x1, y0, y1, stall) => plantSlab(root, [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], 0.9,
   ([, y]) => (stall !== "y1" && Math.abs(y - y0) < 0.01) || (stall !== "y0" && Math.abs(y - y1) < 0.01));
+// (Ahmed) the street planting steps up into each half row by 1, 2 or 3 stalls, like notes on a stave; beside each front drive
+// it runs 5 stalls deep (the entry throat). greenTop gives where the green ends and the stalls begin, for each half row.
+const STEP = [2, 1, 3, 1, 2, 3, 1, 2, 1, 3, 2, 1, 3, 2, 1, 2, 3, 1, 2, 1];
+const HALF_LIST = [[-14, -8.5], ...[0, 18.3, 36.6, 54.9, 73.2, 104, 122.3, 140.6, 158.9].flatMap((b) => [[b, b + 5.5], [b + 5.5, b + 11]]), [177.5, 183]];
+function greenTop(h0, h1) {
+  if (DRIVES.front.some(([a, b]) => Math.abs(h1 - a) < 0.01 || Math.abs(h0 - b) < 0.01)) return -148 + 5 * 2.7;
+  const i = HALF_LIST.findIndex(([q0]) => Math.abs(q0 - h0) < 0.01);
+  return -148 + STEP[i % STEP.length] * 2.7;
+}
 const GATE_SLIDE = { front: [1, -1, 1], side: [-1, -1, 1, -1] };   // sliding gates (Ahmed): which way each one rolls open along the fence
 const FRONT_KIND = ["exit", "exit", "entry"];   // gaps in the fence, kerb and front planting
 const SRV = { w0: -12, w1: -4.7, b0: 110, b1: 117.3 };   // service road: west leg x w0..w1 (y -22.8..b1), back leg y b0..b1 (x w0..178)
@@ -619,11 +628,12 @@ function parking(root) {
       const p0 = [xa + Math.max(0, t - (y1 - y0)), y0 + Math.min(t, y1 - y0)], p1 = [xa + Math.min(t, xb - xa), y0 + Math.max(0, t - (xb - xa))];
       s.push([[p0[0], p0[1], 0.025], [p1[0], p1[1], 0.025]]); } segs(root, s); };
   // one double row: centre line, stall lines per half; acc = { half: -1|+1 } puts the accessible run at the store end of that half
-  const rowsAt = (cx, ya, yb, acc, cor, only = 0) => {
-    lineAt(cx, ya, cx, yb);
+  const rowsAt = (cx, ya0, yb, acc, cor, only = 0, startAt = null) => {   // startAt(xa, xb): where the stalls begin, if planting covers the row's end
+    const st = (xa, xb) => (startAt ? startAt(xa, xb) : ya0);
+    lineAt(cx, Math.max(st(cx - 5.5, cx), st(cx, cx + 5.5)), cx, yb);
     for (const h of [-1, 1]) {
       if (only && h !== only) continue;
-      const xa = h < 0 ? cx - 5.5 : cx, xb = h < 0 ? cx : cx + 5.5;
+      const xa = h < 0 ? cx - 5.5 : cx, xb = h < 0 ? cx : cx + 5.5, ya = st(xa, xb);
       if (acc && acc.half === h) {
         let y = yb; lineAt(xa, y, xb, y);
         for (const [k, w] of ACC) {
@@ -642,7 +652,7 @@ function parking(root) {
     for (const [ya, yb] of [[-80.3, -26], [-148, -93.7]]) {
       const acc = yb === -26 && bx === 73.2 ? { half: 1 } : yb === -26 && bx === 104 ? { half: -1 } : null;   // the halves facing the walk's aisles
       const cor = { half: bx === 73.2 ? -1 : bx === 104 ? 1 : -1, y0: ya + 10 * 2.7 };
-      rowsAt(bx + 5.5, ya, yb, acc, cor);
+      rowsAt(bx + 5.5, ya, yb, acc, cor, 0, ya === -148 ? greenTop : null);   // no stall lines under the street planting (Ahmed)
       if (yb !== -26) tree(root, bx + 5.5, ya - 1.6, 5.5, 1.6);   // planted head by the street (part of the front planting, see site())
       yb === -26 ? island(root, bx, bx + 11, -83, -80.3, "y1") : island(root, bx, bx + 11, -93.7, -91, "y0");   // island at the cross aisle (Ahmed)
       if (yb === -26) island(root, bx, bx + 11, yb, yb + 3.2, "y0");   // planted head of the row, by the store
@@ -655,13 +665,15 @@ function parking(root) {
     for (const [y0, y1, st] of [[-12, -8.8, "y1"], [64, 67.2, "y0"]]) island(root, x0, bx + 11, y0, y1, st);
   }
   // single row along the east fence (plot widened 5 m for it), on the same lines as the blocks and the side lot
-  for (const [ya, yb] of [[-80.3, -26], [-148, -93.7], [-8.8, 64]]) {
+  for (const [ya0, yb] of [[-80.3, -26], [-148, -93.7], [-8.8, 64]]) {
+    const ya = ya0 === -148 ? greenTop(177.5, 183) : ya0;
     for (let y = ya; y <= yb + 0.01; y += 2.7) lineAt(177.5, y, 183, y);
     lineAt(177.5, ya, 177.5, yb, 0.06);
   }
   for (const [y0, y1, st] of [[-83, -80.3, "y1"], [-93.7, -91, "y0"], [-26, -22.8, "y0"], [-12, -8.8, "y1"], [64, 67.2, "y0"]]) island(root, 177.5, 183, y0, y1, st);
   // single row along the west fence, on the same lines as the blocks
-  for (const [ya, yb] of [[-80.3, -26], [-148, -93.7]]) {
+  for (const [ya0, yb] of [[-80.3, -26], [-148, -93.7]]) {
+    const ya = ya0 === -148 ? greenTop(-14, -8.5) : ya0;
     for (let y = ya; y <= yb + 0.01; y += 2.7) lineAt(-14, y, -8.5, y);
     lineAt(-8.5, ya, -8.5, yb, 0.06);
   }
@@ -768,11 +780,7 @@ function site(root) {
   if (!BW) for (let y = -30; y > -146; y -= 14) { tree(root, 92, y, 6, 1.8); tree(root, 101, y, 6, 1.8); }   // the page keeps this aisle open
   // front planting along the street, one piece with the heads of the rows (Ahmed), cut at the drives and the walk
   // (Ahmed) the green steps up into each half row by 1, 2 or 3 stalls, like notes on a stave, so the street edge isn't one hard line
-  const STEP = [2, 1, 3, 1, 2, 3, 1, 2, 1, 3, 2, 1, 3, 2, 1, 2, 3, 1, 2, 1];
-  const HALVES = [[-14, -8.5], ...[0, 18.3, 36.6, 54.9, 73.2, 104, 122.3, 140.6, 158.9].flatMap((b) => [[b, b + 5.5], [b + 5.5, b + 11]]), [177.5, 183]]
-    .map(([h0, h1], i) => [h0, h1, -148 + STEP[i % STEP.length] * 2.7])
-    // entry throat (Ahmed): beside each front drive the green runs 5 stalls deep (about 15 m), so no one backs out right at the gate
-    .map(([h0, h1, top]) => DRIVES.front.some(([a, b]) => Math.abs(h1 - a) < 0.01 || Math.abs(h0 - b) < 0.01) ? [h0, h1, -148 + 5 * 2.7] : [h0, h1, top]);
+  const HALVES = HALF_LIST.map(([h0, h1]) => [h0, h1, greenTop(h0, h1)]);
   // openings along the front: o = at the fence, d = the drive at the inner edge of the planting (the walk gate has no flare)
   const OPN = [...DRIVES.front.map((d, i) => ({ o: OPEN("front", i), d })), { o: WALK, d: WALK }].sort((p, q) => p.o[0] - q.o[0]);
   const SEG = []; { let o = -14, d = -14; for (const q of OPN) { SEG.push({ o0: o, d0: d, o1: q.o[0], d1: q.d[0] }); o = q.o[1]; d = q.d[1]; } SEG.push({ o0: o, d0: d, o1: 183, d1: 183 }); }
