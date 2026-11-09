@@ -9,6 +9,12 @@ import * as THREE from "three";
 
 export function mapTouch(controls, camera, canvas, scene) {
   controls.touches.TWO = -1;                                 // OrbitControls leaves two-finger gestures to this code
+  // iPad Safari: keep the browser's own pinch and two-finger scroll off the model. When it takes a touch over it cancels
+  // our pointers half way through a gesture, which feels like the view pushing back (Ahmed)
+  for (const t of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(t, (e) => e.preventDefault(), { passive: false });
+  canvas.addEventListener("touchstart", (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  canvas.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+  const TILT = 1.6;                                          // two-finger up/down tilts a little faster than one finger, so a short drag reaches the bird's view
   const pts = new Map();                                     // pointerId -> {x, y}
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), up = new THREE.Vector3(0, 1, 0);
   let g = null, multi = false, raf = 0, glide = 0;           // gesture in progress; did this touch use two fingers; frame requests
@@ -39,7 +45,7 @@ export function mapTouch(controls, camera, canvas, scene) {
     cam.sub(P).applyQuaternion(q).add(P); tgt.sub(P).applyQuaternion(q).add(P);
     // over the top: a drag down rises to look from above, a drag up sinks toward the ground (as with one finger)
     const off = cam.clone().sub(tgt), phi = Math.acos(THREE.MathUtils.clamp(off.y / off.length(), -1, 1));
-    const nphi = THREE.MathUtils.clamp(phi - 2 * Math.PI * dy / h * controls.rotateSpeed, 0.03, controls.maxPolarAngle);
+    const nphi = THREE.MathUtils.clamp(phi - 2 * Math.PI * dy / h * controls.rotateSpeed * TILT, 0.03, controls.maxPolarAngle);
     if (Math.abs(nphi - phi) > 1e-5) {
       const axis = new THREE.Vector3().crossVectors(up, off).normalize(), qt = new THREE.Quaternion().setFromAxisAngle(axis, phi - nphi);
       const o2 = off.clone().applyQuaternion(qt);
