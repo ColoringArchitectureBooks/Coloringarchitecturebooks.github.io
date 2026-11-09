@@ -406,7 +406,7 @@ const DRIVES = { front: [[-8.5, 0], [84.2, 92.1], [96.1, 104]], side: [[-91, -83
 // (Ahmed) a drive off a public street opens out toward the street (curb returns) so a car can turn in from its lane without
 // running over the kerb: the fence and kerb opening is the drive plus a flare each side, and the planting is rounded off from
 // the opening down to the aisle. Cars about 4 m each side; the truck drive more; none on the side touching the walk gate.
-const FLARE = { front: [[0, 0], [0, 0], [0, 0]], side: [[0, 0], [0, 0], [0, 0], [6, 2.5]] };   // (Ahmed) cars: a small curb return at the sidewalk only (see streets()); trucks keep a wide one
+const FLARE = { front: [[0, 0], [0, 0], [0, 0]], side: [[0, 0], [0, 0], [0, 0], [0, 0]] };   // (Ahmed) every drive, trucks too: a small curb return at the sidewalk only (see streets()), green square to the fence
 const OPEN = (k, i) => { const [a, b] = DRIVES[k][i], [l, r] = FLARE[k][i]; return [a - l, b + r]; };
 const OPENS = (k) => DRIVES[k].map((_, i) => OPEN(k, i));
 const arcPts = (cx, cy, rx, ry, a0, a1, n = 10) => { const out = []; for (let i = 0; i <= n; i++) { const t = a0 + (a1 - a0) * i / n; out.push([cx + rx * Math.cos(t), cy + ry * Math.sin(t)]); } return out; };
@@ -720,7 +720,7 @@ function serviceRoad(root) {
   // planting either side of the road: the strip on the plot edge (west and back), the strip behind the store
   plantSlab(root, [[PLOT.x0, -22.8], [w0, -22.8], [w0, b1], [PLOT.x1, b1], [PLOT.x1, PLOT.y1], [PLOT.x0, PLOT.y1]]);
   slab(root, [[w1, -12], [-4, -12], [-4, 105], [82.7, 105], [82.7, b0], [w1, b0]], 0, 0.15, M.plant);
-  { const f = FLARE.side[3][0]; plantSlab(root, [[118, 74.5], [PLOT.x1, 74.5], [PLOT.x1, b0 - f], ...arcPts(PLOT.x1 - f, b0 - f, f, f, 0, Math.PI / 2).slice(1), [118, b0]]); }   // rounded where the truck drive opens out   // green area between the side lot and the service road (Ahmed)
+  plantSlab(root, [[118, 74.5], [PLOT.x1, 74.5], [PLOT.x1, b0], [118, b0]]);   // green area between the side lot and the service road (Ahmed)
   for (let y = 0; y < 100; y += 14) tree(root, PLOT.x0 + 1, y, 6, 1.4);
   for (let x = 124; x < 176; x += 10) for (const y of [82, 100]) tree(root, x + (y > 90 ? 5 : 0), y, 7, 2.2);
   // edge lines and dashed centre line
