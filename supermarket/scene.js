@@ -400,9 +400,9 @@ const PLOT = { x0: -14, x1: 183, y0: -156, y1: 120 };
 // 115..122.3; side: the fire lane in front of the store, -22.8..-15). Trucks have their own drive at the back of the side street
 // (105..117.3) onto a 7.3 m service and fire road that runs behind the store and down its west side to the fire lane, so the
 // fire brigade can drive all the way round the building and trucks never cross the customers' lot. US right-hand traffic.
-// Ahmed's mark-up: the front drive by the walk is exit only, the other one entry only; a second exit at the west corner on the
+// Ahmed's mark-up: the walk runs between the two front drives, exit on its west side and entry on its east side; a second exit at the west corner on the
 // aisle along the west fence; side drives on the fire lane, the cross aisle and the side lot's top aisle; trucks at the back.
-const DRIVES = { front: [[-8.5, 0], [84.2, 92.1], [115, 122.3]], side: [[-91, -83], [-21.3, -13.5], [67.2, 74.5], [110, 117.3]] };   // the fire-lane drive is centred on the aisle between the front lot and the side lot (Ahmed)
+const DRIVES = { front: [[-8.5, 0], [84.2, 92.1], [96.1, 104]], side: [[-91, -83], [-21.3, -13.5], [67.2, 74.5], [110, 117.3]] };   // the fire-lane drive is centred on the aisle between the front lot and the side lot (Ahmed)
 // (Ahmed) a drive off a public street opens out toward the street (curb returns) so a car can turn in from its lane without
 // running over the kerb: the fence and kerb opening is the drive plus a flare each side, and the planting is rounded off from
 // the opening down to the aisle. Cars about 4 m each side; the truck drive more; none on the side touching the walk gate.
@@ -469,7 +469,8 @@ function streets(root) {
   flat(root, [[W, -177], [183, -177], [183, S], [204, S], [204, -177], [E, -177], [E, -156], [204, -156], [204, N], [183, N], [183, -156], [W, -156]], -0.03, M.asphalt, 6);   // both roads in one piece
   const kerb = (pts) => slab(root, pts, 0, 0.15, M.walk);
   const RK = 2.2;   // (Ahmed) small curb return where the sidewalk meets each drive, at the road edge
-  for (const [a, b] of minus(W, 186, OPENS("front"))) kerb([...(b < 185.9 ? arcPts(b - RK, -159 + RK, RK, RK, -Math.PI / 2, 0) : [[b, -159]]), [b, -156], [a, -156], ...(a > W + 0.1 ? arcPts(a + RK, -159 + RK, RK, RK, Math.PI, 1.5 * Math.PI) : [[a, -159]])]);       // plot-side sidewalks, cut at the drives
+  for (const [a, b] of minus(W, 186, OPENS("front"))) { const r = Math.min(RK, (b - a) / 2 - 0.02);   // the short piece at the walk between the two drives keeps both returns
+    kerb([...(b < 185.9 ? arcPts(b - r, -159 + r, r, r, -Math.PI / 2, 0) : [[b, -159]]), [b, -156], [a, -156], ...(a > W + 0.1 ? arcPts(a + r, -159 + r, r, r, Math.PI, 1.5 * Math.PI) : [[a, -159]])]); }       // plot-side sidewalks, cut at the drives
   for (const [a, b] of minus(-156, N, OPENS("side"))) kerb([[183, a], ...(a > -155.9 ? arcPts(186 - RK, a + RK, RK, RK, -Math.PI / 2, 0) : [[186, a]]), ...(b < N - 0.1 ? arcPts(186 - RK, b - RK, RK, RK, 0, Math.PI / 2) : [[186, b]]), [183, b]]);
   kerb([[W, -177], [183, -177], [183, S], [186, S], [186, -174], [W, -174]]);                                   // the three other corners
   kerb([[201, N], [201, -159], [E, -159], [E, -156], [204, -156], [204, N]]);
@@ -775,7 +776,7 @@ function site(root) {
   // openings along the front: o = at the fence, d = the drive at the inner edge of the planting (the walk gate has no flare)
   const OPN = [...DRIVES.front.map((d, i) => ({ o: OPEN("front", i), d })), { o: WALK, d: WALK }].sort((p, q) => p.o[0] - q.o[0]);
   const SEG = []; { let o = -14, d = -14; for (const q of OPN) { SEG.push({ o0: o, d0: d, o1: q.o[0], d1: q.d[0] }); o = q.o[1]; d = q.d[1]; } SEG.push({ o0: o, d0: d, o1: 183, d1: 183 }); }
-  for (const { o0, d0, o1, d1 } of SEG) {
+  for (const { o0, d0, o1, d1 } of SEG.filter((g) => g.o1 - g.o0 > 0.01)) {
     const a = d0, b = d1, pts = [[o0, -156], [o1, -156]];
     if (d1 - o1 > 0.01) pts.push(...arcPts(o1, -151.2, d1 - o1, 4.8, -Math.PI / 2, 0).slice(1)); else pts.push([b, -151.2]);
     let last = null;
