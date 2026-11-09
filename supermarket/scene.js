@@ -438,9 +438,12 @@ function greenTop(h0, h1) {
   return -148 + STEP[i % STEP.length] * 2.7;
 }
 const GATE_SLIDE = { front: [1, -1, 1], side: [-1, -1, 1, -1] };   // sliding gates (Ahmed): which way each one rolls open along the fence
-const FRONT_KIND = ["exit", "exit", "entry"];   // gaps in the fence, kerb and front planting
+const FRONT_KIND = ["exit", "exit", "entry"];
+const SIDE_KIND = ["exit", "entry", "exit"];   // (Ahmed) side street: in at the middle drive, out at the other two   // gaps in the fence, kerb and front planting
 const SRV = { w0: -12, w1: -4.7, b0: 110, b1: 117.3 };   // service road: west leg x w0..w1 (y -22.8..b1), back leg y b0..b1 (x w0..178)
 const WALK = [92.1, 96.1];   // the walk to the entrance, on the entrance axis, with a gate in the front fence
+// (Ahmed) the store sidewalk runs straight along y -12, no bulge for a car to hit; curb ramps cut into it so carts roll down easily
+const CART_RAMPS = [[79.5, 81.9], [85, 87.4], WALK, [106.6, 109]];
 const minus = (a, b, gaps) => { const out = []; let s = a; for (const [g0, g1] of gaps) { if (g0 > s) out.push([s, g0]); s = g1; } if (b > s) out.push([s, b]); return out; };
 function segs(root, list) {   // thin black lines, same weight as the model's edges
   const pts = []; for (const [a, b] of list) pts.push(V(...a), V(...b));
@@ -619,8 +622,8 @@ function orderPickup(root) {
     signPlate(root, textMat("pu" + n, [["ORDER", 46], ["PICKUP", 46], [n, 110]], 256, 360), cx - 0.2, y, 2.0, 0.55, 0.78, -1);
     groundText(root, textMat("pn" + n, [[n, 200]], 256, 256, false), cx - 4.3, y, 1.4, 1.4, -Math.PI / 2);
   }
-  box(root, 103.5, 103.56, -12.6, -12.54, 0.15, 2.6, M.white);
-  signPlate(root, textMat("pus", [["ORDER", 46], ["PICKUP", 46], ["STAFF", 40], ["CROSSING", 40]], 256, 360), 103.59, -12.57, 2.1, 0.55, 0.78, 1);
+  box(root, 103.5, 103.56, -11.6, -11.54, 0.15, 2.6, M.white);
+  signPlate(root, textMat("pus", [["ORDER", 46], ["PICKUP", 46], ["STAFF", 40], ["CROSSING", 40]], 256, 360), 103.59, -11.57, 2.1, 0.55, 0.78, 1);
 }
 function parking(root) {
   const lineAt = (x0, y0, x1, y1, w = 0.12) => flat(root, x0 === x1 ? [[x0 - w, y0], [x0 + w, y0], [x0 + w, y1], [x0 - w, y1]] : [[x0, y0 - w], [x1, y0 - w], [x1, y0 + w], [x0, y0 + w]], 0.02, M.line);
@@ -670,7 +673,7 @@ function parking(root) {
     for (let y = ya; y <= yb + 0.01; y += 2.7) lineAt(177.5, y, 183, y);
     lineAt(177.5, ya, 177.5, yb, 0.06);
   }
-  for (const [y0, y1, st] of [[-83, -80.3, "y1"], [-93.7, -91, "y0"], [-26, -22.8, "y0"], [-12, -8.8, "y1"], [64, 67.2, "y0"]]) island(root, 177.5, 183, y0, y1, st);
+  for (const [y0, y1, st] of [[-83, -80.3, "y1"], [-93.7, -91, "y0"], [-26, -21.3, "y0"], [-13.5, -8.8, "y1"], [64, 67.2, "y0"]]) island(root, 177.5, 183, y0, y1, st);   // the fire-lane drive: green runs to its edges, one line with the curb return (Ahmed)
   // single row along the west fence, on the same lines as the blocks
   for (const [ya0, yb] of [[-80.3, -26], [-148, -93.7]]) {
     const ya = ya0 === -148 ? greenTop(-14, -8.5) : ya0;
@@ -685,8 +688,9 @@ function parking(root) {
   slab(root, [[WALK[0], -156], [WALK[1], -156], [WALK[1], -92.8], [WALK[0], -92.8]], 0, 0.15, M.walk);
   slab(root, [[WALK[0], -81.2], [WALK[1], -81.2], [WALK[1], -21.8], [WALK[0], -21.8]], 0, 0.15, M.walk);
   curbRamp(root, WALK[0], WALK[1], -91, -92.8); curbRamp(root, WALK[0], WALK[1], -83, -81.2);
-  curbRamp(root, WALK[0], WALK[1], -20, -21.8); curbRamp(root, WALK[0], WALK[1], -15, -13.2);
-  for (const [y0, y1] of [[-91, -83], [-20, -15]]) for (let y = y0 + 0.4; y < y1 - 0.3; y += 1.0) flat(root, [[WALK[0] + 0.2, y], [WALK[1] - 0.2, y], [WALK[1] - 0.2, y + 0.5], [WALK[0] + 0.2, y + 0.5]], 0.02, M.line);
+  curbRamp(root, WALK[0], WALK[1], -20, -21.8);
+  for (const [x0, x1] of CART_RAMPS) curbRamp(root, x0, x1, -12, -10.2);
+  for (const [y0, y1] of [[-91, -83], [-20, -12]]) for (let y = y0 + 0.4; y < y1 - 0.3; y += 1.0) flat(root, [[WALK[0] + 0.2, y], [WALK[1] - 0.2, y], [WALK[1] - 0.2, y + 0.5], [WALK[0] + 0.2, y + 0.5]], 0.02, M.line);
   evChargers(root); bikeRacks(root); orderPickup(root);
   solar(root);
 }
@@ -744,14 +748,18 @@ function trafficMarks(root) {
       arrowPaint(root, m - q, -152.5, Math.PI / 2); arrowPaint(root, m + q, -152.5, Math.PI / 2);
     }
   });
-  // customer side drives, two-way: centre line, stop bar on the exit lane (leaving eastward keeps to the south lane)
-  for (const [a, b] of DRIVES.side.slice(0, 3)) {
-    const m = (a + b) / 2;
-    segs(root, [[[175, m, 0.02], [183, m, 0.02]]]);
-    paintRect(root, 180.2, a + 0.2, 180.6, m - 0.15);
-    groundText(root, textMat("stop", [["STOP", 80]], 256, 128, false), 179.2, (a + m) / 2, 2.8, 1.4, -Math.PI / 2);
-    arrowPaint(root, 175, (m + b) / 2, Math.PI); arrowPaint(root, 171, (a + m) / 2, 0);
-  }
+  // customer side drives, one way each (Ahmed): the middle one (fire lane) in, the other two out
+  DRIVES.side.slice(0, 3).forEach(([a, b], k) => {
+    const m = (a + b) / 2, q = (b - a) / 4;
+    if (SIDE_KIND[k] === "exit") {
+      paintRect(root, 180.2, a + 0.2, 180.6, b - 0.2);
+      groundText(root, textMat("stop", [["STOP", 80]], 256, 128, false), 179.2, m, 2.8, 1.4, -Math.PI / 2);
+      arrowPaint(root, 173.5, m - q, 0); arrowPaint(root, 173.5, m + q, 0);
+    } else {
+      groundText(root, textMat("enter", [["ENTER", 80]], 320, 128, false), 174, m, 3.5, 1.4, Math.PI / 2);
+      arrowPaint(root, 180, m - q, Math.PI); arrowPaint(root, 180, m + q, Math.PI);
+    }
+  });
   arrowPaint(root, 60, -16.9, Math.PI); arrowPaint(root, 50, -20.9, 0);   // along the fire lane in front of the store
   { const [a, b] = DRIVES.side[3], m = (a + b) / 2;   // the truck drive
     segs(root, [[[181, m, 0.02], [183, m, 0.02]]]);
@@ -768,8 +776,8 @@ function site(root) {
   flat(root, [[PLOT.x0, PLOT.y0], [PLOT.x1, PLOT.y0], [PLOT.x1, PLOT.y1], [PLOT.x0, PLOT.y1]], 0.0, M.asphalt, 6);   // the plot only: no ground around it
   streets(root);
   slab(root, [[82.7, 95.5], [93, 95.5], [93, 90.5], [118, 90.5], [118, SRV.b0], [82.7, SRV.b0]], 0, 0.03, M.concrete);   // dock apron, open to the service road
-  // sidewalk following the stepped front, with the entrance bulge
-  slab(root, [[-4, 105], [-4, -12], [86, -12], [86, -15], [WALK[0], -15], [WALK[0], -13.2], [WALK[1], -13.2], [WALK[1], -15], [110, -15], [110, -12], [118, -12], [118, 90.5], [114, 90.5], [114, 3], [0, 3], [0, 105]], 0, 0.15, M.walk);   // one piece, no seam lines on the walk
+  // sidewalk following the stepped front, its edge straight along y -12 (Ahmed), notched for the curb ramps
+  slab(root, [[-4, 105], [-4, -12], ...CART_RAMPS.flatMap(([a, b]) => [[a, -12], [a, -10.2], [b, -10.2], [b, -12]]), [118, -12], [118, 90.5], [114, 90.5], [114, 3], [0, 3], [0, 105]], 0, 0.15, M.walk);   // one piece, no seam lines on the walk
   // where the sidewalk meets the building: a thin line (same weight as the other edges), so walk and wall read apart in black and white (Ahmed)
   const foot = [[0, 105], [0, 3], [6.1, 3], [6.1, -3], [18.6, -3], [18.6, 0], [72.98, 0], [72.98, -5.5], [87.88, -5.5], [87.88, -8.1], [102.82, -8.1], [102.82, -5], [104.3, -5], [104.3, -5.3], [109.6, -5.3], [109.6, -5], [114, -5], [114, 90.5]];   // entrance piers and the circle panel included
   const n = foot.length;
