@@ -10,6 +10,7 @@
   html, body { margin:0; height:100%; background:var(--paper); color:var(--ink); overflow:hidden;
     font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif; }
   #c { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  html, body { touch-action:none; overscroll-behavior:none; }
   header { position:fixed; top:0; left:0; right:0; padding:max(14px, env(safe-area-inset-top)) 16px 0;
     pointer-events:none; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
   h1 { margin:0; font-size:17px; font-weight:700; letter-spacing:.01em; }
@@ -45,7 +46,7 @@
 <script type="module">
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { mapTouch } from "./touch.js?v=4";
+import { mapTouch } from "./touch.js?v=5";
 import { buildScene, V, faceCamera } from "./scene.js?v=21";
 
 const canvas = document.getElementById("c");
