@@ -218,21 +218,19 @@ function slab(root, pts, z0, z1, mat) {
   const g = new THREE.ExtrudeGeometry(s, { depth: z1 - z0, bevelEnabled: false }); g.rotateX(-Math.PI / 2);
   const m = new THREE.Mesh(g, mat); m.position.y = z0; m.castShadow = m.receiveShadow = true; root.add(m); return m;
 }
-// a tractor-trailer parked nose to +y, the trailer's back at yRear on the centre line x; every wheel stands on the ground (z 0)
-function truck(root, x, yRear) {
-  const y = yRear, wheel = (wx, wy, r = 0.5) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.32, 18), M.dark); m.rotation.z = Math.PI / 2; m.position.copy(V(wx, wy, r)); m.castShadow = true; root.add(m); };
-  // trailer: box body, rear bumper, landing legs, tandem axles at the back
-  box(root, x - 1.3, x + 1.3, y, y + 15.2, 1.25, 4.05, M.trailer);
-  box(root, x - 1.2, x + 1.2, y + 0.1, y + 0.3, 0.55, 0.75, M.metal);
-  for (const s of [-1, 1]) box(root, x + s * 0.95 - 0.07, x + s * 0.95 + 0.07, y + 11.8, y + 11.95, 0, 1.25, M.metal);
-  for (const ay of [y + 1.5, y + 2.8]) for (const s of [-1, 1]) wheel(x + s * 1.0, ay);
-  // tractor: chassis under the trailer's nose, cab with a windscreen, hood and bumper, steer axle and two drive axles
-  box(root, x - 0.5, x + 0.5, y + 12.3, y + 18.6, 0.55, 1.05, M.metal);
-  box(root, x - 1.25, x + 1.25, y + 15.4, y + 18.0, 1.05, 3.8, M.white);
-  box(root, x - 1.1, x + 1.1, y + 17.98, y + 18.04, 2.3, 3.5, M.glass);
-  box(root, x - 1.25, x + 1.25, y + 18.0, y + 18.6, 0.55, 1.8, M.white);
-  for (const s of [-1, 1]) { box(root, x + s * 1.3 - 0.06, x + s * 1.3 + 0.06, y + 15.7, y + 16.9, 1.5, 3.0, M.metal); box(root, x + s * 0.95 - 0.35, x + s * 0.95 + 0.35, y + 13.4, y + 15.3, 0.6, 1.2, M.metal); }   // mirrors, fuel tanks
-  for (const ay of [y + 12.9, y + 14.3, y + 17.4]) for (const s of [-1, 1]) wheel(x + s * 1.0, ay);
+// medium box truck (about 10 m, like a 26 ft truck), nose toward -x at xNose, centred on y: cab, box body, rear lift gate folded up
+const LOAD_Y = 97.3;   // the loading lane's centre line
+function boxTruck(root, xNose, y) {
+  const x = xNose, wheel = (wx, wy, r = 0.48) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.3, 18), M.dark); m.rotation.x = Math.PI / 2; m.position.copy(V(wx, wy, r)); m.castShadow = true; root.add(m); };
+  box(root, x, x + 0.5, y - 1.2, y + 1.2, 0.5, 1.3, M.white);                    // bumper and hood
+  box(root, x + 0.5, x + 2.6, y - 1.22, y + 1.22, 0.55, 3.0, M.white);           // cab
+  box(root, x + 0.98, x + 1.02, y - 1.1, y + 1.1, 1.8, 2.8, M.glass);             // windscreen (slightly set in)
+  box(root, x + 0.48, x + 0.52, y - 1.0, y + 1.0, 1.75, 2.85, M.glass);
+  for (const s of [-1, 1]) box(root, x + 1.2, x + 1.5, y + s * 1.32 - 0.05, y + s * 1.32 + 0.05, 1.6, 2.6, M.metal);   // mirrors
+  box(root, x + 2.8, x + 10, y - 1.27, y + 1.27, 1.0, 4.0, M.trailer);           // box body
+  box(root, x + 10, x + 10.25, y - 1.2, y + 1.2, 0.9, 2.4, M.metal);              // lift gate, folded up
+  box(root, x + 0.8, x + 10, y - 0.45, y + 0.45, 0.5, 1.0, M.metal);              // chassis
+  for (const ax of [x + 1.6, x + 7.6, x + 8.9]) for (const s of [-1, 1]) wheel(ax, y + s * 1.05);
 }
 const TREES = [];   // (x, y, height): in BW each becomes the page's tree cut-out
 function tree(root, x, y, h = 7, r = 2.4) {
@@ -381,9 +379,13 @@ function building(root) {
   decal(root, -0.06, 11, 6.2, 4.4, "-x", M.logo);
 
   // (7) dock: 2 doors on the east-facing wall of the notch, trailers, compactor, brick screen wall
-  // (Ahmed) reversed: the doors face the service road behind the store, so a truck drives along the road, pulls past and backs straight in
-  for (const xx of [102.5, 109]) { box(root, xx - 1.5, xx + 1.5, 90.42, 90.5, 1.2, 4.0, M.dark); truck(root, xx, 90.7); }   // two tractor-trailers backed onto the doors
-  box(root, 94, 98.5, 90.6, 94.4, 0, 2.6, M.beige);   // compactor
+  // (Ahmed) a loading lane instead of a backed-in dock: two medium box trucks (about 10 m) park one behind the other, lengthwise
+  // and nose west, clear of the back wall's corner. A truck turns in off the service road at the east end, unloads from the
+  // rear with its lift gate onto the strip along the wall, then rolls on forward and back onto the road, so no truck ever reverses.
+  // A wide door at ground level behind each truck's rear, a man door between them; the compactor is gone (Ahmed's mark-up)
+  for (const [d0, d1] of [[99.4, 103.6], [109.4, 113.6]]) { box(root, d0, d1, 90.42, 90.5, 0, 4.0, M.dark); box(root, d0 - 0.2, d1 + 0.2, 90.5, 91.2, 4.1, 4.3, M.cap); }
+  box(root, 105.8, 106.8, 90.42, 90.5, 0, 2.2, M.dark);
+  boxTruck(root, 89, LOAD_Y); boxTruck(root, 104.5, LOAD_Y);
   // (Ahmed) a long screen wall on the side facing the green area, hiding the trucks; the drive stays open to the service road
   wall(root, [117.4, 90.5], [117.4, 108], 0, 4.0, M.brick); wall(root, [117.8, 108], [117.8, 90.5], 0, 4.0, M.brick);
   box(root, 117.4, 117.8, 90.5, 108, 4.0, 4.15, M.cap); box(root, 117.4, 117.8, 107.6, 108, 0, 4.0, M.brick);
@@ -762,6 +764,16 @@ function trafficMarks(root) {
       arrowPaint(root, m - q, -152.5, Math.PI / 2); arrowPaint(root, m + q, -152.5, Math.PI / 2);
     }
   });
+  // loading lane behind the store (Ahmed): one lane painted lengthwise with two bays, a hatched strip along the wall where the
+  // lift gates set the goods down and they roll to the doors; arrows: in off the road at the east end, out at the west end
+  { const s = [], L = (x0, y0, x1, y1) => s.push([[x0, y0, 0.03], [x1, y1, 0.03]]), y0 = LOAD_Y - 1.75, y1 = LOAD_Y + 1.75;
+    L(88, y0, 117, y0); L(88, y1, 117, y1); for (const x of [88, 103.5, 117]) L(x, y0, x, y1);
+    L(93, 95.2, 117, 95.2);
+    for (let x = 94; x < 117.1; x += 1.0) { const xb = Math.max(93, x - 4.7); L(x, 95.2, xb, 95.2 - (x - xb)); }   // keep-clear hatching along the wall
+    segs(root, s);
+    for (const x of [96, 111.5]) groundText(root, textMat("load", [["LOADING", 70]], 512, 128, false), x, LOAD_Y, 3.2, 0.8, 0);
+    arrowPaint(root, 114, 105.5, Math.PI + 0.55); arrowPaint(root, 89, 103.5, Math.PI - 0.55);   // in from the road at the east end, out at the west end
+  }
   // customer side drives, one way each (Ahmed): the middle one (fire lane) in, the other two out
   DRIVES.side.slice(0, 3).forEach(([a, b], k) => {
     const m = (a + b) / 2, q = (b - a) / 4;
