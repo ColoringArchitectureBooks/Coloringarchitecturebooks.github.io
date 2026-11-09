@@ -411,19 +411,23 @@ const OPEN = (k, i) => { const [a, b] = DRIVES[k][i], [l, r] = FLARE[k][i]; retu
 const OPENS = (k) => DRIVES[k].map((_, i) => OPEN(k, i));
 const arcPts = (cx, cy, rx, ry, a0, a1, n = 10) => { const out = []; for (let i = 0; i <= n; i++) { const t = a0 + (a1 - a0) * i / n; out.push([cx + rx * Math.cos(t), cy + ry * Math.sin(t)]); } return out; };
 // soften a polygon's corners with small fillets (Ahmed: no sharp noses on the planting); corners on the plot's edge stay square
-function roundPoly(pts, r = 0.9) {
+function roundPoly(pts, r = 0.9, keep = () => false) {   // keep(P): leave that corner square
   const n = pts.length, out = [], onEdge = ([x, y]) => x <= PLOT.x0 + 0.01 || x >= PLOT.x1 - 0.01 || y <= PLOT.y0 + 0.01 || y >= PLOT.y1 - 0.01;
   for (let i = 0; i < n; i++) {
     const P = pts[i], A = pts[(i + n - 1) % n], B = pts[(i + 1) % n];
     const la = Math.hypot(A[0] - P[0], A[1] - P[1]), lb = Math.hypot(B[0] - P[0], B[1] - P[1]);
     const cross = (P[0] - A[0]) * (B[1] - P[1]) - (P[1] - A[1]) * (B[0] - P[0]);
-    if (onEdge(P) || la < 0.05 || lb < 0.05 || Math.abs(cross) < 1e-6 * la * lb) { out.push(P); continue; }
+    if (onEdge(P) || keep(P) || la < 0.05 || lb < 0.05 || Math.abs(cross) < 1e-6 * la * lb) { out.push(P); continue; }
     const d = Math.min(r, la / 2, lb / 2), p0 = [P[0] + (A[0] - P[0]) * d / la, P[1] + (A[1] - P[1]) * d / la], p1 = [P[0] + (B[0] - P[0]) * d / lb, P[1] + (B[1] - P[1]) * d / lb];
     for (let k = 0; k <= 6; k++) { const t = k / 6, u = 1 - t; out.push([u * u * p0[0] + 2 * u * t * P[0] + t * t * p1[0], u * u * p0[1] + 2 * u * t * P[1] + t * t * p1[1]]); }
   }
   return out;
 }
-const plantSlab = (root, pts, r) => slab(root, roundPoly(pts, r), 0, 0.15, M.plant);
+const plantSlab = (root, pts, r, keep) => slab(root, roundPoly(pts, r, keep), 0, 0.15, M.plant);
+// (Ahmed) an island at the end of a row: square (90 degrees) on the side that touches the stalls, rounded only where cars turn.
+// stall: the y edge(s) the stalls sit against ("y0", "y1" or "both")
+const island = (root, x0, x1, y0, y1, stall) => plantSlab(root, [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], 0.9,
+  ([, y]) => (stall !== "y1" && Math.abs(y - y0) < 0.01) || (stall !== "y0" && Math.abs(y - y1) < 0.01));
 const GATE_SLIDE = { front: [1, -1, 1], side: [-1, -1, 1, -1] };   // sliding gates (Ahmed): which way each one rolls open along the fence
 const FRONT_KIND = ["exit", "exit", "entry"];   // gaps in the fence, kerb and front planting
 const SRV = { w0: -12, w1: -4.7, b0: 110, b1: 117.3 };   // service road: west leg x w0..w1 (y -22.8..b1), back leg y b0..b1 (x w0..178)
@@ -639,28 +643,28 @@ function parking(root) {
       const cor = { half: bx === 73.2 ? -1 : bx === 104 ? 1 : -1, y0: ya + 10 * 2.7 };
       rowsAt(bx + 5.5, ya, yb, acc, cor);
       if (yb !== -26) tree(root, bx + 5.5, ya - 1.6, 5.5, 1.6);   // planted head by the street (part of the front planting, see site())
-      plantSlab(root, yb === -26 ? [[bx, -83], [bx + 11, -83], [bx + 11, -80.3], [bx, -80.3]] : [[bx, -93.7], [bx + 11, -93.7], [bx + 11, -91], [bx, -91]]);   // island at the cross aisle (Ahmed)
-      if (yb === -26) plantSlab(root, [[bx, yb], [bx + 11, yb], [bx + 11, yb + 3.2], [bx, yb + 3.2]]);   // planted head of the row, by the store
+      yb === -26 ? island(root, bx, bx + 11, -83, -80.3, "y1") : island(root, bx, bx + 11, -93.7, -91, "y0");   // island at the cross aisle (Ahmed)
+      if (yb === -26) island(root, bx, bx + 11, yb, yb + 3.2, "y0");   // planted head of the row, by the store
     }
   }
   // side lot: rows on the same lines as the front lot's (Ahmed): bay 122.3 east half only (its west half is the aisle by the store), 140.6, 158.9
   for (const bx of [122.3, 140.6, 158.9]) {
     rowsAt(bx + 5.5, -8.8, 64, null, { half: 1, y0: -8.8 + 12 * 2.7 }, bx === 122.3 ? 1 : 0);   // starts on the line of the end of the store sidewalk, y -12 (Ahmed)
     const x0 = bx === 122.3 ? bx + 5.5 : bx;
-    for (const [y0, y1] of [[-12, -8.8], [64, 67.2]]) plantSlab(root, [[x0, y0], [bx + 11, y0], [bx + 11, y1], [x0, y1]]);
+    for (const [y0, y1, st] of [[-12, -8.8, "y1"], [64, 67.2, "y0"]]) island(root, x0, bx + 11, y0, y1, st);
   }
   // single row along the east fence (plot widened 5 m for it), on the same lines as the blocks and the side lot
   for (const [ya, yb] of [[-80.3, -26], [-148, -93.7], [-8.8, 64]]) {
     for (let y = ya; y <= yb + 0.01; y += 2.7) lineAt(177.5, y, 183, y);
     lineAt(177.5, ya, 177.5, yb, 0.06);
   }
-  for (const [y0, y1] of [[-83, -80.3], [-93.7, -91], [-26, -22.8], [-12, -8.8], [64, 67.2]]) plantSlab(root, [[177.5, y0], [183, y0], [183, y1], [177.5, y1]]);
+  for (const [y0, y1, st] of [[-83, -80.3, "y1"], [-93.7, -91, "y0"], [-26, -22.8, "y0"], [-12, -8.8, "y1"], [64, 67.2, "y0"]]) island(root, 177.5, 183, y0, y1, st);
   // single row along the west fence, on the same lines as the blocks
   for (const [ya, yb] of [[-80.3, -26], [-148, -93.7]]) {
     for (let y = ya; y <= yb + 0.01; y += 2.7) lineAt(-14, y, -8.5, y);
     lineAt(-8.5, ya, -8.5, yb, 0.06);
   }
-  for (const [y0, y1] of [[-93.7, -80.3], [-26, -22.8]]) plantSlab(root, [[-14, y0], [-8.5, y0], [-8.5, y1], [-14, y1]]);
+  island(root, -14, -8.5, -93.7, -80.3, "both"); island(root, -14, -8.5, -26, -22.8, "y0");
   tree(root, -11.25, -87, 7, 2.2);   // the cross aisle ends on a planted island with a tree, not an empty corner (Ahmed)
   // the walk: from the front gate to the fire lane, cut where it crosses the cross aisle; zebra crossings on both crossings
   // curb ramps (ADA: 1:12, 1.8 m for the 0.15 m kerb, 1.2 m wide minimum, a band of truncated domes at the foot) at both ends
@@ -783,7 +787,7 @@ function site(root) {
       if (top > -145) tree(root, (h0 + h1) / 2, top - 2.7, 5.5, 1.6);
     }
     if (o0 - d0 > 0.01) pts.push(...arcPts(o0, -151.2, o0 - d0, 4.8, Math.PI, 1.5 * Math.PI).slice(0, -1)); else pts.push([a, -151.2]);
-    plantSlab(root, pts.filter((p, i) => i === 0 || Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) > 0.01));
+    plantSlab(root, pts.filter((p, i) => i === 0 || Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) > 0.01), 0.9, ([, y]) => y > -150);   // step tops touch the stalls: square
   }
   for (let x = -8; x < 183; x += 16) tree(root, x, -153.5, 8, 2.6);
   // planters along the front (page foreground) + small trees by the left corner
