@@ -443,7 +443,10 @@ const SIDE_KIND = ["exit", "entry", "exit"];   // (Ahmed) side street: in at the
 const SRV = { w0: -12, w1: -4.7, b0: 110, b1: 117.3 };   // service road: west leg x w0..w1 (y -22.8..b1), back leg y b0..b1 (x w0..178)
 const WALK = [92.1, 96.1];   // the walk to the entrance, on the entrance axis, with a gate in the front fence
 // (Ahmed) the store sidewalk runs straight along y -12, no bulge for a car to hit; curb ramps cut into it so carts roll down easily
-const CART_RAMPS = [[79.5, 81.9], [85, 87.4], WALK, [106.6, 109]];
+// (Ahmed) spread along the whole sidewalk, so whoever parked far away walks the sidewalk and steps down near their car:
+// one at the end of every aisle of the front lot (between the bollards near the door), and every 15 m along the side lot
+const CART_RAMPS = [...[14.65, 32.95, 51.25, 69.55].map((c) => [c - 0.9, c + 0.9]), [86.5, 88.3], WALK, [99.35, 101.15], [106.6, 108.4]];
+const CART_RAMPS_SIDE = [0, 15, 30, 45, 60].map((c) => [c - 0.9, c + 0.9]);   // on the side sidewalk's edge, x 118
 const minus = (a, b, gaps) => { const out = []; let s = a; for (const [g0, g1] of gaps) { if (g0 > s) out.push([s, g0]); s = g1; } if (b > s) out.push([s, b]); return out; };
 function segs(root, list) {   // thin black lines, same weight as the model's edges
   const pts = []; for (const [a, b] of list) pts.push(V(...a), V(...b));
@@ -562,6 +565,16 @@ function curbRamp(root, x0, x1, yFoot, yTop) {
   const d = Math.sign(yTop - yFoot), s = [];
   for (let k = 0; k < 4; k++) { const y = yFoot + d * (0.1 + k * 0.15), z = h * (0.1 + k * 0.15) / Math.abs(yTop - yFoot) + 0.01;
     for (let x = x0 + 0.15; x < x1 - 0.1; x += 0.2) s.push([[x - 0.04, y, z], [x + 0.04, y, z]]); }
+  segs(root, s);
+}
+// the same ramp on a kerb that runs along y: y0..y1 wide, from the road at xFoot up to the kerb top at xTop
+function curbRampX(root, y0, y1, xFoot, xTop) {
+  const h = 0.15;
+  root.add(quad(V(xFoot, y0, 0.001), V(xFoot, y1, 0.001), V(xTop, y1, h), V(xTop, y0, h), M.walk));
+  for (const y of [y0, y1]) tri(root, V(xFoot, y, 0), V(xTop, y, 0), V(xTop, y, h));
+  const d = Math.sign(xTop - xFoot), s = [];
+  for (let k = 0; k < 4; k++) { const x = xFoot + d * (0.1 + k * 0.15), z = h * (0.1 + k * 0.15) / Math.abs(xTop - xFoot) + 0.01;
+    for (let y = y0 + 0.15; y < y1 - 0.1; y += 0.2) s.push([[x, y - 0.04, z], [x, y + 0.04, z]]); }
   segs(root, s);
 }
 const TXT = {};
@@ -690,6 +703,7 @@ function parking(root) {
   curbRamp(root, WALK[0], WALK[1], -91, -92.8); curbRamp(root, WALK[0], WALK[1], -83, -81.2);
   curbRamp(root, WALK[0], WALK[1], -20, -21.8);
   for (const [x0, x1] of CART_RAMPS) curbRamp(root, x0, x1, -12, -10.2);
+  for (const [y0, y1] of CART_RAMPS_SIDE) curbRampX(root, y0, y1, 118, 116.2);
   for (const [y0, y1] of [[-91, -83], [-20, -12]]) for (let y = y0 + 0.4; y < y1 - 0.3; y += 1.0) flat(root, [[WALK[0] + 0.2, y], [WALK[1] - 0.2, y], [WALK[1] - 0.2, y + 0.5], [WALK[0] + 0.2, y + 0.5]], 0.02, M.line);
   evChargers(root); bikeRacks(root); orderPickup(root);
   solar(root);
@@ -777,7 +791,7 @@ function site(root) {
   streets(root);
   slab(root, [[82.7, 95.5], [93, 95.5], [93, 90.5], [118, 90.5], [118, SRV.b0], [82.7, SRV.b0]], 0, 0.03, M.concrete);   // dock apron, open to the service road
   // sidewalk following the stepped front, its edge straight along y -12 (Ahmed), notched for the curb ramps
-  slab(root, [[-4, 105], [-4, -12], ...CART_RAMPS.flatMap(([a, b]) => [[a, -12], [a, -10.2], [b, -10.2], [b, -12]]), [118, -12], [118, 90.5], [114, 90.5], [114, 3], [0, 3], [0, 105]], 0, 0.15, M.walk);   // one piece, no seam lines on the walk
+  slab(root, [[-4, 105], [-4, -12], ...CART_RAMPS.flatMap(([a, b]) => [[a, -12], [a, -10.2], [b, -10.2], [b, -12]]), [118, -12], ...CART_RAMPS_SIDE.flatMap(([a, b]) => [[118, a], [116.2, a], [116.2, b], [118, b]]), [118, 90.5], [114, 90.5], [114, 3], [0, 3], [0, 105]], 0, 0.15, M.walk);   // one piece, no seam lines on the walk
   // where the sidewalk meets the building: a thin line (same weight as the other edges), so walk and wall read apart in black and white (Ahmed)
   const foot = [[0, 105], [0, 3], [6.1, 3], [6.1, -3], [18.6, -3], [18.6, 0], [72.98, 0], [72.98, -5.5], [87.88, -5.5], [87.88, -8.1], [102.82, -8.1], [102.82, -5], [104.3, -5], [104.3, -5.3], [109.6, -5.3], [109.6, -5], [114, -5], [114, 90.5]];   // entrance piers and the circle panel included
   const n = foot.length;
