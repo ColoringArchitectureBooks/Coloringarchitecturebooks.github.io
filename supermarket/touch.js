@@ -12,8 +12,7 @@ export function mapTouch(controls, camera, canvas, scene) {
   // iPad Safari: keep the browser's own pinch and two-finger scroll off the model. When it takes a touch over it cancels
   // our pointers half way through a gesture, which feels like the view pushing back (Ahmed)
   for (const t of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(t, (e) => e.preventDefault(), { passive: false });
-  canvas.addEventListener("touchstart", (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
-  canvas.addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
+  // (two fingers are read from touch events below, which iPad Safari always delivers for multi-touch)
   const TILT = 1.6;                                          // two-finger up/down tilts a little faster than one finger, so a short drag reaches the bird's view
   const pts = new Map();                                     // pointerId -> {x, y}
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), up = new THREE.Vector3(0, 1, 0);
@@ -67,24 +66,25 @@ export function mapTouch(controls, camera, canvas, scene) {
     controls.autoRotate = false; document.getElementById("spin")?.setAttribute("aria-pressed", "false");
   }
 
-  canvas.addEventListener("pointerdown", (e) => {
-    if (pts.size === 0) { multi = false; cancelAnimationFrame(glide); glide = 0; }
-    if (e.pointerType !== "touch") return;
-    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pts.size === 2) { multi = true; start(); } else if (g) g = null;
-  });
+  // two fingers: read straight from touch events (iPad Safari/WebKit delivers these reliably for multi-touch; pointer events for
+  // the second finger were not always reaching this code on Ahmed's iPad, so a two-finger drag up/down did nothing)
+  const readTouches = (e) => { pts.clear(); for (const t of e.touches) pts.set(t.identifier, { x: t.clientX, y: t.clientY }); };
+  canvas.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 1) { multi = false; cancelAnimationFrame(glide); glide = 0; }
+    readTouches(e);
+    if (e.touches.length === 2) { e.preventDefault(); multi = true; start(); } else if (e.touches.length > 2) g = null;
+  }, { passive: false });
+  canvas.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    if (e.touches.length !== 2) return;
+    readTouches(e); if (g) g.moved = performance.now(); else start();
+    if (!raf) raf = requestAnimationFrame(apply);
+  }, { passive: false });
   const end = (e) => {
-    if (!pts.delete(e.pointerId)) return;
-    if (g && performance.now() - g.moved < 100) coast(g);   // fingers were still moving when lifted
-    g = null;
+    readTouches(e);
+    if (e.touches.length < 2 && g) { if (performance.now() - g.moved < 100) coast(g); g = null; }   // fingers were still moving when lifted: glide
   };
-  canvas.addEventListener("pointerup", end); canvas.addEventListener("pointercancel", end);
-
-  canvas.addEventListener("pointermove", (e) => {
-    if (!pts.has(e.pointerId)) return;
-    pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (g) g.moved = performance.now();
-    if (g && pts.size === 2 && !raf) raf = requestAnimationFrame(apply);   // each finger reports on its own; apply both together once a frame
-  });
+  canvas.addEventListener("touchend", end); canvas.addEventListener("touchcancel", end);
 
   function apply() {
     raf = 0;
