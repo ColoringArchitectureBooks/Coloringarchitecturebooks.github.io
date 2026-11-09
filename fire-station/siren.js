@@ -27,7 +27,17 @@ function hornBlast(t, len) {   // three brassy air-horn tones, a little out of t
   }
 }
 
+// iPhone: let the sound play even with the ring/silent switch on. Safari 17+ has audioSession;
+// older iPhones do the same once any <audio> element is playing, so a short silent clip loops quietly.
+function playThroughSilentSwitch() {
+  try { if (navigator.audioSession) { navigator.audioSession.type = "playback"; return; } } catch (e) {}
+  if (!/iPhone|iPad|iPod/.test(navigator.userAgent) || playThroughSilentSwitch.el) return;
+  const a = new Audio("data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=="); a.loop = true; a.setAttribute("playsinline", "");
+  playThroughSilentSwitch.el = a; a.play().catch(() => { playThroughSilentSwitch.el = null; });
+}
+
 export function sirenStart() {
+  playThroughSilentSwitch();
   ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
   ctx.resume();
   const t = ctx.currentTime; t0 = t; lastD = null; dop = 1;
