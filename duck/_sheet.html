@@ -1,0 +1,26 @@
+<meta charset="utf-8"><style>body{margin:0;background:#d9dbdf}</style>
+<canvas id="c" width="1600" height="960"></canvas>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+const { buildDuck } = await import("./duck.js?v=" + Date.now());
+const r = new THREE.WebGLRenderer({ canvas: document.getElementById("c"), antialias: true, preserveDrawingBuffer: true });
+r.outputColorSpace = THREE.SRGBColorSpace; r.setScissorTest(true);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xd9dbdf);
+scene.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.add(new THREE.HemisphereLight(0xffffff, 0xe0dccf, 1.1));
+const duck = buildDuck(); scene.add(duck);
+duck.userData.seamMaterial.resolution.set(1600, 960);
+const cam = new THREE.PerspectiveCamera(22, 400 / 480, 0.1, 100);
+const hl = new THREE.DirectionalLight(0xffffff, 1.1); hl.position.set(1.5, 3, 2); hl.target.position.set(0, 0, -6); cam.add(hl, hl.target); scene.add(cam);
+const V = [[0,0.15,1],[-0.6,0.18,0.8],[-1,0.12,0],[-0.75,0.15,-0.66],[0,0.15,-1],[0,1,0.0001],[0.7,0.55,0.75]];
+V.forEach((d, i) => {
+  const v = new THREE.Vector3(...d).normalize().multiplyScalar(8.2);
+  cam.up.set(0, 1, 0); if (i === 5) cam.up.set(0, 0, -1);
+  cam.position.copy(v).add(new THREE.Vector3(0, 1.4, 0)); cam.lookAt(0, 1.4, 0);
+  const x = (i % 4) * 400, y = 960 - 480 - Math.floor(i / 4) * 480;
+  r.setViewport(x, y, 400, 480); r.setScissor(x, y, 400, 480); r.render(scene, cam);
+});
+window.done = true;
+</script>

@@ -8,7 +8,7 @@ import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 import { ConvexGeometry } from "three/addons/geometries/ConvexGeometry.js";
 
-export const DUCK_COLORS = { body: 0xffd21f, beak: 0xff7a1c, eye: 0x111111, glint: 0xffffff, seam: 0x5a3d00 };
+export const DUCK_COLORS = { body: 0xffcc0a, beak: 0xf96b16, eye: 0x111111, glint: 0xffffff, seam: 0x5a3d00 };
 
 // The reference's facets: horizontal rings round each mass (about 14 facets round, 8 rings top to bottom),
 // every other ring turned half a facet so each band breaks into zig-zag triangles, with corners pushed in or
@@ -54,6 +54,10 @@ function trisToGeometry(P, T) {                       // non-indexed, every tria
   return g;
 }
 
+// shape settings, tuned view by view against the reference sheet
+const WING = { pos: [0.88, 0.92, 0.02], scale: [0.32, 0.5, 0.62], rot: [0.05, 0.1, 0.55] };
+const BEAK = { s: 0.92, top: [0, 1.88, 0.72], bot: [0, 1.73, 0.74], tilt: 0.26 };
+
 export function buildDuck(opts = {}) {
   const C = { ...DUCK_COLORS, ...(opts.colors || {}) };
   const mat = (color, rough) => new THREE.MeshStandardMaterial({
@@ -71,44 +75,47 @@ export function buildDuck(opts = {}) {
 
   // body: round, a little longer than wide, its back rising into a short upturned tail
   const body = add(lowSphere(18, 10, (v) => {
-    const t = Math.max(0, -v.z - 0.3) / 0.7;           // 0 from the middle forward, 1 at the very back
-    const up = Math.max(0, v.y + 0.1);
-    v.y += 1.0 * t * t * t * up;                        // a short pointed tail at the top of the back
-    v.z -= 0.2 * t * t * up;
+    const t = Math.max(0, -v.z - 0.5) / 0.5;          // 0 from the middle forward, 1 at the very back
+    const up = Math.max(0, v.y + 0.25);
+    const pear = 1 - 0.2 * Math.max(0, v.y) + 0.06 * Math.max(0, -v.y);   // narrower shoulders, fuller bottom
+    v.x *= pear; v.z *= pear;
+    v.x *= 1 - 0.4 * t;                             // seen from above the back narrows to the tail
+    v.y += 0.95 * t * t * up;                        // and its top rises into a short point
+    v.z -= 0.38 * t * t * up;
     v.y = Math.max(v.y, -0.93);                          // small flat spot underneath to sit on
-  }, 2), yellow, [0, 0.76, -0.04], [0.98, 0.8, 1.04], null, "body");
+  }, 2), yellow, [0, 0.8, -0.06], [1.06, 0.88, 1.02], null, "body");
 
   // head: a big round ball, slightly wider than deep, sitting straight on top
-  const head = add(lowSphere(16, 10, null, 3), yellow, [0, 1.99, 0.08], [0.98, 0.83, 0.86], null, "head");
+  const head = add(lowSphere(16, 9, null, 3), yellow, [0, 2.0, 0.1], [0.93, 0.88, 0.86], null, "head");
 
-  // wings: thick round paddles on the sides with a flat top face, like a half-moon from the side
-  const wingGeo = lowSphere(10, 6, (v) => { v.y = Math.min(v.y, 0.35); }, 5, 0.02);
-  const wingL = add(wingGeo, yellow, [0.88, 0.86, -0.04], [0.3, 0.42, 0.66], [0.1, 0.12, -0.45], "wingL");
-  const wingR = add(wingGeo, yellow, [-0.88, 0.86, -0.04], [0.3, 0.42, 0.66], [0.1, -0.12, 0.45], "wingR");
+  // wings: thick half-moon paddles with a flat top face, hung from the shoulders and leaning out at the bottom
+  const wingGeo = lowSphere(12, 7, (v) => { v.y = Math.min(v.y, 0.4); }, 5, 0.02);
+  const wingL = add(wingGeo, yellow, WING.pos, WING.scale, WING.rot, "wingL");
+  const wingR = add(wingGeo, yellow, [-WING.pos[0], WING.pos[1], WING.pos[2]], WING.scale, [WING.rot[0], -WING.rot[1], -WING.rot[2]], "wingR");
 
-  // beak: a wide flat bill, narrow at the face and spreading to a squared tip, with a soft ridge on top
-  // and a slight droop; under it a smaller lower lip so the mouth line shows. Both are hulls of a few points.
-  const hull = (pts) => new ConvexGeometry(pts.map(([x, y, z]) => new THREE.Vector3(x, y, z)));
+  // beak: a wide thick bill, narrow at the face and spreading to a squared tip, with a ridge on top and a
+  // slight droop; under it a smaller lower lip so the mouth line shows. Both are hulls of a few points.
+  const hull = (pts) => new ConvexGeometry(pts.map(([x, y, z]) => new THREE.Vector3(x * BEAK.s, y * BEAK.s, z * BEAK.s)));
   const bill = [];
-  for (const [z, w, yb, yt, ridge] of [[0, 0.28, -0.11, 0.12, 0.11], [0.26, 0.42, -0.1, 0.12, 0.09], [0.44, 0.5, -0.09, 0.07, 0.03], [0.53, 0.43, -0.08, 0.03, 0.01]]) {
+  for (const [z, w, yb, yt, ridge] of [[0, 0.3, -0.12, 0.15, 0.16], [0.24, 0.42, -0.11, 0.14, 0.13], [0.42, 0.5, -0.1, 0.08, 0.04], [0.52, 0.44, -0.09, 0.03, 0.01]]) {
     bill.push([-w, yb, z], [w, yb, z], [-w * 0.92, yt, z], [w * 0.92, yt, z], [0, yt + ridge, z]);
   }
-  const beakTop = add(hull(bill), orange, [0, 1.8, 0.74], null, [0.18, 0, 0], "beakTop");
+  const beakTop = add(hull(bill), orange, BEAK.top, null, [BEAK.tilt, 0, 0], "beakTop");
   const lip = [];
-  for (const [z, w, yb, yt] of [[0, 0.24, -0.07, 0.05], [0.24, 0.33, -0.08, 0.04], [0.38, 0.25, -0.06, 0.03]]) {
-    lip.push([-w, yb, z], [w, yb, z], [-w * 0.8, yt, z], [w * 0.8, yt, z], [0, yb - 0.025, z]);
+  for (const [z, w, yb, yt] of [[0, 0.26, -0.08, 0.05], [0.22, 0.34, -0.09, 0.04], [0.36, 0.26, -0.07, 0.03]]) {
+    lip.push([-w, yb, z], [w, yb, z], [-w * 0.8, yt, z], [w * 0.8, yt, z], [0, yb - 0.03, z]);
   }
-  const beakBot = add(hull(lip), orange, [0, 1.63, 0.76], null, [0.05, 0, 0], "beakBot");
+  const beakBot = add(hull(lip), orange, BEAK.bot, null, [0.08, 0, 0], "beakBot");
 
   // eyes: shiny black buttons with a white glint
   const eyeGeo = new THREE.SphereGeometry(1, 14, 10);
   const eyeMat = new THREE.MeshStandardMaterial({ color: C.eye, roughness: 0.15 });
   const glintMat = new THREE.MeshBasicMaterial({ color: C.glint });
   for (const s of [1, -1]) {
-    const dir = new THREE.Vector3(0.5 * s, 0.05, 0.86).normalize();
+    const dir = new THREE.Vector3(0.5 * s, 0.1, 0.86).normalize();
     const e = new THREE.Mesh(eyeGeo, eyeMat); e.name = "eye";
     e.position.copy(head.position).add(dir.clone().multiply(head.scale).multiplyScalar(0.985));
-    e.scale.set(0.11, 0.145, 0.06); e.lookAt(e.position.clone().add(dir)); duck.add(e);
+    e.scale.set(0.12, 0.16, 0.06); e.lookAt(e.position.clone().add(dir)); duck.add(e);
     const gl = new THREE.Mesh(eyeGeo, glintMat); gl.name = "glint";
     gl.position.set(0.35, 0.4, 0.75); gl.scale.setScalar(0.28); e.add(gl);
   }

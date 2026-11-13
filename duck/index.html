@@ -47,7 +47,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { mapTouch } from "./touch.js?v=1";
-import { buildDuck } from "./duck.js?v=3";
+import { buildDuck } from "./duck.js?v=4";
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -63,7 +63,7 @@ controls.maxPolarAngle = Math.PI / 2 - 0.03; controls.autoRotate = true; control
 
 scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;   // soft studio light like the reference
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0xd8d2c4, 0.6));
+scene.add(new THREE.HemisphereLight(0xffffff, 0xe0dccf, 1.1));
 const head = new THREE.DirectionalLight(0xffffff, 1.1);    // a light that follows the camera, so every side looks lit like the reference
 head.position.set(1.5, 3, 2); head.target.position.set(0, 0, -6); camera.add(head, head.target); scene.add(camera);
 const sun = new THREE.DirectionalLight(0xffffff, 0.35); sun.position.set(4, 8, 6); sun.castShadow = true;
