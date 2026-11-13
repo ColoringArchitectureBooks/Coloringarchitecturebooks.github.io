@@ -6,75 +6,109 @@ import * as THREE from "three";
 import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
+import { ConvexGeometry } from "three/addons/geometries/ConvexGeometry.js";
 
 export const DUCK_COLORS = { body: 0xffd21f, beak: 0xff7a1c, eye: 0x111111, glint: 0xffffff, seam: 0x5a3d00 };
 
-// a faceted sphere, optionally reshaped point by point
-// detail sets how many triangles: like the reference, an icosphere cut into even triangles (not the
-// stripes of a latitude/longitude sphere), each pushed in or out a little so the facets are not too regular
-function blob(detail, shape, seed = 1) {
-  const g = new THREE.IcosahedronGeometry(1, detail);
-  const p0 = g.attributes.position, key = (x, y, z) => `${x.toFixed(4)},${y.toFixed(4)},${z.toFixed(4)}`, jit = new Map();
+// The reference's facets: horizontal rings round each mass (about 14 facets round, 8 rings top to bottom),
+// every other ring turned half a facet so each band breaks into zig-zag triangles, with corners pushed in or
+// out a touch so it does not look machine-made.
+function lowSphere(segs, rings, shape, seed = 1, jitter = 0.03) {
   let r = seed * 9301 + 49297;
-  const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280; };
-  for (let i = 0; i < p0.count; i++) {                // same jitter for the shared corners so the surface stays closed
-    const k = key(p0.getX(i), p0.getY(i), p0.getZ(i));
-    if (!jit.has(k)) jit.set(k, 1 + (rnd() - 0.5) * 0.035);
-    const f = jit.get(k); p0.setXYZ(i, p0.getX(i) * f, p0.getY(i) * f, p0.getZ(i) * f);
+  const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280 - 0.5; };
+  const P = [], ringIdx = [];
+  P.push(new THREE.Vector3(0, 1, 0));
+  for (let i = 1; i < rings; i++) {
+    const phi = Math.PI * i / rings, off = (i % 2) * 0.12, row = [];   // a small shift per band, so each quad breaks on a slanted edge
+    for (let j = 0; j < segs; j++) {
+      const th = 2 * Math.PI * (j + off + rnd() * 0.22) / segs, ph = phi + rnd() * 0.12 / rings;
+      const f = 1 + rnd() * jitter;
+      row.push(P.length); P.push(new THREE.Vector3(Math.sin(ph) * Math.sin(th) * f, Math.cos(ph) * f, Math.sin(ph) * Math.cos(th) * f));
+    }
+    ringIdx.push(row);
   }
-  if (shape) {
-    const p = g.attributes.position, v = new THREE.Vector3();
-    for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); shape(v); p.setXYZ(i, v.x, v.y, v.z); }
+  P.push(new THREE.Vector3(0, -1, 0));
+  if (shape) for (const v of P) shape(v);
+  const T = [], top = 0, bot = P.length - 1, n = segs;
+  const first = ringIdx[0], last = ringIdx[ringIdx.length - 1];
+  for (let j = 0; j < n; j++) { T.push([top, first[j], first[(j + 1) % n]]); T.push([bot, last[j], last[(j + 1) % n]]); }
+  for (let i = 0; i < ringIdx.length - 1; i++) {
+    const A = ringIdx[i], B = ringIdx[i + 1], aOff = (i + 1) % 2;       // ring i+1 (A) offset when (i+1) odd
+    for (let j = 0; j < n; j++) {
+      if (aOff) { T.push([A[j], B[(j + 1) % n], B[j]]); T.push([A[j], A[(j + 1) % n], B[(j + 1) % n]]); }
+      else { T.push([A[j], A[(j + 1) % n], B[j]]); T.push([A[(j + 1) % n], B[(j + 1) % n], B[j]]); }
+    }
   }
-  g.computeVertexNormals();
+  return trisToGeometry(P, T);
+}
+function trisToGeometry(P, T) {                       // non-indexed, every triangle wound to face outward
+  const c = new THREE.Vector3(); for (const v of P) c.add(v); c.divideScalar(P.length);
+  const pos = [], e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), nrm = new THREE.Vector3(), m = new THREE.Vector3();
+  for (let [a, b, d] of T) {
+    e1.subVectors(P[b], P[a]); e2.subVectors(P[d], P[a]); nrm.crossVectors(e1, e2);
+    m.copy(P[a]).add(P[b]).add(P[d]).divideScalar(3).sub(c);
+    if (nrm.dot(m) < 0) [b, d] = [d, b];
+    for (const k of [a, b, d]) pos.push(P[k].x, P[k].y, P[k].z);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
   return g;
 }
 
 export function buildDuck(opts = {}) {
   const C = { ...DUCK_COLORS, ...(opts.colors || {}) };
-  const mat = (color, rough = 0.38) => new THREE.MeshStandardMaterial({
+  const mat = (color, rough) => new THREE.MeshStandardMaterial({
     color, roughness: rough, metalness: 0, flatShading: true,
     polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,   // lets the seam lines sit on top cleanly
   });
-  const yellow = mat(C.body, 0.32), orange = mat(C.beak, 0.45);
+  const yellow = mat(C.body, 0.42), orange = mat(C.beak, 0.5);
   const duck = new THREE.Group(); duck.name = "duck";
   const add = (geo, m, pos, scale, rot, name) => {
     const mesh = new THREE.Mesh(geo, m); mesh.name = name;
     mesh.position.set(...pos); if (scale) mesh.scale.set(...scale); if (rot) mesh.rotation.set(...rot);
     mesh.castShadow = true; mesh.receiveShadow = true; duck.add(mesh); return mesh;
   };
+  // sizes read off the reference sheet: duck 2.8 tall, head about 55% of it and as wide as the body
 
-  // body: a wide round bath-toy body, flat underneath, with the tail swept up at the back
-  const body = add(blob(4, (v) => {
-    const t = Math.max(0, -v.z);                       // 0 at the middle, 1 at the very back
-    v.y += 1.15 * t * t * t * Math.max(0, v.y + 0.3);     // lift the back of the upper half into a tail
-    v.z -= 0.12 * t * t;                               // and draw it out a little
-    v.y = Math.max(v.y, -0.78);                        // flat base so it sits on the ground
-  }, 2), yellow, [0, 0.8, -0.05], [1.0, 0.82, 1.12], null, "body");
-  body.position.y = 0.82 * 0.78;                       // base on y = 0
+  // body: round, a little longer than wide, its back rising into a short upturned tail
+  const body = add(lowSphere(18, 10, (v) => {
+    const t = Math.max(0, -v.z - 0.3) / 0.7;           // 0 from the middle forward, 1 at the very back
+    const up = Math.max(0, v.y + 0.1);
+    v.y += 1.0 * t * t * t * up;                        // a short pointed tail at the top of the back
+    v.z -= 0.2 * t * t * up;
+    v.y = Math.max(v.y, -0.93);                          // small flat spot underneath to sit on
+  }, 2), yellow, [0, 0.76, -0.04], [0.98, 0.8, 1.04], null, "body");
 
-  // head: a big round ball sitting forward on the body
-  const head = add(blob(4, null, 3), yellow, [0, 2.0, 0.32], [0.8, 0.78, 0.8], null, "head");
+  // head: a big round ball, slightly wider than deep, sitting straight on top
+  const head = add(lowSphere(16, 10, null, 3), yellow, [0, 1.99, 0.08], [0.98, 0.83, 0.86], null, "head");
 
-  // wings: flat round paddles on the sides, tip pointing down and back
-  const wingGeo = blob(2, null, 5);
-  const wingL = add(wingGeo, yellow, [0.93, 0.8, -0.05], [0.2, 0.42, 0.6], [-0.28, 0.12, 0.2], "wingL");
-  const wingR = add(wingGeo, yellow, [-0.93, 0.8, -0.05], [0.2, 0.42, 0.6], [-0.28, -0.12, -0.2], "wingR");
+  // wings: thick round paddles on the sides with a flat top face, like a half-moon from the side
+  const wingGeo = lowSphere(10, 6, (v) => { v.y = Math.min(v.y, 0.35); }, 5, 0.02);
+  const wingL = add(wingGeo, yellow, [0.88, 0.86, -0.04], [0.3, 0.42, 0.66], [0.1, 0.12, -0.45], "wingL");
+  const wingR = add(wingGeo, yellow, [-0.88, 0.86, -0.04], [0.3, 0.42, 0.66], [0.1, -0.12, 0.45], "wingR");
 
-  // beak: a flat upper bill over a smaller lower bill, so the mouth line shows
-  const beakTop = add(blob(2, (v) => { v.x *= 1 - 0.25 * Math.max(0, v.z); }, 7),
-    orange, [0, 1.86, 1.02], [0.42, 0.14, 0.44], [-0.12, 0, 0], "beakTop");
-  const beakBot = add(blob(1, null, 11), orange, [0, 1.74, 0.96], [0.32, 0.1, 0.33], [0.1, 0, 0], "beakBot");
+  // beak: a wide flat bill, narrow at the face and spreading to a squared tip, with a soft ridge on top
+  // and a slight droop; under it a smaller lower lip so the mouth line shows. Both are hulls of a few points.
+  const hull = (pts) => new ConvexGeometry(pts.map(([x, y, z]) => new THREE.Vector3(x, y, z)));
+  const bill = [];
+  for (const [z, w, yb, yt, ridge] of [[0, 0.28, -0.11, 0.12, 0.11], [0.26, 0.42, -0.1, 0.12, 0.09], [0.44, 0.5, -0.09, 0.07, 0.03], [0.53, 0.43, -0.08, 0.03, 0.01]]) {
+    bill.push([-w, yb, z], [w, yb, z], [-w * 0.92, yt, z], [w * 0.92, yt, z], [0, yt + ridge, z]);
+  }
+  const beakTop = add(hull(bill), orange, [0, 1.8, 0.74], null, [0.18, 0, 0], "beakTop");
+  const lip = [];
+  for (const [z, w, yb, yt] of [[0, 0.24, -0.07, 0.05], [0.24, 0.33, -0.08, 0.04], [0.38, 0.25, -0.06, 0.03]]) {
+    lip.push([-w, yb, z], [w, yb, z], [-w * 0.8, yt, z], [w * 0.8, yt, z], [0, yb - 0.025, z]);
+  }
+  const beakBot = add(hull(lip), orange, [0, 1.63, 0.76], null, [0.05, 0, 0], "beakBot");
 
   // eyes: shiny black buttons with a white glint
-  const eyeGeo = new THREE.SphereGeometry(1, 12, 8);
+  const eyeGeo = new THREE.SphereGeometry(1, 14, 10);
   const eyeMat = new THREE.MeshStandardMaterial({ color: C.eye, roughness: 0.15 });
   const glintMat = new THREE.MeshBasicMaterial({ color: C.glint });
   for (const s of [1, -1]) {
-    const dir = new THREE.Vector3(0.43 * s, 0.24, 0.87).normalize();
+    const dir = new THREE.Vector3(0.5 * s, 0.05, 0.86).normalize();
     const e = new THREE.Mesh(eyeGeo, eyeMat); e.name = "eye";
     e.position.copy(head.position).add(dir.clone().multiply(head.scale).multiplyScalar(0.985));
-    e.scale.set(0.095, 0.12, 0.06); e.lookAt(e.position.clone().add(dir)); duck.add(e);
+    e.scale.set(0.11, 0.145, 0.06); e.lookAt(e.position.clone().add(dir)); duck.add(e);
     const gl = new THREE.Mesh(eyeGeo, glintMat); gl.name = "glint";
     gl.position.set(0.35, 0.4, 0.75); gl.scale.setScalar(0.28); e.add(gl);
   }
