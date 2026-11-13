@@ -1,0 +1,122 @@
+<meta charset="utf-8">
+<title>Rubber Duck 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Single look on purpose: the soft studio grey of Ahmed's reference sheet, so the yellow reads the same. */
+  :root { --bg:#d9dbdf; --ink:#2b2410; --muted:#5d5a52; --chip:#f6f5f1; --accent:#ffd21f; color-scheme: light; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family: "Baloo Bhaijaan 2", system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif; }
+  html, body { touch-action:none; overscroll-behavior:none; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  header { position:fixed; top:0; left:0; right:0; pointer-events:none;
+    padding-top:max(14px, env(safe-area-inset-top, 0px));
+    padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
+  h1 { margin:0; font-size:20px; font-weight:700; }
+  .sub { margin-top:2px; font-size:14px; color:var(--muted); }
+  .bar { position:fixed; left:0; right:0; bottom:max(16px, env(safe-area-inset-bottom, 0px));
+    padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px));
+    display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+  button { font:inherit; font-size:15px; border:1.5px solid var(--ink); background:var(--chip); color:var(--ink);
+    border-radius:999px; padding:7px 16px; cursor:pointer; white-space:nowrap; }
+  button:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+  button[aria-pressed="true"] { background:var(--ink); color:var(--accent); }
+  #status { position:fixed; inset:0; display:grid; place-items:center; font-size:16px; color:var(--muted); }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@500;700&display=swap">
+
+<canvas id="c" aria-label="Rubber duck 3D model"></canvas>
+<header dir="rtl">
+  <h1>البطة · Rubber Duck</h1>
+  <div class="sub">لفّها بصباع واحد أو اتنين، قرّب بالقرص، والمس البطة تعمل كواك</div>
+</header>
+<div id="status">Loading the duck…</div>
+<div class="bar" dir="rtl">
+  <button id="v-front">قدّام</button>
+  <button id="v-side">جنب</button>
+  <button id="v-back">ورا</button>
+  <button id="v-top">فوق</button>
+  <button id="spin" aria-pressed="true">لف</button>
+  <button id="seams" aria-pressed="true">خطوط التقاطع</button>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { mapTouch } from "./touch.js?v=1";
+import { buildDuck } from "./duck.js?v=1";
+
+const canvas = document.getElementById("c");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xd9dbdf);
+const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 200);
+const controls = new OrbitControls(camera, canvas);
+const touch = mapTouch(controls, camera, canvas, scene);
+controls.enableDamping = true; controls.minDistance = 3; controls.maxDistance = 30;
+controls.maxPolarAngle = Math.PI / 2 - 0.03; controls.autoRotate = true; controls.autoRotateSpeed = 1.6;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb9b4a6, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(4, 8, 6); sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4 }); scene.add(sun);
+const fill = new THREE.DirectionalLight(0xfff4d6, 1.3); fill.position.set(-5, 3, -4); scene.add(fill);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.ShadowMaterial({ opacity: 0.16 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+let duck;
+try { duck = buildDuck(); scene.add(duck); document.getElementById("status").remove(); }
+catch (e) { document.getElementById("status").textContent = "Couldn't build the duck. Please refresh the page."; console.error(e); }
+
+const T = new THREE.Vector3(0, 1.35, 0);
+const VIEWS = { front: [2.2, 2.6, 8.2], side: [8.6, 2.2, 0.4], back: [-2.4, 2.8, -8.2], top: [0.01, 9.5, 0.6] };
+function setView(eye) { touch.stop(); camera.position.set(...eye); controls.target.copy(T); controls.update(); }
+setView(VIEWS.front);
+for (const k of Object.keys(VIEWS)) document.getElementById("v-" + k).onclick = () => setView(VIEWS[k]);
+const spinBtn = document.getElementById("spin");
+const setSpin = (on) => { controls.autoRotate = on; spinBtn.setAttribute("aria-pressed", on); };
+spinBtn.onclick = () => setSpin(!controls.autoRotate);
+canvas.addEventListener("pointerdown", () => setSpin(false));
+const seamBtn = document.getElementById("seams");
+seamBtn.onclick = () => { const s = duck?.getObjectByName("seams"); if (!s) return; s.visible = !s.visible; seamBtn.setAttribute("aria-pressed", s.visible); };
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.8 ? 52 : 35; camera.updateProjectionMatrix();
+  duck?.userData.seamMaterial.resolution.set(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
+}
+window.addEventListener("resize", resize); resize();
+
+// tap the duck: quack and hop (a preview of finding one in the game)
+let actx, hop = 0;
+function quack() {
+  try {
+    actx ||= new (window.AudioContext || window.webkitAudioContext)();
+    const t = actx.currentTime, o = actx.createOscillator(), f = actx.createBiquadFilter(), g = actx.createGain();
+    o.type = "sawtooth"; o.frequency.setValueAtTime(520, t); o.frequency.exponentialRampToValueAtTime(260, t + 0.22);
+    f.type = "bandpass"; f.frequency.value = 1100; f.Q.value = 3;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.26);
+    o.connect(f).connect(g).connect(actx.destination); o.start(t); o.stop(t + 0.3);
+  } catch (e) {}
+}
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
+canvas.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+canvas.addEventListener("pointerup", (e) => {
+  if (!down || touch.active() || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8 || performance.now() - down.t > 400) return;
+  const r = canvas.getBoundingClientRect();
+  ndc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(ndc, camera);
+  if (duck && ray.intersectObject(duck, true).length) { quack(); hop = performance.now(); }
+});
+
+renderer.setAnimationLoop(() => {
+  if (duck) {
+    const k = (performance.now() - hop) / 450;
+    duck.position.y = k < 1 ? Math.sin(Math.PI * k) * 0.45 : 0;
+    duck.rotation.y = k < 1 ? Math.sin(Math.PI * k) * 0.35 : 0;
+  }
+  controls.update(); renderer.render(scene, camera);
+});
+</script>
