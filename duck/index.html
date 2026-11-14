@@ -37,6 +37,7 @@
   <button id="v-top">فوق</button>
   <button id="spin" aria-pressed="true">لف</button>
   <button id="seams" aria-pressed="true">خطوط التقاطع</button>
+  <button id="found">لقيتها!</button>
 </div>
 
 <script type="importmap">
@@ -47,7 +48,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { mapTouch } from "./touch.js?v=1";
-import { buildDuck } from "./duck.js?v=4";
+import { buildDuck } from "./duck.js?v=5";
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -95,9 +96,9 @@ function resize() {
 }
 window.addEventListener("resize", resize); resize();
 
-// tap the duck: quack and hop (a preview of finding one in the game)
-let actx, hop = 0;
-function quack() {
+// moves from the brief: idle bob and rock, quack (beak opens, squash and stretch), found (hop with a spin)
+let actx, quackAt = -1e9, foundAt = -1e9;
+function quackSound() {
   try {
     actx ||= new (window.AudioContext || window.webkitAudioContext)();
     const t = actx.currentTime, o = actx.createOscillator(), f = actx.createBiquadFilter(), g = actx.createGain();
@@ -107,20 +108,31 @@ function quack() {
     o.connect(f).connect(g).connect(actx.destination); o.start(t); o.stop(t + 0.3);
   } catch (e) {}
 }
+const quack = () => { quackSound(); quackAt = performance.now(); };
+document.getElementById("found").onclick = () => { quackSound(); foundAt = performance.now(); };
+
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
 canvas.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; });
 canvas.addEventListener("pointerup", (e) => {
   if (!down || touch.active() || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8 || performance.now() - down.t > 400) return;
   const r = canvas.getBoundingClientRect();
   ndc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); ray.setFromCamera(ndc, camera);
-  if (duck && ray.intersectObject(duck, true).length) { quack(); hop = performance.now(); }
+  if (duck && ray.intersectObject(duck, true).length) quack();
 });
 
-renderer.setAnimationLoop(() => {
+const H = 2.8, lower = duck?.getObjectByName("beak_lower");
+const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+renderer.setAnimationLoop((now) => {
   if (duck) {
-    const k = (performance.now() - hop) / 450;
-    duck.position.y = k < 1 ? Math.sin(Math.PI * k) * 0.45 : 0;
-    duck.rotation.y = k < 1 ? Math.sin(Math.PI * k) * 0.35 : 0;
+    const t = now / 1000, idle = still ? 0 : 1;
+    let y = idle * 0.03 * H * 0.5 * (1 - Math.cos(Math.PI * t)), rz = idle * THREE.MathUtils.degToRad(4) * Math.sin(Math.PI * t), ry = 0, sy = 1;
+    const q = (now - quackAt) / 400;                          // quack: 0.4 s
+    if (q >= 0 && q < 1) { const w = Math.sin(Math.PI * q); sy = 1 - 0.1 * Math.sin(2 * Math.PI * q); if (lower) lower.rotation.x = lower.userData.restX + THREE.MathUtils.degToRad(15) * w; }
+    else if (lower) lower.rotation.x = lower.userData.restX;
+    const f = (now - foundAt) / 600;                          // found: 0.6 s
+    if (f >= 0 && f < 1) { y += 0.25 * H * Math.sin(Math.PI * f); ry = 2 * Math.PI * (f * f * (3 - 2 * f)); }
+    duck.position.y = y; duck.rotation.set(0, ry, rz);
+    duck.scale.set(1 / Math.sqrt(sy), sy, 1 / Math.sqrt(sy));
   }
   controls.update(); renderer.render(scene, camera);
 });

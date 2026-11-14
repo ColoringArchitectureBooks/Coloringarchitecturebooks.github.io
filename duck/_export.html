@@ -1,0 +1,16 @@
+<meta charset="utf-8">
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+// Exports the duck as duck.glb: 10 cm tall, origin at the centre of the base, +Z forward, Y up, named parts.
+import * as THREE from "three";
+import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
+const { buildDuck } = await import("./duck.js?v=" + Date.now());
+const duck = buildDuck(); duck.remove(duck.getObjectByName("seams"));
+const box = new THREE.Box3().setFromObject(duck), root = new THREE.Group(); root.name = "rubber_duck";
+const k = 0.1 / (box.max.y - box.min.y); root.scale.setScalar(k); root.add(duck);
+duck.traverse((o) => { if (o.material) { o.material = o.material.clone(); o.material.polygonOffset = false; } });
+new GLTFExporter().parse(root, (buf) => {
+  const b = new Uint8Array(buf); let s = ""; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+  window.glb = btoa(s); window.size = { h: (box.max.y - box.min.y) * k, w: (box.max.x - box.min.x) * k, d: (box.max.z - box.min.z) * k };
+}, (e) => { window.glbErr = String(e); }, { binary: true });
+</script>
