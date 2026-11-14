@@ -56,7 +56,7 @@ function trisToGeometry(P, T) {                       // non-indexed, every tria
 
 // shape settings, tuned view by view against the reference sheet
 const WING = { pos: [0.88, 0.92, 0.02], scale: [0.32, 0.5, 0.62], rot: [0.05, 0.1, 0.55] };
-const BEAK = { at: [0, 1.71, 0.83], w: 0.95 };
+const BEAK = { at: [0, 1.69, 0.9] };
 
 export function buildDuck(opts = {}) {
   const C = { ...DUCK_COLORS, ...(opts.colors || {}) };
@@ -93,22 +93,33 @@ export function buildDuck(opts = {}) {
   const wingL = add(wingGeo, yellow, WING.pos, WING.scale, WING.rot, "wing_L");
   const wingR = add(wingGeo, yellow, [-WING.pos[0], WING.pos[1], WING.pos[2]], WING.scale, [WING.rot[0], -WING.rot[1], -WING.rot[2]], "wing_R");
 
-  // beak, measured off the reference (front and side close-ups), with y = 0 on the mouth line at the face:
-  // the upper bill is as wide as the eyes are apart, its ridge starts just under the eyes and slopes down
-  // about 20 degrees to a short, almost vertical tip with chamfered corners (a shield from above);
-  // the lower bill is a darker wedge tucked under and behind it, deepest in the middle so it reads as a smile.
+  // beak, measured in pixels off the reference's front, side and top views (eye height E = 0.30 is the unit),
+  // with y = 0 on the mouth line where the bill leaves the face and z = 0 at the face:
+  //  - front: as wide as the eyes are apart (3.2 E) at the bottom, rising to a narrow flat top (1.15 E) that starts
+  //    level with the eye centres, so it reads as a low roof / trapezoid; upper bill 1.27 E tall, lower lip 0.68 E
+  //  - top: the same width from the face to about half way, then the corners are cut at 45 degrees to a narrow
+  //    flat tip (a shield / home-plate shape, NOT wider at the tip); it sticks out 1.8 E from the face
+  //  - side: the top drops from 0.40 at the face to 0.22 at the tip; the tip edge is upright, 0.15 tall, and its
+  //    underside lifts a little off the mouth line; the darker lower bill is shorter (1.1 E) and tucked under
   const hull = (pts) => new ConvexGeometry(pts.map(([x, y, z]) => new THREE.Vector3(x, y, z)));
   const bill = [];
-  for (let [z, w, yt, ridge] of [[-0.12, 0.26, 0.32, 0.38], [0.14, 0.38, 0.27, 0.31], [0.34, 0.46, 0.2, 0.23], [0.46, 0.44, 0.16, 0.17], [0.53, 0.33, 0.14, 0.14]]) {
-    w *= BEAK.w; bill.push([-w, 0.03, z], [w, 0.03, z], [-w * 0.6, 0, z], [w * 0.6, 0, z], [-w * 0.93, yt, z], [w * 0.93, yt, z], [0, ridge, z]);
+  //            z     bottom half-w  bottom y  side half-w  side y  top half-w  top y
+  for (const [z, wb, yb, ws, ys, wt, yt] of [
+    [-0.2, 0.37, 0.0, 0.35, 0.08, 0.15, 0.41],
+    [0.0, 0.44, 0.0, 0.42, 0.08, 0.16, 0.38],
+    [0.26, 0.44, 0.03, 0.41, 0.1, 0.18, 0.3],
+    [0.4, 0.33, 0.05, 0.31, 0.11, 0.17, 0.26],
+    [0.54, 0.19, 0.07, 0.18, 0.12, 0.12, 0.22]]) {
+    bill.push([-wb, yb, z], [wb, yb, z], [-ws, ys, z], [ws, ys, z], [-wt, yt, z], [wt, yt, z]);
   }
   const beakTop = add(hull(bill), orange, BEAK.at, null, null, "beak_upper");
   const lip = [];
-  for (let [z, w, dep] of [[-0.12, 0.25, 0.18], [0.1, 0.34, 0.2], [0.3, 0.32, 0.15], [0.42, 0.22, 0.08]]) {
-    w *= BEAK.w; lip.push([-w, 0, z], [w, 0, z], [-w * 0.85, -dep * 0.55, z], [w * 0.85, -dep * 0.55, z], [-w * 0.45, -dep * 0.92, z], [w * 0.45, -dep * 0.92, z], [0, -dep, z]);
+  //            z     half-w  depth in the middle
+  for (const [z, w, dep] of [[-0.18, 0.28, 0.15], [0.04, 0.33, 0.17], [0.22, 0.28, 0.12], [0.34, 0.15, 0.04]]) {
+    lip.push([-w, 0, z], [w, 0, z], [-w * 0.8, -dep * 0.45, z], [w * 0.8, -dep * 0.45, z], [-w * 0.4, -dep * 0.9, z], [w * 0.4, -dep * 0.9, z], [0, -dep, z]);
   }
   const beakBot = add(hull(lip), orangeDark, BEAK.at, null, null, "beak_lower");   // pivots on the mouth line, so it can open to quack
-  beakBot.position.y -= 0.005; beakBot.userData.restX = 0;
+  beakBot.position.y -= 0.004; beakBot.userData.restX = 0;
 
   // eyes: shiny black buttons with a white glint
   const eyeGeo = new THREE.SphereGeometry(1, 10, 7);

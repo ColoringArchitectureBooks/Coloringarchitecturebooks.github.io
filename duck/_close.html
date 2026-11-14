@@ -18,7 +18,7 @@ const V = [[0,0.15,1],[-0.6,0.18,0.8],[-1,0.12,0],[-0.75,0.15,-0.66],[0,0.15,-1]
 V.forEach((d, i) => {
   const v = new THREE.Vector3(...d).normalize().multiplyScalar(5);
   cam.up.set(0, 1, 0); if (i === 5) cam.up.set(0, 0, -1);
-  cam.position.copy(v).add(new THREE.Vector3(0, 1.9, 0.6)); cam.lookAt(0, 1.9, 0.6);
+  cam.position.copy(v).add(new THREE.Vector3(0, 1.9, 0.75)); cam.lookAt(0, 1.9, 0.75);
   const x = (i % 4) * 400, y = 960 - 480 - Math.floor(i / 4) * 480;
   r.setViewport(x, y, 400, 480); r.setScissor(x, y, 400, 480); r.render(scene, cam);
 });
