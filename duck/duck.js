@@ -93,7 +93,7 @@ export function buildDuck(opts = {}) {
     polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,   // lets the seam lines sit on top cleanly
   });
   const yellow = mat(C.body, 0.35), orange = mat(C.beak, 0.4), orangeDark = mat(C.beakUnder, 0.45);
-  orange.side = THREE.DoubleSide;
+
   const duck = new THREE.Group(); duck.name = "duck";
   const add = (geo, m, pos, scale, rot, name) => {
     const mesh = new THREE.Mesh(geo, m); mesh.name = name;
@@ -130,41 +130,52 @@ export function buildDuck(opts = {}) {
   //    flat tip (a shield / home-plate shape, NOT wider at the tip); it sticks out 1.8 E from the face
   //  - side: the top drops from 0.40 at the face to 0.22 at the tip; the tip edge is upright, 0.15 tall, and its
   //    underside lifts a little off the mouth line; the darker lower bill is shorter (1.1 E) and tucked under
-  const hull = (pts) => new ConvexGeometry(pts.map(([x, y, z]) => new THREE.Vector3(x, y, z)));
-  // The upper bill is two pieces, as in the reference: a narrow raised ridge that comes down from between the eyes,
-  // and under it a wide thin plate (the bill itself) whose front edge runs straight across. The plate is not convex, so it is built as a slab: a grid across (u) and along (v) the bill.
-  // upper bill, from Ahmed's beak sheet (duck/beak-reference.png): one piece with a centre ridge.
-  // Side: the ridge stands up high where it meets the face, falls in a concave curve and lifts a little at the tip.
-  // Top: narrow at the face, spreading to its widest near the front, then the corners cut to a wide flat tip.
-  // Front: the top slopes from the centre ridge down to thin outer edges; underneath it arches up a little.
-  const lerp = (pts, t) => {                                  // piecewise-linear through [t, value] pairs
-    for (let i = 1; i < pts.length; i++) if (t <= pts[i][0]) {
-      const [t0, a0] = pts[i - 1], [t1, a1] = pts[i]; return a0 + (a1 - a0) * (t - t0) / (t1 - t0);
+  // Beak, rebuilt from Ahmed's 12-view beak sheet (duck/beak-reference.png). It reads as ONE solid wedge:
+  //  - side: tall where it meets the face, the top falls in a concave curve to a thick blunt tip, flat underneath
+  //  - front: a hat shape, high in the middle, sloping shoulders down to low outer corners, a rounded lower lip
+  //  - top: narrow at the face, widest near the front, the front edge rounded
+  // It is lofted through cross-sections (rings) so the concave top line survives; the lower lip is its own piece
+  // so it can open to quack. y = 0 is the mouth line, z = 0 roughly the face.
+  function loft(rings) {                                      // rings: same-length loops of [x, y, z], back to front
+    const pos = [];
+    const tri = (a, b, c, out) => {                           // wind so the face points along "out"
+      const n = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a));
+      if (n.dot(out) < 0) [b, c] = [c, b];
+      for (const p of [a, b, c]) pos.push(p.x, p.y, p.z);
+    };
+    const R = rings.map((r) => r.map(([x, y, z]) => new THREE.Vector3(x, y, z)));
+    const mid = R.map((r) => r.reduce((s, p) => s.add(p), new THREE.Vector3()).divideScalar(r.length));
+    for (let i = 0; i + 1 < R.length; i++) {
+      const c = mid[i].clone().add(mid[i + 1]).multiplyScalar(0.5);
+      for (let k = 0; k < R[i].length; k++) {
+        const k2 = (k + 1) % R[i].length, a = R[i][k], b = R[i][k2], d = R[i + 1][k], e = R[i + 1][k2];
+        const out = a.clone().add(b).add(d).add(e).multiplyScalar(0.25).sub(c); out.z = 0;
+        tri(a, b, e, out); tri(a, e, d, out);
+      }
     }
-    return pts[pts.length - 1][1];
-  };
-  const L0 = -0.14, L1 = 0.58, vOf = (z) => (z - L0) / (L1 - L0);
-  const RIDGE = [[0, 0.46], [0.2, 0.37], [0.45, 0.29], [0.7, 0.26], [1, 0.27]];   // centre top height
-  const EDGE = [[0, 0.15], [0.6, 0.13], [1, 0.15]];                                             // outer edge top height
-  const HALF = [[0, 0.28], [0.2, 0.35], [0.45, 0.42], [0.7, 0.46], [0.88, 0.43], [1, 0.33]];    // half width
-  const under = (u, z) => { const v = vOf(z); return 0.06 * (1 - u * u) + 0.03 * v; };
-  const plate = slab({
-    nu: 8, nv: 6, z0: L0, z1: L1, bevel: 0.84,          // underside a little narrower, so the sides slope in
-    half: (v) => lerp(HALF, v),
-    bottom: under,
-    thick: (u, z) => {
-      const v = vOf(z), r = lerp(RIDGE, v), e = lerp(EDGE, v);
-      return e + (r - e) * (1 - Math.pow(Math.abs(u), 1.7)) - under(u, z);
-    },
-  });
-  const beakTop = add(plate, orange, BEAK.at, null, null, "beak_upper");
-  const lip = [];
-  //            z     half-w  depth in the middle
-  for (const [z, w, dep] of [[-0.18, 0.32, 0.22], [0.06, 0.4, 0.27], [0.3, 0.38, 0.22], [0.48, 0.24, 0.08]]) {
-    lip.push([-w, 0, z], [w, 0, z], [-w * 0.8, -dep * 0.45, z], [w * 0.8, -dep * 0.45, z], [-w * 0.4, -dep * 0.9, z], [w * 0.4, -dep * 0.9, z], [0, -dep, z]);
+    for (const [i, dz] of [[0, -1], [R.length - 1, 1]])        // caps
+      for (let k = 0; k < R[i].length; k++) tri(mid[i], R[i][k], R[i][(k + 1) % R[i].length], new THREE.Vector3(0, 0, dz));
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+    return g;
   }
-  const beakBot = add(hull(lip), orangeDark, BEAK.at, null, null, "beak_lower");   // pivots on the mouth line, so it can open to quack
-  beakBot.position.y += 0.045;   // tucked up against the arched underside of the upper bill beakBot.userData.restX = 0;
+  // measured off the sheet (beak alone): width 1.0, length 0.77 of the width, 0.6 tall at the face; thick upright
+  // side walls (0.12) under the sloping top; the lower lip 0.17 deep in the middle, as wide as the upper bill
+  //               z      half-w  top    side-wall top
+  const UPPER = [[-0.14, 0.2, 0.34, 0.14], [0.0, 0.32, 0.42, 0.13], [0.14, 0.43, 0.33, 0.12], [0.28, 0.5, 0.26, 0.12],
+                 [0.42, 0.49, 0.21, 0.12], [0.52, 0.47, 0.19, 0.12], [0.59, 0.41, 0.18, 0.11], [0.63, 0.3, 0.17, 0.1]];
+  const beakTop = add(loft(UPPER.map(([z, w, t, e]) => {
+    const h = (f) => e + (t - e) * f;                        // a rounded crown: almost level by the ridge, falling to the side walls
+    return [[w, e, z], [w * 0.82, h(0.25), z], [w * 0.55, h(0.6), z], [w * 0.24, h(0.9), z], [0, t, z],
+            [-w * 0.24, h(0.9), z], [-w * 0.55, h(0.6), z], [-w * 0.82, h(0.25), z], [-w, e, z],
+            [-w, 0, z], [-w * 0.5, 0, z], [0, 0, z], [w * 0.5, 0, z], [w, 0, z]];
+  })), orange, BEAK.at, null, null, "beak_upper");
+  //               z      half-w  bottom
+  const LOWER = [[-0.14, 0.19, -0.2], [0.0, 0.31, -0.24], [0.14, 0.42, -0.24], [0.28, 0.49, -0.21], [0.42, 0.47, -0.16],
+                 [0.52, 0.45, -0.1], [0.58, 0.39, -0.05], [0.61, 0.28, -0.01]];
+  const beakBot = add(loft(LOWER.map(([z, w, b]) => [[w, -0.004, z], [0, -0.004, z], [-w, -0.004, z],
+    [-w * 0.9, b * 0.3, z], [-w * 0.55, b * 0.8, z], [0, b, z], [w * 0.55, b * 0.8, z], [w * 0.9, b * 0.3, z]])),
+    orangeDark, BEAK.at, null, null, "beak_lower");      // pivots on the mouth line, so it can open to quack
+  beakBot.userData.restX = 0;
 
   // eyes: shiny black buttons with a white glint
   const eyeGeo = new THREE.SphereGeometry(1, 10, 7);
