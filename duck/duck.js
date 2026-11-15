@@ -58,6 +58,34 @@ function trisToGeometry(P, T) {                       // non-indexed, every tria
 const WING = { pos: [0.88, 0.92, 0.02], scale: [0.32, 0.5, 0.62], rot: [0.05, 0.1, 0.55] };
 const BEAK = { at: [0, 1.69, 0.9] };
 
+// a closed low-poly slab over a grid: u runs across (-1..1), v along (0..1) from z0 to z1;
+// half(v, z) is the half width, bottom(u, z) the underside height, thick(u, z) the thickness
+function slab({ nu, nv, z0, z1, half, bottom, thick }) {
+  const T = [], P = (u, v, top) => {
+    const z = z0 + (z1 - z0) * v, x = u * half(v, z), y = bottom(u, z) + (top ? thick(u, z) : 0);
+    return new THREE.Vector3(x, y, z);
+  };
+  const quad = (a, b, c, d) => { T.push([a, b, c], [a, c, d]); };
+  for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) {
+    const u0 = -1 + 2 * i / nu, u1 = -1 + 2 * (i + 1) / nu, v0 = j / nv, v1 = (j + 1) / nv;
+    quad(P(u0, v0, 1), P(u0, v1, 1), P(u1, v1, 1), P(u1, v0, 1));        // top
+    quad(P(u0, v0, 0), P(u1, v0, 0), P(u1, v1, 0), P(u0, v1, 0));        // bottom
+  }
+  for (let j = 0; j < nv; j++) {                                          // the two long sides
+    const v0 = j / nv, v1 = (j + 1) / nv;
+    quad(P(-1, v0, 0), P(-1, v1, 0), P(-1, v1, 1), P(-1, v0, 1));
+    quad(P(1, v0, 0), P(1, v0, 1), P(1, v1, 1), P(1, v1, 0));
+  }
+  for (let i = 0; i < nu; i++) {                                          // back and front ends
+    const u0 = -1 + 2 * i / nu, u1 = -1 + 2 * (i + 1) / nu;
+    quad(P(u0, 0, 0), P(u0, 0, 1), P(u1, 0, 1), P(u1, 0, 0));
+    quad(P(u0, 1, 0), P(u1, 1, 0), P(u1, 1, 1), P(u0, 1, 1));
+  }
+  const pos = []; for (const t of T) for (const v of t) pos.push(v.x, v.y, v.z);
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+  return g;
+}
+
 export function buildDuck(opts = {}) {
   const C = { ...DUCK_COLORS, ...(opts.colors || {}) };
   const mat = (color, rough) => new THREE.MeshStandardMaterial({
@@ -65,6 +93,7 @@ export function buildDuck(opts = {}) {
     polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,   // lets the seam lines sit on top cleanly
   });
   const yellow = mat(C.body, 0.35), orange = mat(C.beak, 0.4), orangeDark = mat(C.beakUnder, 0.45);
+  orange.side = THREE.DoubleSide;
   const duck = new THREE.Group(); duck.name = "duck";
   const add = (geo, m, pos, scale, rot, name) => {
     const mesh = new THREE.Mesh(geo, m); mesh.name = name;
@@ -102,17 +131,22 @@ export function buildDuck(opts = {}) {
   //  - side: the top drops from 0.40 at the face to 0.22 at the tip; the tip edge is upright, 0.15 tall, and its
   //    underside lifts a little off the mouth line; the darker lower bill is shorter (1.1 E) and tucked under
   const hull = (pts) => new ConvexGeometry(pts.map(([x, y, z]) => new THREE.Vector3(x, y, z)));
-  const bill = [];
-  //            z     bottom half-w  bottom y  side half-w  side y  top half-w  top y
-  for (const [z, wb, yb, ws, ys, wt, yt] of [
-    [-0.2, 0.37, 0.0, 0.35, 0.08, 0.15, 0.41],
-    [0.0, 0.44, 0.0, 0.42, 0.08, 0.16, 0.38],
-    [0.26, 0.44, 0.03, 0.41, 0.1, 0.18, 0.3],
-    [0.4, 0.33, 0.05, 0.31, 0.11, 0.17, 0.26],
-    [0.54, 0.19, 0.07, 0.18, 0.12, 0.12, 0.22]]) {
-    bill.push([-wb, yb, z], [wb, yb, z], [-ws, ys, z], [ws, ys, z], [-wt, yt, z], [wt, yt, z]);
+  // The upper bill is two pieces, as in the reference: a narrow raised ridge that comes down from between the eyes,
+  // and under it a wide thin plate (the bill itself) whose front end curves up and whose front edge arches up
+  // in the middle. The plate is not convex, so it is built as a slab: a grid across (u) and along (v) the bill.
+  const plate = slab({
+    nu: 6, nv: 5, z0: -0.16, z1: 0.56,
+    half: (v, z) => (z < 0.28 ? 0.44 : 0.44 - (0.44 - 0.2) * (z - 0.28) / 0.28),         // shield seen from above
+    bottom: (u, z) => { const t = Math.max(0, z) / 0.56; return 0.05 * t * t + 0.035 * t * (1 - u * u); },   // tip and middle lift
+    thick: (u, z) => 0.05 + 0.03 * Math.max(0, z) / 0.56 + 0.15 * (1 - u * u),
+  });
+  const beakTop = add(plate, orange, BEAK.at, null, null, "beak_upper");
+  const ridge = [];
+  //           z     top half-w  top y   foot half-w  foot y
+  for (const [z, wt, yt, wf, yf] of [[-0.22, 0.15, 0.42, 0.42, 0.05], [0.0, 0.15, 0.38, 0.44, 0.05], [0.22, 0.17, 0.29, 0.42, 0.08], [0.44, 0.15, 0.22, 0.22, 0.17]]) {
+    ridge.push([-wt, yt, z], [wt, yt, z], [-wf, yf, z], [wf, yf, z], [-wf * 0.8, 0.02, z], [wf * 0.8, 0.02, z]);
   }
-  const beakTop = add(hull(bill), orange, BEAK.at, null, null, "beak_upper");
+  const beakRidge = add(hull(ridge), orange, BEAK.at, null, null, "beak_upper_ridge");
   const lip = [];
   //            z     half-w  depth in the middle
   for (const [z, w, dep] of [[-0.18, 0.28, 0.15], [0.04, 0.33, 0.17], [0.22, 0.28, 0.12], [0.34, 0.15, 0.04]]) {
@@ -137,7 +171,7 @@ export function buildDuck(opts = {}) {
 
   // seam lines along every place two masses meet
   duck.updateMatrixWorld(true);
-  const pairs = [[head, body], [wingL, body], [wingR, body], [beakTop, head], [beakBot, head], [beakTop, beakBot]];
+  const pairs = [[head, body], [wingL, body], [wingR, body], [beakTop, head], [beakRidge, head], [beakBot, head], [beakTop, beakBot]];
   const pts = [];
   for (const [a, b] of pairs) pts.push(...meshIntersection(a, b));
   // short creases from each mouth corner curving back onto the cheek (seen from above in the reference)
