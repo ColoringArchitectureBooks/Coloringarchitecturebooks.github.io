@@ -60,9 +60,9 @@ const BEAK = { at: [0, 1.69, 0.9] };
 
 // a closed low-poly slab over a grid: u runs across (-1..1), v along (0..1) from z0 to z1;
 // half(v, z) is the half width, bottom(u, z) the underside height, thick(u, z) the thickness
-function slab({ nu, nv, z0, z1, half, bottom, thick }) {
+function slab({ nu, nv, z0, z1, half, bottom, thick, bevel = 1 }) {
   const T = [], P = (u, v, top) => {
-    const z = z0 + (z1 - z0) * v, x = u * half(v, z), y = bottom(u, z) + (top ? thick(u, z) : 0);
+    const z = z0 + (z1 - z0) * v, x = u * half(v, z) * (top ? 1 : bevel), y = bottom(u, z) + (top ? thick(u, z) : 0);
     return new THREE.Vector3(x, y, z);
   };
   const quad = (a, b, c, d) => { T.push([a, b, c], [a, c, d]); };
@@ -133,26 +133,38 @@ export function buildDuck(opts = {}) {
   const hull = (pts) => new ConvexGeometry(pts.map(([x, y, z]) => new THREE.Vector3(x, y, z)));
   // The upper bill is two pieces, as in the reference: a narrow raised ridge that comes down from between the eyes,
   // and under it a wide thin plate (the bill itself) whose front edge runs straight across. The plate is not convex, so it is built as a slab: a grid across (u) and along (v) the bill.
+  // upper bill, from Ahmed's beak sheet (duck/beak-reference.png): one piece with a centre ridge.
+  // Side: the ridge stands up high where it meets the face, falls in a concave curve and lifts a little at the tip.
+  // Top: narrow at the face, spreading to its widest near the front, then the corners cut to a wide flat tip.
+  // Front: the top slopes from the centre ridge down to thin outer edges; underneath it arches up a little.
+  const lerp = (pts, t) => {                                  // piecewise-linear through [t, value] pairs
+    for (let i = 1; i < pts.length; i++) if (t <= pts[i][0]) {
+      const [t0, a0] = pts[i - 1], [t1, a1] = pts[i]; return a0 + (a1 - a0) * (t - t0) / (t1 - t0);
+    }
+    return pts[pts.length - 1][1];
+  };
+  const L0 = -0.14, L1 = 0.58, vOf = (z) => (z - L0) / (L1 - L0);
+  const RIDGE = [[0, 0.46], [0.2, 0.37], [0.45, 0.29], [0.7, 0.26], [1, 0.27]];   // centre top height
+  const EDGE = [[0, 0.15], [0.6, 0.13], [1, 0.15]];                                             // outer edge top height
+  const HALF = [[0, 0.28], [0.2, 0.35], [0.45, 0.42], [0.7, 0.46], [0.88, 0.43], [1, 0.33]];    // half width
+  const under = (u, z) => { const v = vOf(z); return 0.06 * (1 - u * u) + 0.03 * v; };
   const plate = slab({
-    nu: 6, nv: 5, z0: -0.16, z1: 0.56,
-    half: (v, z) => (z < 0.28 ? 0.44 : 0.44 - (0.44 - 0.2) * (z - 0.28) / 0.28),         // shield seen from above
-    bottom: (u, z) => 0.05 * Math.max(0, z) / 0.56,                     // straight front edge, tip lifted a touch
-    thick: (u, z) => 0.13 - 0.03 * Math.abs(u),
+    nu: 8, nv: 6, z0: L0, z1: L1, bevel: 0.84,          // underside a little narrower, so the sides slope in
+    half: (v) => lerp(HALF, v),
+    bottom: under,
+    thick: (u, z) => {
+      const v = vOf(z), r = lerp(RIDGE, v), e = lerp(EDGE, v);
+      return e + (r - e) * (1 - Math.pow(Math.abs(u), 1.7)) - under(u, z);
+    },
   });
   const beakTop = add(plate, orange, BEAK.at, null, null, "beak_upper");
-  const ridge = [];
-  //           z     top half-w  top y   foot half-w  foot y
-  for (const [z, wt, yt, wf, yf] of [[-0.22, 0.15, 0.42, 0.42, 0.05], [0.0, 0.15, 0.38, 0.44, 0.05], [0.24, 0.17, 0.29, 0.42, 0.1], [0.42, 0.15, 0.24, 0.3, 0.14], [0.55, 0.12, 0.2, 0.19, 0.15]]) {
-    ridge.push([-wt, yt, z], [wt, yt, z], [-wf, yf, z], [wf, yf, z], [-wf * 0.8, 0.02, z], [wf * 0.8, 0.02, z]);
-  }
-  const beakRidge = add(hull(ridge), orange, BEAK.at, null, null, "beak_upper_ridge");
   const lip = [];
   //            z     half-w  depth in the middle
-  for (const [z, w, dep] of [[-0.18, 0.28, 0.15], [0.04, 0.33, 0.17], [0.22, 0.28, 0.12], [0.34, 0.15, 0.04]]) {
+  for (const [z, w, dep] of [[-0.18, 0.32, 0.22], [0.06, 0.4, 0.27], [0.3, 0.38, 0.22], [0.48, 0.24, 0.08]]) {
     lip.push([-w, 0, z], [w, 0, z], [-w * 0.8, -dep * 0.45, z], [w * 0.8, -dep * 0.45, z], [-w * 0.4, -dep * 0.9, z], [w * 0.4, -dep * 0.9, z], [0, -dep, z]);
   }
   const beakBot = add(hull(lip), orangeDark, BEAK.at, null, null, "beak_lower");   // pivots on the mouth line, so it can open to quack
-  beakBot.position.y -= 0.004; beakBot.userData.restX = 0;
+  beakBot.position.y += 0.045;   // tucked up against the arched underside of the upper bill beakBot.userData.restX = 0;
 
   // eyes: shiny black buttons with a white glint
   const eyeGeo = new THREE.SphereGeometry(1, 10, 7);
@@ -170,7 +182,7 @@ export function buildDuck(opts = {}) {
 
   // seam lines along every place two masses meet
   duck.updateMatrixWorld(true);
-  const pairs = [[head, body], [wingL, body], [wingR, body], [beakTop, head], [beakRidge, head], [beakBot, head], [beakTop, beakBot]];
+  const pairs = [[head, body], [wingL, body], [wingR, body], [beakTop, head], [beakBot, head], [beakTop, beakBot]];
   const pts = [];
   for (const [a, b] of pairs) pts.push(...meshIntersection(a, b));
   // short creases from each mouth corner curving back onto the cheek (seen from above in the reference)

@@ -1,0 +1,32 @@
+<meta charset="utf-8"><style>body{margin:0;background:#d9dbdf}</style>
+<canvas id="c" width="1600" height="960"></canvas>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+// The beak alone (and on the face) from the same angles as Ahmed's beak sheet, for side-by-side checks.
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+const { buildDuck } = await import("./duck.js?v=" + Date.now());
+const r = new THREE.WebGLRenderer({ canvas: document.getElementById("c"), antialias: true, preserveDrawingBuffer: true });
+r.outputColorSpace = THREE.SRGBColorSpace; r.setScissorTest(true);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xd9dbdf);
+scene.environment = new THREE.PMREMGenerator(r).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.add(new THREE.HemisphereLight(0xffffff, 0xe0dccf, 1.1));
+const duck = buildDuck(); scene.add(duck); duck.userData.seamMaterial.resolution.set(1600, 960);
+const cam = new THREE.PerspectiveCamera(20, 400 / 320, 0.1, 100);
+const hl = new THREE.DirectionalLight(0xffffff, 1.1); hl.position.set(1.5, 3, 2); hl.target.position.set(0, 0, -6); cam.add(hl, hl.target); scene.add(cam);
+const T = new THREE.Vector3(0, 1.72, 1.12);
+// row 1 on the face: front, three-quarter, side, from below; row 2 beak alone: front, 3/4, side, 3/4 opposite; row 3: top, bottom, rear, iso
+const V = [[0,0.1,1],[-0.6,0.12,0.8],[-1,0.05,0],[-0.55,-0.45,0.7],[0,0.15,1],[-0.6,0.2,0.8],[-1,0.08,0],[0.6,0.2,0.8],[0,1,0.02],[0,-1,0.02],[0,0.2,-1],[0.6,0.5,0.6]];
+const only = new Set(["beak_upper", "beak_lower"]);
+V.forEach((d, i) => {
+  const alone = i >= 4;
+  duck.traverse((o) => { if (o.isMesh || o.isLine || o.type === "LineSegments2") o.visible = !alone || only.has(o.name) || only.has(o.parent?.name); });
+  const dist = alone ? 3.2 : 4.2;
+  cam.position.copy(T).add(new THREE.Vector3(...d).normalize().multiplyScalar(dist)); cam.up.set(0, 1, 0);
+  if (i === 8) cam.up.set(0, 0, -1); if (i === 9) cam.up.set(0, 0, 1);
+  cam.lookAt(T);
+  const x = (i % 4) * 400, y = 960 - 320 - Math.floor(i / 4) * 320;
+  r.setViewport(x, y, 400, 320); r.setScissor(x, y, 400, 320); r.render(scene, cam);
+});
+window.done = true;
+</script>
