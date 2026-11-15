@@ -93,6 +93,7 @@ export function buildDuck(opts = {}) {
     polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,   // lets the seam lines sit on top cleanly
   });
   const yellow = mat(C.body, 0.35), orange = mat(C.beak, 0.4), orangeDark = mat(C.beakUnder, 0.45);
+  orange.side = orangeDark.side = THREE.DoubleSide;
 
   const duck = new THREE.Group(); duck.name = "duck";
   const add = (geo, m, pos, scale, rot, name) => {
@@ -115,7 +116,8 @@ export function buildDuck(opts = {}) {
   }, 2), yellow, [0, 0.8, -0.06], [1.06, 0.88, 1.02], null, "body");
 
   // head: a big round ball, slightly wider than deep, sitting straight on top
-  const head = add(lowSphere(16, 9, null, 3), yellow, [0, 2.0, 0.1], [0.93, 0.88, 0.86], null, "head");
+  const EGG = 0.15;                                      // the head narrows toward the top (wide cheeks low, smaller crown)
+  const head = add(lowSphere(16, 9, (v) => { const f = 1 - EGG * v.y; v.x *= f; v.z *= f; }, 3), yellow, [0, 2.0, 0.1], [0.93, 0.88, 0.86], null, "head");
 
   // wings: thick half-moon paddles with a flat top face, hung from the shoulders and leaning out at the bottom
   const wingGeo = lowSphere(12, 7, (v) => { v.y = Math.min(v.y, 0.4); }, 5, 0.02);
@@ -158,23 +160,30 @@ export function buildDuck(opts = {}) {
     const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
     return g;
   }
-  // measured off the sheet (beak alone): width 1.0, length 0.77 of the width, 0.6 tall at the face; thick upright
-  // side walls (0.12) under the sloping top; the lower lip 0.17 deep in the middle, as wide as the upper bill
-  //               z      half-w  top    side-wall top
-  const UPPER = [[-0.14, 0.2, 0.34, 0.14], [0.0, 0.32, 0.42, 0.13], [0.14, 0.43, 0.33, 0.12], [0.28, 0.5, 0.26, 0.12],
-                 [0.42, 0.49, 0.21, 0.12], [0.52, 0.47, 0.19, 0.12], [0.59, 0.41, 0.18, 0.11], [0.63, 0.3, 0.17, 0.1]];
-  const beakTop = add(loft(UPPER.map(([z, w, t, e]) => {
-    const h = (f) => e + (t - e) * f;                        // a rounded crown: almost level by the ridge, falling to the side walls
-    return [[w, e, z], [w * 0.82, h(0.25), z], [w * 0.55, h(0.6), z], [w * 0.24, h(0.9), z], [0, t, z],
-            [-w * 0.24, h(0.9), z], [-w * 0.55, h(0.6), z], [-w * 0.82, h(0.25), z], [-w, e, z],
-            [-w, 0, z], [-w * 0.5, 0, z], [0, 0, z], [w * 0.5, 0, z], [w, 0, z]];
-  })), orange, BEAK.at, null, null, "beak_upper");
+  // Beak from Ahmed's numbered beak sheet (V2), head width 1.27 BU = 1.86 here, so 1 BU = 1.465:
+  //  width 0.66 (widest a little past half way), 0.48 at the face, 0.58 at the tip with cut corners, 0.34 out;
+  //  upper lip 0.18 with a 0.04 centre ridge, 0.02 mouth gap, lower lip 0.11; the mouth line dips at the centre;
+  //  top 0.48 and bottom 0.17 above the head base. Short and wide, like a pair of lips.
+  const U = 1.465, mouthY = 2.0 + (0.48 - 0.18 - 0.5) * U;
+  const ray = new THREE.Raycaster(); duck.updateMatrixWorld(true);
+  ray.set(new THREE.Vector3(0, mouthY, 10), new THREE.Vector3(0, 0, -1));
+  const at = [0, mouthY, ray.intersectObject(head)[0]?.point.z ?? 0.95];
+  const c = 0.05;                                         // the mouth corners sit this much higher than the centre
+  //               z (from the face) half-w top    side-wall top     (all in BU, scaled by U)
+  const UP = [[-0.08, 0.23, 0.18, 0.07], [0, 0.24, 0.18, 0.07], [0.08, 0.29, 0.17, 0.065], [0.17, 0.31, 0.15, 0.06],
+              [0.26, 0.3, 0.12, 0.05], [0.315, 0.27, 0.1, 0.045], [0.34, 0.2, 0.08, 0.04]];
+  const beakTop = add(loft(UP.map(([z, w, t, e]) => {
+    const r = t - 0.04;                                   // the 0.04 ridge stands on a gently rounded top
+    return [[w, e + c, z], [w * 0.75, e + c * 0.8 + (r - e) * 0.2, z], [w * 0.4, e + c * 0.4 + (r - e) * 0.75, z], [0, t, z], [-w * 0.4, e + c * 0.4 + (r - e) * 0.75, z],
+            [-w * 0.75, e + c * 0.8 + (r - e) * 0.2, z], [-w, e + c, z],   // a roof sloping from the ridge, as in the sheet's front view
+            [-w, c, z], [-w * 0.5, c * 0.3, z], [0, 0, z], [w * 0.5, c * 0.3, z], [w, c, z]].map((q) => q.map((v) => v * U));
+  })), orange, at, null, null, "beak_upper");
   //               z      half-w  bottom
-  const LOWER = [[-0.14, 0.19, -0.2], [0.0, 0.31, -0.24], [0.14, 0.42, -0.24], [0.28, 0.49, -0.21], [0.42, 0.47, -0.16],
-                 [0.52, 0.45, -0.1], [0.58, 0.39, -0.05], [0.61, 0.28, -0.01]];
-  const beakBot = add(loft(LOWER.map(([z, w, b]) => [[w, -0.004, z], [0, -0.004, z], [-w, -0.004, z],
-    [-w * 0.9, b * 0.3, z], [-w * 0.55, b * 0.8, z], [0, b, z], [w * 0.55, b * 0.8, z], [w * 0.9, b * 0.3, z]])),
-    orangeDark, BEAK.at, null, null, "beak_lower");      // pivots on the mouth line, so it can open to quack
+  const LO = [[-0.08, 0.2, -0.11], [0, 0.21, -0.13], [0.08, 0.24, -0.13], [0.16, 0.25, -0.12], [0.23, 0.23, -0.1], [0.28, 0.19, -0.07], [0.3, 0.13, -0.04]];
+  const beakBot = add(loft(LO.map(([z, w, b]) => [
+    [w, c * 0.9 - 0.02, z], [w * 0.5, c * 0.3 - 0.02, z], [0, -0.02, z], [-w * 0.5, c * 0.3 - 0.02, z], [-w, c * 0.9 - 0.02, z],
+    [-w * 0.9, b * 0.4, z], [-w * 0.5, b * 0.9, z], [0, b, z], [w * 0.5, b * 0.9, z], [w * 0.9, b * 0.4, z]].map((q) => q.map((v) => v * U)))),
+    orangeDark, at, null, null, "beak_lower");      // pivots on the mouth line, so it can open to quack
   beakBot.userData.restX = 0;
 
   // eyes: shiny black buttons with a white glint
@@ -182,9 +191,9 @@ export function buildDuck(opts = {}) {
   const eyeMat = new THREE.MeshStandardMaterial({ color: C.eye, roughness: 0.15 });
   const glintMat = new THREE.MeshBasicMaterial({ color: C.glint });
   for (const s of [1, -1]) {
-    const dir = new THREE.Vector3(0.5 * s, 0.1, 0.86).normalize();
+    const dir = new THREE.Vector3(0.5 * s, 0.22, 0.86).normalize();
     const e = new THREE.Mesh(eyeGeo, eyeMat); e.name = s > 0 ? "eye_L" : "eye_R";
-    e.position.copy(head.position).add(dir.clone().multiply(head.scale).multiplyScalar(0.985));
+    e.position.copy(head.position).add(dir.clone().multiply(head.scale).multiplyScalar(0.985 * (1 - EGG * dir.y)));
     e.scale.set(0.12, 0.16, 0.06); e.lookAt(e.position.clone().add(dir)); duck.add(e);
     // one round white highlight, upper right on both eyes (one light, so the same spot on each)
     const gl = new THREE.Mesh(eyeGeo, glintMat); gl.name = "glint";
@@ -196,19 +205,6 @@ export function buildDuck(opts = {}) {
   const pairs = [[head, body], [wingL, body], [wingR, body], [beakTop, head], [beakBot, head], [beakTop, beakBot]];
   const pts = [];
   for (const [a, b] of pairs) pts.push(...meshIntersection(a, b));
-  // short creases from each mouth corner curving back onto the cheek (seen from above in the reference)
-  const hc = head.position, hs = head.scale;
-  for (const sx of [1, -1]) {
-    let prev = null;
-    for (let i = 0; i <= 8; i++) {
-      const u = i / 8, a = 0.33 + 0.12 * u;                    // angle round from the front, widening backward
-      const d = new THREE.Vector3(sx * Math.sin(a), -0.4 + 0.07 * u * u, Math.cos(a));
-      const q = d.clone().divide(new THREE.Vector3(1, 1, 1)).normalize();
-      const p = hc.clone().add(q.multiply(hs).multiplyScalar(1.012));
-      if (prev) pts.push(prev.x, prev.y, prev.z, p.x, p.y, p.z);
-      prev = p;
-    }
-  }
   const lineGeo = new LineSegmentsGeometry().setPositions(pts);
   const lineMat = new LineMaterial({ color: C.seam, linewidth: opts.seamWidth ?? 2.2, worldUnits: false });
   const seams = new LineSegments2(lineGeo, lineMat); seams.name = "seams"; seams.raycast = () => {};
