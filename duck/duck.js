@@ -60,10 +60,10 @@ function trisToGeometry(P, T) {                       // non-indexed, every tria
 export const K = 1.4;
 export const SPEC = {
   totalH: 2.0,
-  body: { h: 0.94, w: 1.30, d: 1.37, z: -0.05 },                 // body top 0.94, width without wings, depth without tail
+  body: { h: 0.94, w: 1.43, d: 1.45, z: -0.05 },   // measured off the picture (Ahmed chose the picture): sheet said 1.30 wide, 1.37 deep                 // body top 0.94, width without wings, depth without tail
   head: { base: 0.88, h: 1.12, w: 1.27, d: 1.15, maxAt: 0.50, baseW: 0.84, fwd: 0.12 },
-  wing: { x: 0.40, inside: 0.22, out: 0.18, len: 0.75, h: 0.53, y: 0.56, tilt: 15 },
-  tail: { h: 0.30, back: 0.24, y: 0.66 },
+  wing: { x: 0.40, inside: 0.22, out: 0.18, len: 0.75, h: 0.53, y: 0.50, tilt: 15 },   // y 0.50 (sheet said 0.56): in the picture the wings are widest at 0.50 up
+  tail: { h: 0.30, back: 0.24, y: 0.66 },   // the picture keeps the back full up to 0.80
   eye: { w: 0.16, h: 0.21, d: 0.07, cc: 0.65, y: 1.51, glint: 0.06 },
   beak: { w: 0.66, proj: 0.34, baseW: 0.48, top: 1.36, bottom: 1.05, upper: 0.18, gap: 0.02, lower: 0.11, ridge: 0.04 },
 };
@@ -115,8 +115,7 @@ export function buildDuck(opts = {}) {
 
   // body: 1.30 wide, 0.94 tall, 1.37 deep, flat underneath, a little narrower at the shoulders
   const body = add(fitBox(lowSphere(18, 10, (v) => {
-    const pear = 1 - 0.05 * Math.max(0, v.y);
-    v.x *= pear; v.z *= pear; v.y = Math.max(v.y, -0.9);
+    v.y = Math.max(v.y, -0.75);                          // measured off the picture: a wide flat base (0.85 across, 0.09 up)
   }, 2), [k(S.body.w), k(S.body.h), k(S.body.d)]), yellow, [0, k(S.body.h / 2), k(S.body.z)], null, null, "body");
 
   // tail: a small raised bump at the rear, 0.30 tall, sticking out 0.24 behind the body
@@ -145,9 +144,9 @@ export function buildDuck(opts = {}) {
   // wings: 0.40 wide (0.22 inside the body, 0.18 out), 0.75 long, 0.53 tall, centred 0.56 up, tilted 15 degrees
   const W = S.wing, wingGeo = fitBox(lowSphere(12, 7, (v) => { v.z -= 0.25 * v.y * v.y; v.y += 0.2 * Math.max(0, -v.z) * (1 + v.y); }, 5, 0.02), [k(W.x), k(W.h), k(W.len)]);   // flattened paddle, its back end lifting
   // the 15 degree lean pushes the outer edge 0.062 further out, so the centre is moved in by that much
-  const wx = k(S.body.w / 2 + W.out - W.x / 2 - 0.062), tilt = THREE.MathUtils.degToRad(W.tilt);
-  const wingL = add(wingGeo, yellow, [wx, k(W.y), k(S.body.z)], null, [0, 0, -tilt], "wing_L");
-  const wingR = add(wingGeo, yellow, [-wx, k(W.y), k(S.body.z)], null, [0, 0, tilt], "wing_R");
+  const wx = k(S.body.w / 2 + W.out - W.x / 2 - 0.062 + 0.04), tilt = THREE.MathUtils.degToRad(W.tilt);
+  const wingL = add(wingGeo, yellow, [wx, k(W.y), k(S.body.z)], null, [0, 0, tilt], "wing_L");
+  const wingR = add(wingGeo, yellow, [-wx, k(W.y), k(S.body.z)], null, [0, 0, -tilt], "wing_R");
 
   // beak: 0.66 wide, 0.48 at the face, 0.34 out from the face; upper lip 0.18 (with a 0.04 centre ridge),
   // 0.02 mouth gap, lower lip 0.11; top at 1.36, bottom at 1.05; the mouth line dips at the centre
