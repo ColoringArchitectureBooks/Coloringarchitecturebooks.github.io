@@ -1,0 +1,12 @@
+head_level_from_bottom_%,head_local_Z_BU,head_world_Z_BU,image_row_y_px,silhouette_left_px,silhouette_right_px,width_est_BU,width_as_%_of_max_head,source,side_image_y_px,depth_est_BU,depth_as_%_of_head_max,caution
+0,0.0,0.88,322,92,262,0.917,72.2,front silhouette pixel measurement (approx); perspective and shading influence,315,0.801,69.7,Side view may have slight perspective; not a verified orthographic section
+10,0.112,0.992,301,88,263,0.944,74.3,front silhouette pixel measurement (approx); perspective and shading influence,296,0.887,77.1,Side view may have slight perspective; not a verified orthographic section
+20,0.224,1.104,280,69,281,1.142,89.9,front silhouette pixel measurement (approx); perspective and shading influence,276,0.946,82.3,Side view may have slight perspective; not a verified orthographic section
+30,0.336,1.216,260,61,288,1.223,96.3,front silhouette pixel measurement (approx); perspective and shading influence,256,1.129,98.2,Side view may have slight perspective; not a verified orthographic section
+40,0.448,1.328,239,57,292,1.265,99.6,front silhouette pixel measurement (approx); perspective and shading influence,237,1.091,94.9,Side view may have slight perspective; not a verified orthographic section
+50,0.56,1.44,218,62,287,1.212,95.4,front silhouette pixel measurement (approx); perspective and shading influence,218,1.102,95.8,Side view may have slight perspective; not a verified orthographic section
+60,0.672,1.552,197,68,282,1.153,90.8,front silhouette pixel measurement (approx); perspective and shading influence,198,1.064,92.5,Side view may have slight perspective; not a verified orthographic section
+70,0.784,1.664,176,78,272,1.046,82.3,front silhouette pixel measurement (approx); perspective and shading influence,178,0.973,84.6,Side view may have slight perspective; not a verified orthographic section
+80,0.896,1.776,156,91,258,0.901,70.9,front silhouette pixel measurement (approx); perspective and shading influence,159,0.854,74.3,Side view may have slight perspective; not a verified orthographic section
+90,1.008,1.888,135,115,234,0.643,50.7,front silhouette pixel measurement (approx); perspective and shading influence,140,0.634,55.1,Side view may have slight perspective; not a verified orthographic section
+100,1.12,2.0,114,174,177,0.021,1.7,front silhouette pixel measurement (approx); perspective and shading influence,120,0.124,10.8,Side view may have slight perspective; not a verified orthographic section

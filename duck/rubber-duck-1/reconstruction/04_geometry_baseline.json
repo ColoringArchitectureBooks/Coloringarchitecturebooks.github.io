@@ -1,0 +1,52 @@
+{
+  "package_version": "Reconstruction baseline 01",
+  "master_reference": "00_ORIGINAL_REFERENCE_UNCHANGED.jpg",
+  "axes": {
+    "X": "right",
+    "Y": "rear (beak toward negative Y)",
+    "Z": "up"
+  },
+  "dimensions_BU": {
+    "total_height": 2.0,
+    "head_height": 1.12,
+    "head_width_max": 1.27,
+    "head_depth_provisional": 1.15,
+    "head_base_world_z": 0.88,
+    "body_height": 0.94,
+    "body_width_max_excluding_wings": 1.3,
+    "body_depth_provisional": 1.37,
+    "head_body_overlap": 0.06,
+    "total_frontal_width_including_wings_target": 1.66,
+    "eye_width_design": 0.16,
+    "eye_height_design": 0.21,
+    "eye_thickness_design": 0.07,
+    "eye_center_spacing_reference": 0.661,
+    "eye_local_z_reference": 0.482,
+    "beak_width_design": 0.66,
+    "beak_projection_provisional": 0.34,
+    "beak_upper_lip_height_provisional": 0.18,
+    "beak_gap_provisional": 0.02,
+    "beak_lower_lip_height_provisional": 0.11,
+    "wing_x_span_provisional": 0.4,
+    "wing_y_span_provisional": 0.75,
+    "wing_z_span_provisional": 0.53,
+    "tail_z_span_provisional": 0.3,
+    "tail_rear_extension_provisional": 0.24
+  },
+  "consistency_checks": {
+    "total_z": "1.12 + 0.94 - 0.06 = 2.00",
+    "beak_lip_sum": "0.18 + 0.02 + 0.11 = 0.31 design; original beak front appears different; geometry NOT validated",
+    "total_w": "1.30 + 2 * 0.18 = 1.66, only if outer projection is 0.18 on each side"
+  },
+  "head_sections_file": "01_head_sections_11_levels.csv",
+  "body_sections_file": "02_body_sections_11_levels_PROVISIONAL.csv",
+  "facial_landmarks_file": "03_face_landmarks.csv",
+  "warnings": [
+    "Master image is a multi-view AI-generated illustration, not verified matching orthographic geometry",
+    "Eye local Z estimate ~0.48 BU differs from old 0.63 BU design sheet",
+    "Top image is perspective-like/top-down, not guaranteed orthographic; avoid inferring exact underside shape",
+    "Eye protrusion and wing/tail Y positions require fitting against rendered 3D views",
+    "The proposed body depth rings and wing volume cannot be certified without 3D silhouette fit",
+    "Beak ridge height 0.04 is incremental, not absolute crown height"
+  ]
+}

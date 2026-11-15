@@ -1,0 +1,13 @@
+Dimension,Value_BU,Evidence,Action
+Overall height,2.0,Fixed modeling scale,Lock
+Head height,1.12,Approved design,Lock target
+Body height,0.94,Approved design,Lock target
+Head/body overlap,0.06,Derived,Lock target
+Head width max,1.27,Approved design,Lock target
+Head depth max,1.15,Estimated from oblique side,Fit
+Body width max without wings,1.3,Approved design,Lock target
+Body depth max,1.37,Estimated from side,Fit
+Eye center head local Z,0.482,Original front landmark; differs from old .63,Fit before locking
+Beak height total,0.31,Corrected arithmetic; source appearance not validated,Fit
+Wing Y length,0.75,Design estimate; source contour uncertain,Fit
+Tail rear extension,0.24,Design estimate,Fit
