@@ -132,18 +132,17 @@ export function buildDuck(opts = {}) {
   //    underside lifts a little off the mouth line; the darker lower bill is shorter (1.1 E) and tucked under
   const hull = (pts) => new ConvexGeometry(pts.map(([x, y, z]) => new THREE.Vector3(x, y, z)));
   // The upper bill is two pieces, as in the reference: a narrow raised ridge that comes down from between the eyes,
-  // and under it a wide thin plate (the bill itself) whose front end curves up and whose front edge arches up
-  // in the middle. The plate is not convex, so it is built as a slab: a grid across (u) and along (v) the bill.
+  // and under it a wide thin plate (the bill itself) whose front edge runs straight across. The plate is not convex, so it is built as a slab: a grid across (u) and along (v) the bill.
   const plate = slab({
     nu: 6, nv: 5, z0: -0.16, z1: 0.56,
     half: (v, z) => (z < 0.28 ? 0.44 : 0.44 - (0.44 - 0.2) * (z - 0.28) / 0.28),         // shield seen from above
-    bottom: (u, z) => { const t = Math.max(0, z) / 0.56; return 0.05 * t * t + 0.035 * t * (1 - u * u); },   // tip and middle lift
-    thick: (u, z) => 0.05 + 0.03 * Math.max(0, z) / 0.56 + 0.15 * (1 - u * u),
+    bottom: (u, z) => 0.05 * Math.max(0, z) / 0.56,                     // straight front edge, tip lifted a touch
+    thick: (u, z) => 0.13 - 0.03 * Math.abs(u),
   });
   const beakTop = add(plate, orange, BEAK.at, null, null, "beak_upper");
   const ridge = [];
   //           z     top half-w  top y   foot half-w  foot y
-  for (const [z, wt, yt, wf, yf] of [[-0.22, 0.15, 0.42, 0.42, 0.05], [0.0, 0.15, 0.38, 0.44, 0.05], [0.22, 0.17, 0.29, 0.42, 0.08], [0.44, 0.15, 0.22, 0.22, 0.17]]) {
+  for (const [z, wt, yt, wf, yf] of [[-0.22, 0.15, 0.42, 0.42, 0.05], [0.0, 0.15, 0.38, 0.44, 0.05], [0.24, 0.17, 0.29, 0.42, 0.1], [0.42, 0.15, 0.24, 0.3, 0.14], [0.55, 0.12, 0.2, 0.19, 0.15]]) {
     ridge.push([-wt, yt, z], [wt, yt, z], [-wf, yf, z], [wf, yf, z], [-wf * 0.8, 0.02, z], [wf * 0.8, 0.02, z]);
   }
   const beakRidge = add(hull(ridge), orange, BEAK.at, null, null, "beak_upper_ridge");
