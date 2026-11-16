@@ -47,7 +47,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { mapTouch } from "./touch.js?v=1";
-import { buildScene, V } from "./scene.js?v=1";
+import { buildScene, V } from "./scene.js?v=2";
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -62,7 +62,7 @@ controls.maxPolarAngle = Math.PI / 2 - 0.03; controls.autoRotateSpeed = 1.0;
 
 // plan metres -> three (x, z, -y), (0, 0) = centre of the round playground.
 const VIEWS = {
-  start: { eye: [3, -20, 7], tgt: [5, 16, 1.5] },    // the coloring page's view: spinning zone in front, arch left, slide hill behind, playhouse right
+  start: { eye: [1, -22, 7.5], tgt: [5, 16, 1] },    // the coloring page's view: spinning zone in front, arch left, slide hill behind, playhouse right
   front: { eye: [8, -80, 58], tgt: [0, 4, 0] },        // like the aerial photo, from the south
   top: { eye: [0, 4.5, 210], tgt: [0, 5, 0] },         // straight down, the whole site plan
 };
