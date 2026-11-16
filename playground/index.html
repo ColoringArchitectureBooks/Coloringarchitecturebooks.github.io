@@ -47,7 +47,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { mapTouch } from "./touch.js?v=1";
-import { buildScene, V } from "./scene.js?v=2";
+import { buildScene, V } from "./scene.js?v=3";
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -74,11 +74,13 @@ function resize() {
 window.addEventListener("resize", resize); resize();
 try { buildScene(scene); document.getElementById("status").remove(); }
 catch (e) { console.error(e); document.getElementById("status").textContent = "Couldn't load the model. Please refresh the page."; }
-setView(VIEWS.start);
+{ const h = location.hash.match(/^#v=([-\d.,]+)$/);   // #v=ex,ey,ez,tx,ty,tz opens a given view (plan metres), handy for checking a spot
+  if (h) { const n = h[1].split(",").map(Number); setView({ eye: n.slice(0, 3), tgt: n.slice(3, 6) }); } else setView(VIEWS.start); }
 
 const spinBtn = document.getElementById("spin");
 spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute("aria-pressed", controls.autoRotate); };
-document.getElementById("v-front").onclick = () => setView(VIEWS.start);
+document.getElementById("v-front").onclick = () => { const h = location.hash.match(/^#v=([-\d.,]+)$/);   // #v=ex,ey,ez,tx,ty,tz opens a given view (plan metres), handy for checking a spot
+  if (h) { const n = h[1].split(",").map(Number); setView({ eye: n.slice(0, 3), tgt: n.slice(3, 6) }); } else setView(VIEWS.start); }
 document.getElementById("v-aerial").onclick = () => setView(VIEWS.front);
 document.getElementById("v-top").onclick = () => setView(VIEWS.top);
 const hint = document.getElementById("hint");

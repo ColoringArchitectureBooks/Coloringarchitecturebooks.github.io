@@ -149,14 +149,13 @@ function rampX(xa, xb, za, zb, y0, y1) {
   for (let i = 0; i < p.count; i++) { const u = p.getX(i), v = p.getY(i), w = p.getZ(i); p.setXYZ(i, u, v, -(y0 + w)); }
   g.computeVertexNormals(); return add(new THREE.Mesh(g, M.w));
 }
-const TOP = 2.4;   // the car park sits this much above the playground; a planted bank, stairs and ramps come down
+const TOP = 3.0;   // the car park sits this much above the playground; a planted bank, stairs and ramps come down
 
 function ground() {
   const g = new THREE.Mesh(new THREE.PlaneGeometry(240, 170), M.lawn); g.rotation.x = -Math.PI / 2; g.position.copy(V(0, -5, -0.02));
   g.geometry.attributes.uv.array.forEach((v, i, a) => { a[i] = v * (i % 2 ? 170 : 240); }); add(g, { noEdge: true });
   prism(disc(0, 0, R), 0, 0.12, M.w, true);                                  // the concrete walks: one floor, the islands sit on it
   garden(sector(0, 0, R, R + 3.5, 140, 232));                                // planting outside the west walk
-  garden(sector(0, 0, R, R + 2.5, 75, 105));                                 // and along the north walk under the bank
 }
 
 function entrance() {   // north: car park up on the bank, stairs straight down, ramps zig-zag down to the east of them
@@ -170,7 +169,7 @@ function entrance() {   // north: car park up on the bank, stairs straight down,
   for (let i = 0; i < 14; i++) box(-21, -17, 31 + i * 0.5, 38, 0, (i + 1) * TOP / 14);
   rail([[-21, 31, 0.17], [-21, 38, TOP]]); rail([[-17, 31, 0.17], [-17, 38, TOP]]); rail([[-19, 31, 0.17], [-19, 38, TOP]], 0.9);
   bank(-80, -21, 31, 38, TOP); bank(-17, -13, 31, 38, TOP);                  // planted bank either side of the stairs
-  bank(-80, -24, 38, 41, TOP); bank(3.5, 80, 35, 41, TOP);
+  bank(-80, -24, 38, 41, TOP); bank(19.5, 80, 35, 41, TOP);   // between x 3.5 and 19.5 the high ground is the top of the slide hill
   // ramps: run A from the landing east, a turn, run B back west down to the walk
   rampX(-13, 1, TOP, 1.2, 36, 38); box(1, 3.5, 32.5, 38, 0, 1.2); rampX(1, -11, 1.2, 0.12, 32.5, 34.5);
   garden(poly([[-13, 34.5], [1, 34.5], [1, 36], [-13, 36]]), 0.6);
@@ -179,19 +178,24 @@ function entrance() {   // north: car park up on the bank, stairs straight down,
   rail([[-13, 36, TOP], [1, 36, 1.2], [1, 34.5, 1.2], [-11, 34.5, 0.12]]);
   // half-round planter with a green rail at the foot of the stairs (aerial)
   garden(sector(-19, 25.5, 3, 5, 190, 350), 0.6); rail(arcPts(-19, 25.5, 5, 190, 350, 0.6), 0.9);
+  ribbon([[-22.5, 18.6], [-17, 19], [-12.5, 21.5], [-9.8, 25.5]], 2.2, 0, 0.45, M.plant);   // curved garden band below it (Ahmed's mark-up)
 }
 
 const SPIN = [4, -1];
-function spinZone() {   // the round spinning zone (rubber) with a curved garden wrapping its south side
+function spinZone() {   // the round spinning zone (rubber); its north-east cap is a different floor; a curved garden wraps its south side
   const [cx, cy] = SPIN;
   pad(disc(cx, cy, 10.5), 0.22);
   prism(sector(cx, cy, 10.5, 10.9, 0, 360), 0, 0.4, M.w, true);   // curb
-  garden(sector(cx, cy, 10.9, 13.5, 200, 330));
+  const cap = new THREE.Shape(); cap.absarc(cx, cy, 10.5, 6 * deg, 107 * deg, false);
+  for (const [x, y] of [[3, 6], [6.2, 3.5], [10, 1.8]]) cap.lineTo(x, y); cap.closePath();
+  prism(cap, 0, 0.4, M.w, true);
+  garden(sector(cx, cy, 10.9, 14.3, 200, 350));
+  garden(poly([[-6, 21], [-3, 16], [1, 11], [4, 14], [6, 17.8], [0, 19.3]]));   // garden between the slide hill's foot and the spinning zone
+  ribbon([[15, 0.5], [21, 2.6]], 1.2, 0, 0.45, M.plant);                         // narrow garden over to the playhouse fence
   ropeCone(cx - 3, cy + 2);
   bowlSpinner(cx + 4, cy - 3); bowlSpinner(cx + 1, cy - 6);
-  for (const [x, y] of [[cx + 5, cy + 3], [cx + 6.5, cy + 0.5], [cx - 6, cy - 3]]) { cyl(x, y, 0.12, 0.22, 0.75, M.w, 16); cyl(x, y, 0.7, 0.75, 0.82); }   // disc spinners
+  for (const [x, y] of [[cx + 5, cy + 1], [cx + 6, cy - 2], [cx - 6, cy - 3]]) { cyl(x, y, 0.12, 0.22, 0.75, M.w, 16); cyl(x, y, 0.7, 0.75, 0.82); }   // disc spinners
   cyl(cx - 2, cy - 4.5, 2.0, 0.22, 0.34); cyl(cx - 2, cy - 4.5, 0.12, 0.34, 1.0, M.w, 16);   // flush merry-go-round
-  bench(cx + 9.3, cy + 6.6, -55);
 }
 
 function ropeCone(x, y) {   // photo: blue rim disc, centre mast, rope net to the top, a blue ring half way up
@@ -226,78 +230,100 @@ function swing(x, y, a) {   // A-frame swing along the ring: legs at both ends, 
   lines(ch);
 }
 
-function musicArea() {   // blue rubber hourglass between two round gardens; the arch's feet stand in the gardens (page)
-  const [cx, cy] = [-15.4, 8];
-  pad(disc(cx, cy, 4.6), 0.18);
-  garden(disc(-20.4, 10, 3)); garden(disc(-10.4, 10, 3));
-  const pts = []; for (let i = 0; i <= 24; i++) { const a = Math.PI * i / 24; pts.push(V(cx - Math.cos(a) * 5, 10.5, 0.45 + Math.sin(a) * 4.2)); }
-  tube(pts, 0.22);
-  for (const s of [-1, 1]) cyl(cx + s * 5, 10.5, 0.4, 0.45, 1.3, M.w, 24);   // pillar feet in the gardens
-  for (let i = 3; i <= 21; i++) { const a = Math.PI * i / 24, x = cx - Math.cos(a) * 5, z = 0.45 + Math.sin(a) * 4.2 - 0.25; cyl(x, 10.5, 0.08, z - 0.3, z, M.w, 10); }
-  const beads = []; for (let i = 0; i <= 8; i++) { const t = i / 8, x = cx - 4.8 + t * 4.0, z = 2.6 + 1.4 * Math.sin(t * Math.PI) - 0.9 * t; beads.push(new THREE.Vector3(x, z, -10.5)); }
-  for (const b of beads) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.06, 20), M.w); s.position.copy(b); s.rotation.x = Math.PI / 2; add(s, { hull: true }); }
+function musicArea() {   // oval of blue rubber between two round gardens; the arch's feet stand in the gardens (page)
+  const [cx, cy] = [-15.8, 9.5];
+  prism(ellipse(cx, cy, 9, 6.6), 0, 0.18, M.w, true);
+  garden(disc(-22.5, 10.3, 3.2)); garden(disc(-9.2, 10.3, 3.2));
+  const ax0 = -22.2, ax1 = -9.5, am = (ax0 + ax1) / 2, hs = (ax1 - ax0) / 2, ay = 10.5;
+  const pts = []; for (let i = 0; i <= 24; i++) { const a = Math.PI * i / 24; pts.push(V(am - Math.cos(a) * hs, ay, 0.45 + Math.sin(a) * 4.4)); }
+  tube(pts, 0.24);
+  for (const s of [-1, 1]) cyl(am + s * hs, ay, 0.42, 0.45, 1.3, M.w, 24);   // pillar feet in the gardens
+  for (let i = 3; i <= 21; i++) { const a = Math.PI * i / 24, x = am - Math.cos(a) * hs, z = 0.45 + Math.sin(a) * 4.4 - 0.27; cyl(x, ay, 0.08, z - 0.3, z, M.w, 10); }
+  const beads = []; for (let i = 0; i <= 8; i++) { const t = i / 8, x = am - hs + 0.3 + t * 5, z = 2.6 + 1.5 * Math.sin(t * Math.PI) - 0.9 * t; beads.push(new THREE.Vector3(x, z, -ay)); }
+  for (const b of beads) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.06, 20), M.w); m.position.copy(b); m.rotation.x = Math.PI / 2; add(m, { hull: true }); }
   lines(beads.slice(1).flatMap((b, i) => [beads[i], b]));
-  garden(ellipse(-27.5, 17, 2.2, 4.5)); garden(ellipse(-29, 4.5, 2, 3.5));   // long gardens by the west walk
+  // west edge: a lens of different floor along the walk, its top a garden (Ahmed's mark-up)
+  const lens = new THREE.Shape(); lens.absarc(0, 0, R - 0.4, 140 * deg, 175 * deg, false);
+  for (const [x, y] of [[-31, 8], [-28.5, 14], [-27.5, 19]]) lens.lineTo(x, y); lens.closePath();
+  prism(lens, 0, 0.2, M.w, true);
+  garden(poly([[-29.5, 23], [-32.5, 18], [-27.3, 16.8]]));
 }
 
-function shadeCircle() {   // south-west: round rubber floor, a curved garden inside on its east with a green rail, a sand pit, one big sail
-  const [cx, cy] = [-22, -10];
-  pad(disc(cx, cy, 9.5), 0.18);
-  prism(sector(cx, cy, 9.5, 9.9, 0, 360), 0, 0.4, M.w, true);
-  garden(sector(cx, cy, 5.5, 7.8, -70, 40), 0.55); rail(arcPts(cx, cy, 5.5, -70, 40, 0.55), 0.9);
-  prism(disc(cx - 3.5, cy - 4.5, 3.4), 0.18, 0.24, M.sand, true);   // sand pit
-  const c = [[-31, -3, 6.8], [-14, -2, 4.6], [-13.5, -18, 6.8], [-29.5, -18.5, 4.6]];
+function shadeCircle() {   // south-west: round rubber floor in three parts (a raised crescent on the east with a rail, a lower segment at the south), one big sail
+  const [cx, cy] = [-23.5, -8.6], r = 10.5;
+  pad(disc(cx, cy, r), 0.18);
+  prism(sector(cx, cy, r, r + 0.4, 0, 360), 0, 0.4, M.w, true);
+  prism(sector(cx, cy, 5.5, 7.8, -70, 40), 0, 0.45, M.w, true); rail(arcPts(cx, cy, 5.5, -70, 40, 0.45), 0.9);
+  const seg = new THREE.Shape(); seg.absarc(cx, cy, r, -127 * deg, -53 * deg, false); seg.closePath();
+  prism(seg, 0, 0.32, M.w, true);
+  const c = [[-33, -1.5, 6.8], [-15, -0.6, 4.6], [-14.5, -17, 6.8], [-31.5, -17.5, 4.6]];
   sailPosts(c); sail(c, 0.3);
 }
 
-const SW = [250, 345];   // the swings band: angles round the playground's centre
-function swingArea() {   // south: tan rubber band with the swings under four sails, a paved edge on the outside, a garden at its west end
-  prism(sector(0, 0, 23, 32, SW[0], SW[1]), 0, 0.18, M.w, true);
+const SW = [249, 346];   // the swings band: angles round the playground's centre
+function swingArea() {   // south: the swings band is sand, all the way out to the paved edge (Ahmed's mark-up), under four sails
+  prism(sector(0, 0, 23, 35, SW[0], SW[1]), 0, 0.15, M.sand, true);
   prism(sector(0, 0, 22.6, 23, SW[0], SW[1]), 0, 0.4, M.w, true);                  // curb on the inner side
-  prism(sector(0, 0, 32, 34.5, SW[0], SW[1]), 0.12, 0.3, M.pavers, true);         // paved band along the outer edge (aerial)
-  garden(sector(0, 0, 23, 33, 222, 249)); rail(arcPts(0, 0, 33, 222, 249, 0.45), 0.9);   // garden at its west end, green rail on the outside
+  prism(sector(0, 0, 35, 36.4, SW[0], SW[1]), 0.12, 0.3, M.pavers, true);         // paved band along the outer edge
+  garden(poly([[-23, -22], [-9.5, -21.7], [-12, -33], [-17, -31]]));                // garden triangle at its west end
   const n = 4, step = (SW[1] - SW[0]) / n;
   for (let k = 0; k < n; k++) {
     const a0 = SW[0] + k * step, a1 = a0 + step, am = (a0 + a1) / 2;
-    const c = [[...at(23.4, a0 + 1), 4.6], [...at(31.6, a0 + 1), 6.8], [...at(31.6, a1 - 1), 4.6], [...at(23.4, a1 - 1), 6.8]];
+    const c = [[...at(23.4, a0 + 1), 4.6], [...at(34, a0 + 1), 6.8], [...at(34, a1 - 1), 4.6], [...at(23.4, a1 - 1), 6.8]];
     sailPosts(c); sail(c, 0.25);
-    swing(...at(27.5, am), am);
+    swing(...at(28.5, am), am);
   }
 }
 
-const HILL = { x0: 8, x1: 19, yFoot: 11, yTop: 21, y1: 26, yBack: 28, h: 3.4 };
-function slideHill() {   // north-east: turf hill with metal slides down its south face, a ramp up its west side, a shade sail over it
-  const { x0, x1, yFoot, yTop, y1, yBack, h } = HILL;
-  const s = new THREE.Shape([new THREE.Vector2(yFoot, 0), new THREE.Vector2(yTop, h), new THREE.Vector2(y1, h), new THREE.Vector2(yBack, 0)]);
-  const g = new THREE.ExtrudeGeometry(s, { depth: x1 - x0, bevelEnabled: false }), p = g.attributes.position;
-  for (let i = 0; i < p.count; i++) { const u = p.getX(i), v = p.getY(i), w = p.getZ(i); p.setXYZ(i, x0 + w, v, -u); }
-  g.computeVertexNormals(); add(new THREE.Mesh(g, M.turf));
-  const L = Math.hypot(yTop - yFoot, h), ang = Math.atan2(h, yTop - yFoot);
-  for (const x of [10.5, 13.5, 16.5]) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.12, L), M.w); m.position.copy(V(x, (yFoot + yTop) / 2, h / 2 + 0.2)); m.rotation.x = ang; add(m);
-    for (const sx of [-0.45, 0.45]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.3, L), M.w); r.position.copy(V(x + sx, (yFoot + yTop) / 2, h / 2 + 0.35)); r.rotation.x = ang; add(r); }
-    box(x - 0.45, x + 0.45, yFoot - 2.2, yFoot - 0.3, 0.45, 0.55); box(x - 0.45, x + 0.45, yFoot - 0.6, yFoot + 0.2, 0.12, 0.6);
-    for (const dx of [-0.38, 0.38]) box(x + dx - 0.04, x + dx + 0.04, yFoot - 2.1, yFoot - 2.0, 0, 0.45);
-    const gp = []; for (const dx of [-0.6, 0.6]) gp.push(V(x + dx, yTop + 0.3, h), V(x + dx, yTop + 0.3, h + 1.2)); gp.push(V(x - 0.6, yTop + 0.3, h + 1.1), V(x + 0.6, yTop + 0.3, h + 1.1)); lines(gp);
-  }
-  const rl = []; for (const [a, b] of [[x0, 9.9], [11.1, 12.9], [14.1, 15.9], [17.1, x1]]) { rl.push(V(a, yTop + 0.3, h + 1.0), V(b, yTop + 0.3, h + 1.0));
-    for (let x = a; x <= b + 0.01; x += 0.5) rl.push(V(x, yTop + 0.3, h), V(x, yTop + 0.3, h + 1.0)); }
-  lines(rl);
-  // ramp up the west side
-  const rp = new THREE.Shape([new THREE.Vector2(9, 0), new THREE.Vector2(23, h), new THREE.Vector2(26, h), new THREE.Vector2(26, 0)]);
-  const rg = new THREE.ExtrudeGeometry(rp, { depth: 2, bevelEnabled: false }), q = rg.attributes.position;
-  for (let i = 0; i < q.count; i++) { const u = q.getX(i), v = q.getY(i), w = q.getZ(i); q.setXYZ(i, x0 - 2 + w, v, -u); }
-  rg.computeVertexNormals(); add(new THREE.Mesh(rg, M.w));
-  for (const x of [x0 - 2, x0]) rail([[x, 9, 0], [x, 23, h], [x, 26, h]]);
-  const c = [[7, 9.5, 6.8], [20, 9.5, 5.0], [20, 27, 8.4], [7, 27, 6.6]];
-  sailPosts(c); sail(c, 0.25);
+// Slide hill: turf slope from a foot line in the playground up to a crest at the raised north ground (car park level).
+// Both lines run west to east; the surface is ruled between them. Slides run down it at their own angles and slopes (Ahmed's mark-up).
+const HILL = {
+  foot: [[-6.5, 26], [-4, 21], [0, 19.5], [5, 18.5], [8.5, 17], [13, 16], [17.5, 15], [19.5, 14.5]],
+  crest: [[3.5, 34], [8, 32.5], [12, 30.5], [16, 29], [19.5, 28]],
+  h: TOP,
+};
+function along(pts, t) {   // point at fraction t of the way along a polyline (by length)
+  const L = [0]; for (let i = 1; i < pts.length; i++) L.push(L[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const d = t * L[L.length - 1]; let i = 1; while (i < L.length - 1 && L[i] < d) i++;
+  const f = (d - L[i - 1]) / (L[i] - L[i - 1] || 1); return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f];
+}
+function slideHill() {
+  const { foot, crest, h } = HILL, N = 40, S = 8, pos = [], uv = [], idx = [];
+  for (let i = 0; i <= N; i++) { const F = along(foot, i / N), C = along(crest, i / N);
+    for (let j = 0; j <= S; j++) { const s = j / S, x = F[0] + (C[0] - F[0]) * s, y = F[1] + (C[1] - F[1]) * s; pos.push(...V(x, y, h * s).toArray()); uv.push(x, y); } }
+  for (let i = 0; i < N; i++) for (let j = 0; j < S; j++) { const a = i * (S + 1) + j; idx.push(a, a + S + 1, a + 1, a + 1, a + S + 1, a + S + 2); }
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+  add(new THREE.Mesh(g, M.turf));
+  lines(foot.slice(1).flatMap((p, i) => [V(...foot[i], 0.01), V(...p, 0.01)]));   // seam where the hill meets the floor
+  lines([V(...foot[0], 0.01), V(...crest[0], h), V(...foot[foot.length - 1], 0.01), V(...crest[crest.length - 1], h)]);
+  // the two side faces under the slope's ends, and the raised ground north of the crest up to the car park
+  const tri = (pts) => { const t = new THREE.BufferGeometry().setFromPoints(pts.map(([x, y, z]) => V(x, y, z))); t.setIndex([0, 1, 2]); t.computeVertexNormals(); add(new THREE.Mesh(t, M.w)); };
+  for (const [F, C] of [[foot[0], crest[0]], [foot[foot.length - 1], crest[crest.length - 1]]]) tri([[...F, 0], [...C, 0], [...C, h]]);
+  prism(poly([...crest, [19.5, 41], [3.5, 41]]), 0, h, M.w);
+  ribbon(crest.map(([x, y]) => [x, y + 1.2]), 1.6, h, h + 0.4, M.plant);   // planting along the top edge (Ahmed's mark-up)
+  // slides: [top on the crest, bottom on the playground], each its own angle and slope
+  for (const [[tx, ty], [bx, by]] of [[[6, 33.3], [-0.2, 20.2]], [[13, 30.2], [8.5, 16.4]], [[18.3, 28.5], [17.5, 13.6]]]) slide(tx, ty, h, bx, by);
+  rail(crest.map(([x, y]) => [x, y, h]));
+}
+function slide(tx, ty, tz, bx, by) {   // straight metal chute with raised sides from (tx, ty, tz) down to a flat run-out ending at (bx, by)
+  const dx = bx - tx, dy = by - ty, run = Math.hypot(dx, dy), ux = dx / run, uy = dy / run, out = 1.6;
+  const ex = bx - ux * out, ey = by - uy * out, z0 = 0.5, L = Math.hypot(run - out, tz + 0.2 - z0);
+  const grp = new THREE.Group(); grp.position.copy(V((tx + ex) / 2, (ty + ey) / 2, (tz + 0.2 + z0) / 2)); grp.lookAt(V(ex, ey, z0));   // local +z points down the chute
+  const bed = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.1, L), M.w); grp.add(bed);
+  for (const s of [-0.45, 0.45]) { const r = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.32, L), M.w); r.position.set(s, 0.12, 0); grp.add(r); }
+  ROOT.add(grp);
+  const flat = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.1, out), M.w); flat.position.copy(V(ex + ux * out / 2, ey + uy * out / 2, z0)); flat.lookAt(V(bx, by, z0)); add(flat);
+  for (const k of [0.3, out - 0.2]) for (const s of [-0.38, 0.38]) { const px = ex + ux * k - uy * s, py = ey + uy * k + ux * s; box(px - 0.04, px + 0.04, py - 0.04, py + 0.04, 0, z0 - 0.05); }
+  const gp = []; for (const s of [-0.6, 0.6]) { const px = tx - uy * s, py = ty + ux * s; gp.push(V(px, py, tz), V(px, py, tz + 1.2)); }
+  gp.push(gp[1], gp[3]); lines(gp);   // start gate
 }
 
-const PH = { cx: 24.5, cy: 17.5, W: 8, D: 4.5 };
+const PH = { cx: 27, cy: 17, W: 8, D: 4.5 };
 function playhouse() {   // east: two-storey playhouse and stage on dark mulch with log benches, a garden bed to its east
   const { cx, cy, W, D: Dp } = PH, y0 = cy - Dp / 2, y1 = cy + Dp / 2;
-  prism(roundRect(19.5, 1, 31, 15.4, 3), 0, 0.15, M.mulch);   // mulch
-  prism(roundRect(31.4, -1, 34.6, 11, 1.5), 0, 0.45, M.plant);  // garden bed
+  prism(roundRect(22, -1, 31.4, 14.9, 2.5), 0, 0.15, M.mulch);   // mulch
+  garden(poly([[31.8, 21], [34.5, 18], [36.8, 10], [37.6, 0], [37, -6], [33, -4.5], [31.8, 0]]));   // the big garden bed east of it (Ahmed's mark-up)
+  rail([[21.6, 20], [21.6, 3], [23, -0.6], [28.8, -2.9], [37, -6.2]]);   // fence round the playhouse yard (Ahmed's mark-up, red)
   box(cx - W / 2, cx + W / 2, y0, y1, 0, 0.35);
   box(cx - W / 2, cx + W / 2, y0 + 1.2, y1, 0.35, 5.6, M.siding);
   box(cx - W / 2, cx + W / 2, y0, y1, 3.0, 3.25);
@@ -321,21 +347,19 @@ function playhouse() {   // east: two-storey playhouse and stage on dark mulch w
   for (const s of [-1, 1]) { const m = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.08, 0.7), M.shingle); m.position.copy(V(cx + s * 3.2, y0 - 0.3, 5.15)); m.rotation.x = -0.45; add(m); }
   { const m = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.08, 0.7), M.shingle); m.position.copy(V(cx - 0.2, y0 - 0.3, 5.25)); m.rotation.x = -0.45; add(m); }
   // log benches in rows facing the stage (aerial)
-  for (const [x, y, a] of [[21.5, 10.5, 20], [24.5, 10, 0], [27.5, 10.5, -20], [22.5, 6.5, 15], [26.5, 6.5, -15], [24.5, 3.5, 0]]) {
+  for (const [x, y, a] of [[24, 10, 20], [27, 9.5, 0], [30, 10, -20], [25, 6, 15], [29, 6, -15], [27, 2.5, 0]]) {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 1.8, 16), M.w); m.position.copy(V(x, y, 0.6)); m.rotation.set(0, a * deg, Math.PI / 2, "YXZ"); add(m, { hull: true });
     for (const s of [-0.6, 0.6]) cyl(x + Math.cos(a * deg) * s, y - Math.sin(a * deg) * s, 0.08, 0.15, 0.4, M.w, 10); }
 }
 
-function bridge() {   // raised wooden bridge from the hill top east, then into the playhouse's upper floor
-  const z = HILL.h, t = 0.25, y0 = PH.cy + PH.D / 2;
-  const parts = [[HILL.x1, 27, 21.6, 23.4], [23.6, 25.4, y0, 21.6]];
-  for (const [x0, x1, ya, yb] of parts) box(x0, x1, ya, yb, z - t, z, M.deck);
-  for (const [x, y] of [[20.5, 21.7], [20.5, 23.3], [23, 23.3], [26.9, 21.7], [26.9, 23.3], [23.7, 20.5], [25.3, 20.5]]) box(x - 0.12, x + 0.12, y - 0.12, y + 0.12, 0, z - t);
-  const L = [], slats = (ax, ay, bx, by) => { const n = Math.ceil(Math.hypot(bx - ax, by - ay) / 0.18);
-    for (let i = 0; i <= n; i++) { const x = ax + (bx - ax) * i / n, y = ay + (by - ay) * i / n; L.push(V(x, y, z), V(x, y, z + 1.0)); }
-    L.push(V(ax, ay, z + 1.0), V(bx, by, z + 1.0), V(ax, ay, z + 0.15), V(bx, by, z + 0.15)); };
-  slats(HILL.x1, 23.4, 27, 23.4); slats(27, 23.4, 27, 21.6); slats(27, 21.6, 25.4, 21.6); slats(25.4, 21.6, 25.4, y0);
-  slats(HILL.x1, 21.6, 23.6, 21.6); slats(23.6, 21.6, 23.6, y0);
+function bridge() {   // raised wooden bridge from the top of the slide hill east, then south into the playhouse's upper floor
+  const z = TOP, t = 0.25, y0 = PH.cy + PH.D / 2, xa = 19.5, xb = 29, ya = 25.5, yb = 27.3, bx0 = PH.cx - 0.9, bx1 = PH.cx + 0.9;
+  box(xa, xb, ya, yb, z - t, z, M.deck); box(bx0, bx1, y0, ya, z - t, z, M.deck);
+  for (const [x, y] of [[22.5, ya + 0.1], [22.5, yb - 0.1], [25.5, yb - 0.1], [xb - 0.1, ya + 0.1], [xb - 0.1, yb - 0.1], [bx0 + 0.1, 22.5], [bx1 - 0.1, 22.5], [bx0 + 0.1, y0 + 0.5], [bx1 - 0.1, y0 + 0.5]]) box(x - 0.12, x + 0.12, y - 0.12, y + 0.12, 0, z - t);
+  const L = [], slats = (ax, ay, cx, cy) => { const n = Math.ceil(Math.hypot(cx - ax, cy - ay) / 0.18);
+    for (let i = 0; i <= n; i++) { const x = ax + (cx - ax) * i / n, y = ay + (cy - ay) * i / n; L.push(V(x, y, z), V(x, y, z + 1.0)); }
+    L.push(V(ax, ay, z + 1.0), V(cx, cy, z + 1.0), V(ax, ay, z + 0.15), V(cx, cy, z + 0.15)); };
+  slats(xa, yb, xb, yb); slats(xb, yb, xb, ya); slats(xb, ya, bx1, ya); slats(bx1, ya, bx1, y0); slats(xa, ya, bx0, ya); slats(bx0, ya, bx0, y0);
   lines(L);
 }
 
@@ -376,9 +400,9 @@ function outside() {   // outside the walks: restroom, gazebo, the sand trail ro
 }
 
 function details() {
-  cocoon(4, 30, 250);
-  for (const [x, y] of [[-7, 6], [16.5, 8], [-31, 10], [-8, -20], [16, -12], [0, 30], [29.5, -4], [-25, 28]]) lamp(x, y);
-  bench(-4, -17, 0); bench(14, -15.5, 25); bench(-31.5, -4, 85); bench(-6.5, 12, 0); bench(17, 3, 90); bench(-15, 2, 0);
+  cocoon(-4, 25, 250);
+  for (const [x, y] of [[-6, 4], [16.5, 8], [-31, 10], [-8, -20], [16, -14], [-4, 28], [20, -6], [-25, 28]]) lamp(x, y);
+  bench(-4, -18, 0); bench(14, -16.5, 25); bench(-4, 9, 0); bench(17.5, 4, 90); bench(-15, 1.5, 0);
 }
 
 // ---------- outlines: black edges on every crease, every seam where masses meet, and a silhouette on curved parts ----------
