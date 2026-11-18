@@ -28,13 +28,13 @@ HEAD = [(0.46, 0.0, -0.18, 0.18), (0.48, 0.17, -0.25, 0.22), (0.52, 0.212, -0.26
 HEAD_Y = 0.0
 HEAD_SCALE = 1.05     # widens and deepens the head table (its height stays)
 # tail: a cone that rises out of the back to a rounded point. (z, half width, centre y, half depth)
-TAIL = dict(base_z=0.30, tip_z=0.565, base_y=0.24, tip_y=0.43, base_w=0.31, base_d=0.19, lean=1.0)
+TAIL = dict(base_z=0.30, tip_z=0.59, base_y=0.24, tip_y=0.44, base_w=0.31, base_d=0.19, lean=1.0)
 # wings: teardrops on the sides, round end to the front and low, point to the back and up
-WING = dict(x=0.335, y=0.03, z=0.25, length=0.24, h=0.15, t=0.09, tip_lift=0.08, pitch=10, toe=6, grooves=3)
+WING = dict(x=0.355, y=0.05, z=0.27, length=0.26, h=0.15, t=0.09, tip_lift=0.08, pitch=10, toe=6, grooves=3)
 EYE = dict(x=0.135, z=0.78, w=0.04, h=0.055, ring=0.018)
 # beak: open mouth, a wide upper bill over a lower bill with the dark mouth between
-BEAK = dict(w=0.2, root_y=-0.25, tip_y=-0.426, upper_z=0.712, upper_t=0.06, lower_z=0.55, lower_w=0.165,
-            lower_tip_y=-0.398, lower_t=0.045, smile=1.6, flare=0.25, slope=14, scale=1.0)
+BEAK = dict(w=0.2, root_y=-0.25, tip_y=-0.44, upper_z=0.712, upper_t=0.06, lower_z=0.55, lower_w=0.15,
+            lower_tip_y=-0.398, lower_t=0.045, smile=1.6, flare=0.25, slope=14, rim_r=0.024, rim_bend=0.04, scale=1.0)
 SOFTEN = 120          # smoothing passes on the neck and tail joins
 VOXEL = 0.016          # remesh size that blends head, body and tail into one skin (Blender units)
 YELLOW, BEAK_RED, MOUTH = (1.0, 0.76, 0.0), (0.93, 0.25, 0.08), (0.62, 0.09, 0.04)
@@ -100,6 +100,23 @@ def ellipsoid(name, r, segs=48, rings=28):
     bm = bmesh.new(); bmesh.ops.create_uvsphere(bm, u_segments=segs, v_segments=rings, radius=1.0)
     for v in bm.verts: v.co = Vector((v.co.x * r[0], v.co.y * r[1], v.co.z * r[2])) * HEIGHT
     return link(name, bm)
+
+
+def tube(name, pts, radii, mat, segs=16):
+    """a round tube through pts (Blender units) with the given radius at each point, ends closed"""
+    bm = bmesh.new(); rows = []
+    for i, p in enumerate(pts):
+        t = (pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized()
+        n = t.cross(Vector((0, 0, 1))).normalized(); bnv = t.cross(n)
+        rows.append([bm.verts.new(p + (n * math.cos(2 * math.pi * k / segs) + bnv * math.sin(2 * math.pi * k / segs)) * radii[i]) for k in range(segs)])
+    for r0, r1 in zip(rows, rows[1:]):
+        for k in range(segs): bm.faces.new((r0[k], r0[(k + 1) % segs], r1[(k + 1) % segs], r1[k]))
+    for row, flip in ((rows[0], True), (rows[-1], False)):
+        c = bm.verts.new(sum((v.co for v in row), Vector()) / segs)
+        for k in range(segs):
+            f = (row[k], row[(k + 1) % segs], c); bm.faces.new(f[::-1] if flip else f)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces); o = link(name, bm)
+    modifier(o, "SUBSURF", levels=1); smooth(o, mat); return o
 
 
 def modifier(ob, kind, **kw):
@@ -180,6 +197,17 @@ def build():
     bill("beak_lower", B["lower_w"], Ll, B["lower_t"], B["lower_tip_y"] + Ll * sc, B["lower_z"], B["smile"], red, -6)
     bill("mouth", B["lower_w"] * 0.85, Ll * 0.8, (B["upper_z"] - B["lower_z"]) * 0.5, B["lower_tip_y"] + Ll * sc + 0.02,
          (B["upper_z"] + B["lower_z"]) / 2, 0.3, mouth)
+    # rolled lip rims: thick tubes along each bill's front edge, arched so the two meet at the mouth corners
+    def rim(name, w, d, cy, z, bend, r, mat):
+        pts = []
+        for i in range(41):
+            a = math.pi * i / 40; c = math.cos(a)
+            pts.append(Vector((w * sc * c, cy - d * sc * math.sin(a), z + bend * c * c)) * HEIGHT)
+        tube(name, pts, [r * sc * HEIGHT * (0.55 + 0.45 * math.sin(math.pi * i / 40)) for i in range(41)], mat)
+    rim("lip_upper", B["w"] * (1 + B["flare"] * 0.5), L * 1.55, B["tip_y"] + L * sc * 1.55 + 0.012, B["upper_z"] - B["upper_t"] * 0.55,
+        -B["rim_bend"], B["rim_r"], red)
+    rim("lip_lower", B["lower_w"] * 1.05, Ll * 1.5, B["lower_tip_y"] + Ll * sc * 1.5 + 0.012, B["lower_z"] + B["lower_t"] * 0.45,
+        B["rim_bend"] * 0.8, B["rim_r"] * 0.95, red)
 
     E = EYE; dg = bpy.context.evaluated_depsgraph_get(); duck = bpy.data.objects["duck_body"]
     for s in (1, -1):
