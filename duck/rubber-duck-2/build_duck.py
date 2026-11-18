@@ -34,7 +34,7 @@ WING = dict(x=0.355, y=0.05, z=0.27, length=0.26, h=0.15, t=0.09, tip_lift=0.08,
 EYE = dict(x=0.135, z=0.78, w=0.04, h=0.055, ring=0.018)
 # beak: a rolled lip round an open mouth. cz/hw/hh_top/hh_bot: the lip's centre line seen from the front; r_*: lip thickness;
 # y_*: how far the top, bottom and corners of the lip stick out (more negative = further forward)
-BEAK = dict(cz=0.64, hw=0.15, hh_top=0.055, hh_bot=0.075, r_top=0.05, r_bot=0.036, r_corner=0.026, lift=0.025, round=0.6,
+BEAK = dict(cz=0.63, hw=0.14, hh_top=0.055, hh_bot=0.075, r_top=0.056, r_bot=0.042, r_corner=0.026, lift=0.015, round=0.6,
             y_top=-0.41, y_bot=-0.365, y_corner=-0.30, y_back=-0.22, bulge=0.1, mouth_depth=0.05, scale=1.0)
 SOFTEN = 120          # smoothing passes on the neck and tail joins
 VOXEL = 0.016          # remesh size that blends head, body and tail into one skin (Blender units)
