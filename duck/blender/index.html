@@ -55,7 +55,7 @@ const sun = new THREE.DirectionalLight(0xffffff, 0.4); sun.position.set(4, 8, 6)
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.ShadowMaterial({ opacity: 0.16 }));
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 
-new GLTFLoader().load("./rubber_duck_1.glb?v=1", (g) => {
+new GLTFLoader().load("./rubber_duck_1.gltf.json?v=1", (g) => {
   const duck = g.scene; duck.scale.setScalar(1.4);               // 2.00 BU tall, shown 2.8 units like the other duck
   duck.traverse((o) => { if (o.isMesh) { o.castShadow = true; if (o.material && !/eye|glint/.test(o.material.name)) o.material.flatShading = true; } });
   scene.add(duck); document.getElementById("status").remove();
