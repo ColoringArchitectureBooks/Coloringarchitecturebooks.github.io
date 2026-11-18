@@ -32,9 +32,10 @@ TAIL = dict(base_z=0.30, tip_z=0.59, base_y=0.24, tip_y=0.44, base_w=0.31, base_
 # wings: teardrops on the sides, round end to the front and low, point to the back and up
 WING = dict(x=0.355, y=0.05, z=0.27, length=0.26, h=0.15, t=0.09, tip_lift=0.08, pitch=10, toe=6, grooves=3)
 EYE = dict(x=0.135, z=0.78, w=0.04, h=0.055, ring=0.018)
-# beak: open mouth, a wide upper bill over a lower bill with the dark mouth between
-BEAK = dict(w=0.2, root_y=-0.25, tip_y=-0.44, upper_z=0.712, upper_t=0.06, lower_z=0.55, lower_w=0.15,
-            lower_tip_y=-0.398, lower_t=0.045, smile=1.6, flare=0.25, slope=14, rim_r=0.024, rim_bend=0.04, scale=1.0)
+# beak: a rolled lip round an open mouth. cz/hw/hh_top/hh_bot: the lip's centre line seen from the front; r_*: lip thickness;
+# y_*: how far the top, bottom and corners of the lip stick out (more negative = further forward)
+BEAK = dict(cz=0.64, hw=0.15, hh_top=0.055, hh_bot=0.075, r_top=0.05, r_bot=0.036, r_corner=0.026, lift=0.025, round=0.6,
+            y_top=-0.41, y_bot=-0.365, y_corner=-0.30, y_back=-0.22, bulge=0.1, mouth_depth=0.05, scale=1.0)
 SOFTEN = 120          # smoothing passes on the neck and tail joins
 VOXEL = 0.016          # remesh size that blends head, body and tail into one skin (Blender units)
 YELLOW, BEAK_RED, MOUTH = (1.0, 0.76, 0.0), (0.93, 0.25, 0.08), (0.62, 0.09, 0.04)
@@ -181,33 +182,46 @@ def build():
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True); bpy.ops.object.select_all(action="DESELECT")
         modifier(w, "SUBSURF", levels=1); smooth(w, yellow)
 
-    B = BEAK; sc = B["scale"]; L = (B["root_y"] - B["tip_y"]) / 2
-    def bill(name, w, depth, t, cy, z, smile, mat, slope=0.0):
-        o = ellipsoid(name, (w * sc, depth * sc, t * sc))
-        for v in o.data.vertices:
-            u = -v.co.y / (depth * sc * HEIGHT)                       # +1 at the tip, -1 at the root
-            v.co.x *= 1 + B["flare"] * max(0.0, u)                    # a duck bill widens toward the tip
-            x = v.co.x / HEIGHT; v.co.z += smile * x * x * HEIGHT
-            if v.co.y > 0: v.co.y *= 1.6                              # the back half goes into the face
-        o.data.update()
-        o.matrix_world = Matrix.Translation((0, cy * HEIGHT, z * HEIGHT)) @ Matrix.Rotation(math.radians(-slope), 4, "X")
-        modifier(o, "SUBSURF", levels=1); smooth(o, mat); return o
-    bill("beak_upper", B["w"], L, B["upper_t"], B["tip_y"] + L * sc, B["upper_z"], -B["smile"] * 0.5, red, B["slope"])
-    Ll = (B["root_y"] - B["lower_tip_y"]) / 2
-    bill("beak_lower", B["lower_w"], Ll, B["lower_t"], B["lower_tip_y"] + Ll * sc, B["lower_z"], B["smile"], red, -6)
-    bill("mouth", B["lower_w"] * 0.85, Ll * 0.8, (B["upper_z"] - B["lower_z"]) * 0.5, B["lower_tip_y"] + Ll * sc + 0.02,
-         (B["upper_z"] + B["lower_z"]) / 2, 0.3, mouth)
-    # rolled lip rims: thick tubes along each bill's front edge, arched so the two meet at the mouth corners
-    def rim(name, w, d, cy, z, bend, r, mat):
-        pts = []
-        for i in range(41):
-            a = math.pi * i / 40; c = math.cos(a)
-            pts.append(Vector((w * sc * c, cy - d * sc * math.sin(a), z + bend * c * c)) * HEIGHT)
-        tube(name, pts, [r * sc * HEIGHT * (0.55 + 0.45 * math.sin(math.pi * i / 40)) for i in range(41)], mat)
-    rim("lip_upper", B["w"] * (1 + B["flare"] * 0.5), L * 1.55, B["tip_y"] + L * sc * 1.55 + 0.012, B["upper_z"] - B["upper_t"] * 0.55,
-        -B["rim_bend"], B["rim_r"], red)
-    rim("lip_lower", B["lower_w"] * 1.05, Ll * 1.5, B["lower_tip_y"] + Ll * sc * 1.5 + 0.012, B["lower_z"] + B["lower_t"] * 0.45,
-        B["rim_bend"] * 0.8, B["rim_r"] * 0.95, red)
+    # beak: ONE rolled lip running all the way round an oval open mouth (seen from the front), whose top
+    # sticks out furthest and whose corners sink back into the cheeks (seen from the side), plus a sleeve
+    # that joins the lip to the face and a recessed mouth inside
+    B = BEAK; sc = B["scale"]; N = 72
+    def rim_point(a, grow=0.0):
+        s_, c = math.sin(a), math.cos(a); up = s_ >= 0
+        x = (B["hw"] + grow) * c * sc
+        z = B["cz"] + ((B["hh_top"] if up else B["hh_bot"]) + grow) * s_ * sc + B["lift"] * (1 - abs(s_)) ** 2
+        k = abs(s_) ** B["round"]
+        y = B["y_corner"] + ((B["y_top"] if up else B["y_bot"]) - B["y_corner"]) * k
+        return Vector((x, y, z)) * HEIGHT
+    def rim_r(a):
+        s_ = math.sin(a); k = abs(s_) ** 0.8
+        return (B["r_corner"] + ((B["r_top"] if s_ >= 0 else B["r_bot"]) - B["r_corner"]) * k) * sc * HEIGHT
+    bm = bmesh.new(); seg = 20; rows = []                               # the rolled lip: a closed tube
+    pts = [rim_point(2 * math.pi * i / N) for i in range(N)]
+    for i, p in enumerate(pts):
+        t = (pts[(i + 1) % N] - pts[i - 1]).normalized(); out = Vector((p.x, 0, p.z - B["cz"] * HEIGHT))
+        out = (out - t * out.dot(t)).normalized(); bn = t.cross(out).normalized(); r = rim_r(2 * math.pi * i / N)
+        rows.append([bm.verts.new(p + (out * math.cos(2 * math.pi * k / seg) + bn * math.sin(2 * math.pi * k / seg)) * r) for k in range(seg)])
+    for i in range(N):
+        r0, r1 = rows[i], rows[(i + 1) % N]
+        for k in range(seg): bm.faces.new((r0[k], r0[(k + 1) % seg], r1[(k + 1) % seg], r1[k]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces); lip = link("beak_lip", bm)
+    modifier(lip, "SUBSURF", levels=1); smooth(lip, red)
+    bm = bmesh.new(); loops = []                                        # sleeve from inside the face to the lip
+    for j in range(7):
+        t = j / 6; grow = 0.3 * B["r_top"] * (1 - t) + 0.7 * B["r_top"] * t
+        row = []
+        for i in range(N):
+            a = 2 * math.pi * i / N; p = rim_point(a, grow * (1 + B["bulge"] * math.sin(math.pi * t)))
+            yb = B["y_back"] * HEIGHT; p.y = yb + (p.y - yb) * t - rim_r(a) * 0.3 * t
+            row.append(bm.verts.new(p))
+        loops.append(row)
+    for r0, r1 in zip(loops, loops[1:]):
+        for i in range(N): bm.faces.new((r0[i], r0[(i + 1) % N], r1[(i + 1) % N], r1[i]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces); sleeve = link("beak_sleeve", bm)
+    modifier(sleeve, "SUBSURF", levels=1); smooth(sleeve, red)
+    m = ellipsoid("mouth", (B["hw"] * sc * 0.95, B["mouth_depth"] * sc, (B["hh_top"] + B["hh_bot"]) / 2 * sc * 0.95))  # the inside of the mouth
+    m.location = (0, ((B["y_top"] + B["y_bot"]) / 2 + B["mouth_depth"] * 1.4) * HEIGHT, B["cz"] * HEIGHT); smooth(m, mouth)
 
     E = EYE; dg = bpy.context.evaluated_depsgraph_get(); duck = bpy.data.objects["duck_body"]
     for s in (1, -1):
