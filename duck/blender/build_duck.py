@@ -26,14 +26,22 @@ BODY = [(0.0, 0.0, 0.0), (0.012, 0.42, 0.5), (0.094, 0.78, 0.85), (0.188, 1.07, 
         (0.47, 1.29, 1.35), (0.564, 1.23, 1.28), (0.658, 1.13, 1.16), (0.752, 1.04, 1.02), (0.846, 0.98, 0.92),
         (0.94, 0.91, 0.81), (0.99, 0.6, 0.55), (1.0, 0.0, 0.0)]
 BODY_SCALE = 1.1            # the picture's body is 1.43 wide, not 1.30 (Ahmed chose the picture over the numbers)
-BODY = [(z, w * BODY_SCALE, d * BODY_SCALE) for z, w, d in BODY]
 BODY_Y = -0.10                 # the chest sits a little ahead of the head (side view)
 TAIL = dict(back=0.24, z=0.8, rise=0.3, spread=0.18)
 WING = dict(x=0.42, length=0.76, h=0.62, z=0.56, out=0.18, tilt=12)
 EYE = dict(x=0.33, z=1.362, w=0.16, h=0.21, t=0.07)
 BEAK = dict(top=1.357, bottom=0.971, w=0.66, proj=0.34)
+BEAK_SCALE = 1.0            # grows the beak around the mouth line
 FACES = dict(head=260, body=300, wing=46, beak_upper=70, beak_lower=50)   # low-poly budget per part
 YELLOW, ORANGE, ORANGE_DARK = (1.0, 0.8, 0.04), (0.976, 0.42, 0.086), (0.886, 0.333, 0.055)
+
+
+# --params FILE.json overrides any number above, e.g. {"BODY_SCALE": 1.12, "WING": {"h": 0.66}}
+if "--params" in sys.argv:
+    import json
+    for k, v in json.load(open(sys.argv[sys.argv.index("--params") + 1])).items():
+        if isinstance(v, dict): globals()[k].update(v)
+        else: globals()[k] = v
 
 
 def lerp_table(t, z):
@@ -101,7 +109,7 @@ def build():
     black, white = material("eye_black", (0.07, 0.07, 0.07), 0.15), material("eye_glint", (1, 1, 1), 0.2)
 
     head = sphere("head"); lathe(head, HEAD, 0.80, 2.0)
-    body = sphere("body"); lathe(body, BODY, 0.0, 1.0, BODY_Y)
+    body = sphere("body"); lathe(body, [(z, w * BODY_SCALE, d * BODY_SCALE) for z, w, d in BODY], 0.0, 1.0, BODY_Y)
     # tail: the upper back of the body itself is pulled backward and up, so it grows out of the body
     for v in body.data.vertices:
         p = v.co; rear = (p.y - BODY_Y) / (1.37 * BODY_SCALE / 2)                   # 1 at the back
@@ -135,7 +143,7 @@ def build():
         pts = [(w, e + c), (w * .75, e + c * .8 + (r - e) * .2), (w * .4, e + c * .4 + (r - e) * .75), (0, t),
                (-w * .4, e + c * .4 + (r - e) * .75), (-w * .75, e + c * .8 + (r - e) * .2), (-w, e + c),
                (-w, c), (-w * .5, c * .3), (0, 0), (w * .5, c * .3), (w, c)]
-        rings.append([(x, y, mouth + h) for x, h in pts])
+        rings.append([(x * BEAK_SCALE, face_y - (face_y - y) * BEAK_SCALE, mouth + h * BEAK_SCALE) for x, h in pts])
     upper = loft("beak_upper", rings)
     LO = [(-0.08, 0.2, 0.85), (0, 0.21, 1), (0.08, 0.24, 1), (0.16, 0.25, 0.92), (0.23, 0.23, 0.77), (0.28, 0.19, 0.54), (0.3, 0.13, 0.3)]
     rings = []
@@ -143,7 +151,7 @@ def build():
         b *= -(low + gap); y = face_y - z
         pts = [(w, c * .9 - gap), (w * .5, c * .3 - gap), (0, -gap), (-w * .5, c * .3 - gap), (-w, c * .9 - gap),
                (-w * .9, b * .4), (-w * .5, b * .9), (0, b), (w * .5, b * .9), (w * .9, b * .4)]
-        rings.append([(x, y, mouth + h) for x, h in pts])
+        rings.append([(x * BEAK_SCALE, face_y - (face_y - y) * BEAK_SCALE, mouth + h * BEAK_SCALE) for x, h in pts])
     lower = loft("beak_lower", rings)
 
     # low poly: decimate the smooth shapes and flat shade them
@@ -166,7 +174,7 @@ def build():
     return head
 
 
-def render_views(out_dir):
+def render_views(out_dir, only=None):
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"; sc.cycles.samples = 48; sc.cycles.device = "CPU"
     try: sc.cycles.use_denoising = True
@@ -182,6 +190,7 @@ def render_views(out_dir):
     views = {"front": (0, -1, 0.12), "three_quarter": (-0.7, -0.75, 0.15), "side": (-1, 0.0, 0.1), "back_three_quarter": (-0.7, 0.75, 0.15),
              "back": (0, 1, 0.12), "top": (0.0, -0.25, 1), "high_three_quarter": (0.75, -0.7, 0.45)}   # the reference sheet's seven angles
     for name, d in views.items():
+        if only and name not in only: continue
         dv = Vector(d).normalized(); co.location = target + dv * 5.2
         co.rotation_euler = (target - co.location).to_track_quat("-Z", "Y").to_euler()
         sc.render.filepath = os.path.join(out_dir, f"view_{name}.png"); bpy.ops.render.render(write_still=True)
@@ -192,5 +201,5 @@ if __name__ == "__main__":
     build()
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "rubber_duck_1.blend"))
     bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, "rubber_duck_1.glb"), export_format="GLB", export_yup=True)
-    if "--render" in sys.argv: render_views(OUT)
+    if "--render" in sys.argv: render_views(OUT, sys.argv[sys.argv.index("--views") + 1].split(",") if "--views" in sys.argv else None)
     print("faces:", {o.name: len(o.data.polygons) for o in bpy.data.objects if o.type == "MESH"})
