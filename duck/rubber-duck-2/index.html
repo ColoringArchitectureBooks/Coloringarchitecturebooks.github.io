@@ -1,0 +1,75 @@
+<meta charset="utf-8">
+<title>Rubber Duck 2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  /* One studio look on purpose, matching the turnaround sheet's white. */
+  :root { --bg:#f1f2f4; --ink:#2b2410; --muted:#5d5a52; --chip:#f6f5f1; --accent:#ffd21f; color-scheme: light; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif; }
+  html, body { touch-action:none; overscroll-behavior:none; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  header { position:fixed; top:0; left:0; right:0; pointer-events:none;
+    padding:max(14px, env(safe-area-inset-top, 0px)) 16px 0; }
+  h1 { margin:0; font-size:20px; }
+  .sub { margin-top:2px; font-size:14px; color:var(--muted); }
+  .bar { position:fixed; left:0; right:0; bottom:max(16px, env(safe-area-inset-bottom, 0px)); padding:0 16px;
+    display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+  button { font:inherit; font-size:15px; border:1.5px solid var(--ink); background:var(--chip); color:var(--ink);
+    border-radius:999px; padding:7px 16px; cursor:pointer; }
+  button:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+  button[aria-pressed="true"] { background:var(--ink); color:var(--accent); }
+  #status { position:fixed; inset:0; display:grid; place-items:center; color:var(--muted); }
+</style>
+<canvas id="c" aria-label="Rubber Duck 2, a smooth 3D rubber duck built in Blender"></canvas>
+<header dir="rtl"><h1>البطة 2 · Rubber Duck 2</h1><div class="sub">لفّها بصباع واحد أو اتنين، وقرّب بالقرص</div></header>
+<div id="status">Loading the duck…</div>
+<div class="bar" dir="rtl">
+  <button id="v-front">قدّام</button><button id="v-side">جنب</button><button id="v-back">ورا</button><button id="v-top">فوق</button>
+  <button id="spin" aria-pressed="true">لف</button>
+</div>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { mapTouch } from "./touch.js?v=1";
+
+const canvas = document.getElementById("c");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xf1f2f4);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+const camera = new THREE.PerspectiveCamera(35, 1, 0.05, 100);
+const controls = new OrbitControls(camera, canvas);
+const touch = mapTouch(controls, camera, canvas, scene);
+controls.enableDamping = true; controls.minDistance = 2; controls.maxDistance = 20;
+controls.maxPolarAngle = Math.PI / 2 - 0.03; controls.autoRotate = true; controls.autoRotateSpeed = 1.6;
+scene.add(new THREE.HemisphereLight(0xffffff, 0xe0dccf, 1.0));
+const head = new THREE.DirectionalLight(0xffffff, 1.0); head.position.set(1.5, 3, 2); head.target.position.set(0, 0, -6);
+camera.add(head, head.target); scene.add(camera);
+const sun = new THREE.DirectionalLight(0xffffff, 0.4); sun.position.set(4, 8, 6); sun.castShadow = true; scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.ShadowMaterial({ opacity: 0.16 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+new GLTFLoader().load("./rubber_duck_2.gltf.json?v=1", (g) => {
+  const duck = g.scene; duck.scale.setScalar(1.4);               // 2.00 BU tall, shown 2.8 units like the other duck
+  duck.traverse((o) => { if (o.isMesh) o.castShadow = true; });   // smooth glossy rubber, so no flat shading here
+  scene.add(duck); document.getElementById("status").remove();
+}, undefined, () => { document.getElementById("status").textContent = "Couldn't load the duck. Please refresh the page."; });
+
+const T = new THREE.Vector3(0, 1.35, 0);
+const VIEWS = { front: [0, 1.8, 9], side: [-9, 1.8, 0], back: [0, 2.2, -9], top: [0.01, 9.5, 0.6] };
+const setView = (e) => { touch.stop(); camera.position.set(...e); controls.target.copy(T); controls.update(); };
+setView(VIEWS.front);
+for (const k in VIEWS) document.getElementById("v-" + k).onclick = () => setView(VIEWS[k]);
+const spin = document.getElementById("spin");
+const setSpin = (on) => { controls.autoRotate = on; spin.setAttribute("aria-pressed", on); };
+spin.onclick = () => setSpin(!controls.autoRotate); canvas.addEventListener("pointerdown", () => setSpin(false));
+function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.8 ? 52 : 35; camera.updateProjectionMatrix(); }
+addEventListener("resize", resize); resize();
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+</script>
