@@ -344,7 +344,18 @@ function houseArea() {   // the playhouse: mulch yard, symmetric house, half-rou
   each(J.h_yard, (s) => prism(s, 0, 0.15, M.mulch, true));
   playhouse();
   each(J.h_step, (s) => prism(s, 0, 0.3, M.deck, true));
-  each(J.logs, (s) => prism(s, 0.15, 0.6, M.w, true));
+  for (const p of J.logs) {   // log benches (photo): a straight round log on two short posts, cracked rings on the cut ends
+    const o = p.o, n = o.length, A = o[0], B = o[Math.floor(n / 2) - 1], cx = o.reduce((s, q) => s + q[0], 0) / n, cy = o.reduce((s, q) => s + q[1], 0) / n;
+    const dx = B[0] - A[0], dy = B[1] - A[1], len = Math.hypot(dx, dy) * 0.92, ux = dx / Math.hypot(dx, dy), uy = dy / Math.hypot(dx, dy), r = 0.19, zc = 0.15 + 0.27 + r;
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 32), M.w); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(ux, 0, -uy)); m.position.copy(V(cx, cy, zc)); add(m, { hull: true });
+    for (const k of [-0.3, 0.3]) cyl(cx + ux * len * k, cy + uy * len * k, 0.07, 0.15, zc - r + 0.02, M.w, 16);
+    const L = []; for (const e of [-0.5, 0.5]) { const ex = cx + ux * (len * e + Math.sign(e) * 0.005), ey = cy + uy * (len * e + Math.sign(e) * 0.005), px = -uy, py = ux;
+      for (const rr of [0.06, 0.12]) for (let i = 0; i < 20; i++) { const a0 = i / 20 * 2 * Math.PI, a1 = (i + 1) / 20 * 2 * Math.PI;
+        L.push(V(ex + px * rr * Math.cos(a0), ey + py * rr * Math.cos(a0), zc + rr * Math.sin(a0)), V(ex + px * rr * Math.cos(a1), ey + py * rr * Math.cos(a1), zc + rr * Math.sin(a1))); }
+      for (const a of [0.4, 2.2, 4.0]) L.push(V(ex + px * 0.03 * Math.cos(a), ey + py * 0.03 * Math.cos(a), zc + 0.03 * Math.sin(a)), V(ex + px * 0.17 * Math.cos(a + 0.3), ey + py * 0.17 * Math.cos(a + 0.3), zc + 0.17 * Math.sin(a + 0.3))); }
+    lines(L);
+    for (const zz of [zc + r * 0.55]) { const L2 = []; for (const k of [-0.35, -0.05, 0.25]) L2.push(V(cx + ux * len * k, cy + uy * len * k, zc + r * 0.98), V(cx + ux * len * (k + 0.18), cy + uy * len * (k + 0.18), zc + r * 0.98)); lines(L2); }   // bark grain on top
+  }
   each(J.h_bridge, (s, p) => deck(p));
   rail(J.fence.map(([x, y]) => [x, y, 0.15]));
   line3(J.offset, 0.14);
@@ -386,23 +397,25 @@ function playhouse() {   // an open building (Ahmed): real walls with open windo
   const cx0 = 22.535, cx1 = 26.72, wx0 = 20.791, wx1 = 28.464, yf = 5.857, ywf = 6.555, yb = 10.391, ywb = 9.81, cm = (cx0 + cx1) / 2, t = 0.12;
   const F2 = 2.35, B2 = 2.6, WE = 4.55, CW = 5.1, AP = 6.6, L = [];   // beam/floor 2.35-2.6, wing eaves 4.55, middle walls 5.1, ridge 6.6 (photo, 1 m = 126 px)
   // ----- middle bay, ground floor: the stage
-  const pw = 0.45, sd = 1.4;
+  const pw = 0.42, sd = 1.4;
   box(cx0, cx0 + pw, yf, yf + 0.35, 0, F2, M.w); box(cx1 - pw, cx1, yf, yf + 0.35, 0, F2, M.w);   // the two light pillars
   wallX(cx0, yf + 0.35, ywf, 0, F2); wallX(cx1, yf + 0.35, ywf, 0, F2, [], -t);                   // stage sides up to the porches
   const doorH = [cm - 0.45, cm + 0.45, 0.3, 1.85], winL = [cm - 1.0, cm - 0.55, 1.15, 1.8], winR = [cm + 0.55, cm + 1.0, 1.15, 1.8];
   wallY(yf + sd, cx0, cx1, 0, F2, [doorH, winL, winR]);                // back of the stage: an open doorway and two open windows into the room behind
   { const y = yf + sd - 0.01; gridWindow(L, y, ...winL, 2, 4); gridWindow(L, y, ...winR, 2, 4); frontRect(L, y, ...doorH); }
   box(cx0 + pw, cx1 - pw, yf, yf + sd, 0, 0.3, M.deck);                 // stage floor, level with the half-round step
-  box(cx0 + pw, cx1 - pw, yf, yf + 0.3, 2.05, F2, M.w);                 // header over the opening (opening 2.05 m high)
-  box(cx0 + pw, cx0 + pw + 0.2, yf + 0.02, yf + 0.22, 0.3, 2.05, M.w); box(cx1 - pw - 0.2, cx1 - pw, yf + 0.02, yf + 0.22, 0.3, 2.05, M.w);   // wooden frame posts inside the pillars (photo)
-  box(cx0 + pw, cx1 - pw, yf + 0.02, yf + 0.22, 1.9, 2.05, M.w);                                                                         // and their wooden header
+  { const fw = 0.24, yA = yf - 0.18, yB = yf + 0.06;               // the dark wooden portal round the stage, in front of the curtains (photo): two posts, a header with ends past the posts, corner braces
+    box(cx0 + pw, cx0 + pw + fw, yA, yB, 0.3, 2.02, M.w); box(cx1 - pw - fw, cx1 - pw, yA, yB, 0.3, 2.02, M.w);
+    box(cx0 + pw - 0.14, cx1 - pw + 0.14, yA - 0.04, yf + 0.3, 2.02, F2, M.w);   // header right up under the beam
+    for (const sgn of [1, -1]) { const p = sgn > 0 ? cx0 + pw + fw : cx1 - pw - fw, X = (d) => p + sgn * d;
+      xzPrism(sgn > 0 ? [[X(0), 1.35], [X(0.62), 2.02], [X(0.46), 2.02], [X(0), 1.52]] : [[X(0.62), 2.02], [X(0), 1.35], [X(0), 1.52], [X(0.46), 2.02]], yA + 0.04, yB - 0.04, M.w); } }
   for (const sgn of [1, -1]) {                                          // carved wooden curtains (photo): wide at the top, a board slanting in, gathered low near the post, flaring at the foot
-    const xo = sgn > 0 ? cx0 + pw + 0.2 : cx1 - pw - 0.2, X = (d) => xo + sgn * d, sh = new THREE.Shape();
+    const xo = sgn > 0 ? cx0 + pw + 0.24 : cx1 - pw - 0.24, X = (d) => xo + sgn * d, sh = new THREE.Shape();
     sh.moveTo(X(0), 1.9); sh.lineTo(X(0.72), 1.9); sh.quadraticCurveTo(X(0.6), 1.25, X(0.24), 0.95);
     sh.quadraticCurveTo(X(0.18), 0.6, X(0.46), 0.3); sh.lineTo(X(0), 0.3); sh.closePath();
     const g = new THREE.ExtrudeGeometry(sh, { depth: 0.12, bevelEnabled: false, curveSegments: 16 }), m = new THREE.Mesh(g, M.w);
     m.position.set(0, 0, -(yf + 0.2)); add(m, { curved: true });
-    const y = yf + 0.07; L.push(V(X(0), y, 1.35), V(X(0.6), y, 1.9));   // the slanting board across the top of the drape
+    const y = yf + 0.07;
     for (const tt of [0.35, 0.6]) L.push(V(X(tt * 0.72), y, 1.9), V(X(0.1 + tt * 0.2), y, 1.0), V(X(0.1 + tt * 0.2), y, 0.85), V(X(0.12 + tt * 0.4), y, 0.32));   // carved folds
   }
   wallY(yb - t, cx0, cx1, 0, F2, [[cm - 0.45, cm + 0.45, 0, 1.9]]);     // back wall, ground floor, with a doorway out the back
