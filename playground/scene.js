@@ -503,7 +503,9 @@ function details() {
 // ---------- outlines: black edges on every crease, every seam where masses meet, and a silhouette on curved parts ----------
 function hullMat(w) {
   const m = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
-  m.onBeforeCompile = (s) => { s.vertexShader = s.vertexShader.replace("#include <begin_vertex>", `vec3 transformed = position + normal * ${w.toFixed(3)};`); };
+  const k = (w / 0.025 * 0.0034).toFixed(5);   // outline kept the same thin width on screen, near or far (Ahmed: legs looked thick up close)
+  m.onBeforeCompile = (s) => { s.vertexShader = s.vertexShader.replace("#include <project_vertex>", `#include <project_vertex>
+    { vec2 cn = (projectionMatrix * vec4(normalMatrix * normal, 0.0)).xy; if (dot(cn, cn) > 1e-8) { cn = normalize(cn); cn.x *= projectionMatrix[0][0] / projectionMatrix[1][1]; gl_Position.xy += cn * ${k} * gl_Position.w; } }`); };
   return m;
 }
 function outline(root) {
