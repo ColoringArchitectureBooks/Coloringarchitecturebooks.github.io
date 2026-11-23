@@ -118,7 +118,7 @@ function bench(x, y, a) {   // park bench: seat, back, two legs
 function lamp(x, y) { cyl(x, y, 0.09, 0, 7, M.w, 12); rbox(x, y, 0, 1.4, 0.25, 6.9, 7.1); }
 
 function ropeCone(x, y) {   // photo: blue rim disc, centre mast, rope net to the top, a blue ring half way up
-  const z0 = 0.45, r = 2.4, top = 5.4;
+  const z0 = 0.16, r = 2.4, top = 5.2;
   cyl(x, y, r, z0 + 0.25, z0 + 0.45); cyl(x, y, 0.4, z0, z0 + 0.25, M.w, 24);
   cyl(x, y, 0.13, z0 + 0.45, top, M.w, 16); const cap = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.w); cap.position.copy(V(x, y, top)); add(cap, { hull: true });
   const zr = z0 + 0.45 + (top - z0 - 0.45) * 0.4, rr = r * 0.6;   // the middle ring
@@ -131,14 +131,14 @@ function ropeCone(x, y) {   // photo: blue rim disc, centre mast, rope net to th
 }
 
 function bowlSpinner(x, y) {   // photo: blue bowl seat on a post, two steel hoops crossing over it
-  cyl(x, y, 0.12, 0.45, 0.75, M.w, 16);
-  const b = new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), M.w); b.position.copy(V(x, y, 1.25)); add(b, { hull: true });
-  for (const a of [40, -40]) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.04, 8, 40), M.w); t.position.copy(V(x, y, 1.3)); t.rotation.set(0, a * deg, 0); t.rotateX(0.35); add(t, { hull: true, hw: 0.01 }); }
+  cyl(x, y, 0.12, 0.16, 0.6, M.w, 16);
+  const b = new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), M.w); b.position.copy(V(x, y, 1.1)); add(b, { hull: true });
+  for (const a of [40, -40]) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.04, 8, 40), M.w); t.position.copy(V(x, y, 1.15)); t.rotation.set(0, a * deg, 0); t.rotateX(0.35); add(t, { hull: true, hw: 0.01 }); }
 }
 
 function swing(x, y, a) {   // A-frame swing along the ring: legs at both ends, top beam, two seats on chains
   const t = [Math.cos((a + 90) * deg), Math.sin((a + 90) * deg)], n = [Math.cos(a * deg), Math.sin(a * deg)], L = 2.6, H = 2.8;
-  const leg = (s, w) => { const b = V(x + t[0] * L * s + n[0] * w, y + t[1] * L * s + n[1] * w, 0.45), top = V(x + t[0] * L * s, y + t[1] * L * s, H);
+  const leg = (s, w) => { const b = V(x + t[0] * L * s + n[0] * w, y + t[1] * L * s + n[1] * w, 0.16), top = V(x + t[0] * L * s, y + t[1] * L * s, H);
     const d = top.clone().sub(b), m = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, d.length(), 12), M.w);
     m.position.copy(b.clone().add(top).multiplyScalar(0.5)); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); add(m, { hull: true }); };
   for (const s of [-1, 1]) for (const w of [-1.1, 1.1]) leg(s, w);
@@ -167,7 +167,7 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=11")).json();
+const J = await (await fetch("./layout.json?v=13")).json();
 const TOP = 3.0;   // the high level: car park / park entrance; the playground floor is 0
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
@@ -190,10 +190,10 @@ function ground() {
 }
 
 function zones() {
-  each(J.sand, (s) => prism(s, 0, 0.45, M.sand, true));                    // swings: sand
-  each(J.spin, (s) => prism(s, 0, 0.45, M.w, true));                       // spinning zone: rubber
-  each(J.grey, (s) => prism(s, 0, 0.45, M.w, true));                       // shade circle: rubber
-  each(J.mtop, (s) => prism(s, 0, 0.45, M.w, true)); each(J.mbot, (s) => prism(s, 0, 0.45, M.w, true));   // music oval, split by the music line
+  each(J.sand, (s) => prism(s, 0, 0.16, M.sand, true));                    // swings: sand
+  each(J.spin, (s) => prism(s, 0, 0.16, M.w, true));                       // spinning zone: rubber
+  each(J.grey, (s) => prism(s, 0, 0.16, M.w, true));                       // shade circle: rubber
+  each(J.moval, (s) => prism(s, 0, 0.16, M.w, true));                      // music oval: one floor (photo)
   each(J.wlower, (s) => prism(s, 0, 0.15, M.w, true));                     // west leaf, lower part (use still open)
   each(J.gardens, (s) => garden(s));                                       // all the agreed gardens
   each(J.curb_play, (s) => prism(s, 0, 0.57, M.w, true));                 // thick seat-height curb round each play area
@@ -202,18 +202,29 @@ function zones() {
   each(J.planter, (s) => garden(s));                                  // the curved planter under the top-left bridges
   // spinning zone equipment round its centre
   const [cx, cy] = [4.1, -3.9]; ropeCone(cx - 2, cy + 3); bowlSpinner(cx + 4, cy - 2); bowlSpinner(cx + 1, cy - 6);
-  cyl(cx - 3, cy - 4, 2.0, 0.45, 0.57); cyl(cx - 3, cy - 4, 0.12, 0.57, 1.2, M.w, 16);
+  cyl(cx - 3, cy - 4, 2.0, 0.16, 0.28); cyl(cx - 3, cy - 4, 0.12, 0.28, 1.0, M.w, 16);
   // swings on the sand
   for (const [x, y] of [[-14, -24.5], [-4, -27.5], [7, -27], [17, -21.5]]) swing(x, y, Math.atan2(y, x) / deg);
   musicArch();
 }
 
-function musicArch() {   // the music line: an arch along it, its feet a little into the two gardens
-  const [[x0, y0], [x1, y1]] = J.music, n = 24, pts = [];
-  for (let i = 0; i <= n; i++) { const t = i / n; pts.push(V(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, 0.45 + Math.sin(Math.PI * t) * 4.2)); }
-  tube(pts, 0.22);
-  for (const [x, y] of J.music) cyl(x, y, 0.4, 0.3, 1.1, M.w, 24);
-  for (let i = 3; i <= n - 3; i++) { const t = i / n; cyl(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, 0.07, 0.45 + Math.sin(Math.PI * t) * 4.2 - 0.6, 0.45 + Math.sin(Math.PI * t) * 4.2 - 0.2, M.w, 10); }
+function musicArch() {   // the music arch (photo): a flat band, straight legs down into the two gardens, chimes hanging under its top, a string of beads
+  const [[x0, y0], [x1, y1]] = J.music, L = Math.hypot(x1 - x0, y1 - y0), ux = (x1 - x0) / L, uy = (y1 - y0) / L, nx = -uy, ny = ux;
+  const leg = 2.2, rise = 2.0, W = 0.45, T = 0.22, n = 40, P = [];   // centreline in (s along the line, z)
+  for (let i = 0; i <= 8; i++) P.push([0, 0.14 + (leg - 0.14) * i / 8]);
+  const R = (rise * rise + (L / 2) ** 2) / (2 * rise), zc = leg + rise - R, a0 = Math.asin((L / 2) / R);
+  for (let i = 1; i < n; i++) { const a = -a0 + 2 * a0 * i / n; P.push([L / 2 + R * Math.sin(a), zc + R * Math.cos(a)]); }
+  for (let i = 8; i >= 0; i--) P.push([L, 0.14 + (leg - 0.14) * i / 8]);
+  const pos = [], idx = [];
+  P.forEach(([s, z], i) => { const [ps, pz] = P[Math.max(0, i - 1)], [qs, qz] = P[Math.min(P.length - 1, i + 1)], ds = qs - ps, dz = qz - pz, d = Math.hypot(ds, dz), es = -dz / d * T / 2, ez = ds / d * T / 2;
+    for (const [w, k] of [[-W / 2, -1], [W / 2, -1], [W / 2, 1], [-W / 2, 1]]) pos.push(...V(x0 + ux * (s + k * es) + nx * w, y0 + uy * (s + k * es) + ny * w, z + k * ez).toArray()); });
+  for (let i = 0; i < P.length - 1; i++) for (let k = 0; k < 4; k++) { const a = i * 4 + k, b = i * 4 + (k + 1) % 4; idx.push(a, b, b + 4, a, b + 4, a + 4); }
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  add(new THREE.Mesh(g, M.w));
+  for (let i = 4; i < n - 3; i += 2) { const [s, z] = P[8 + i]; cyl(x0 + ux * s, y0 + uy * s, 0.07, z - T / 2 - 0.3, z - T / 2, M.w, 10); }   // chimes
+  const A = P[8 + 6], B = P[8 + 22], bead = []; for (let i = 0; i <= 10; i++) { const t = i / 10, sb = A[0] + (B[0] - A[0]) * t, z = A[1] + (B[1] - A[1]) * t - 0.2 - 1.0 * Math.sin(Math.PI * t); bead.push(V(x0 + ux * sb + nx * 0.3, y0 + uy * sb + ny * 0.3, z)); }   // beads hang in a swag under the band
+  for (const b of bead) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), M.w); m.position.copy(b); add(m, { hull: true }); }
+  lines(bead.slice(1).flatMap((b, i) => [bead[i], b]));
 }
 
 // slide bank: crest = Ahmed's top line at the high level, sloping down to the slides' feet, then flat turf
