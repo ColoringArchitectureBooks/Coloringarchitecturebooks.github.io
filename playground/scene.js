@@ -394,13 +394,16 @@ function playhouse() {   // an open building (Ahmed): real walls with open windo
   { const y = yf + sd - 0.01; gridWindow(L, y, ...winL, 2, 4); gridWindow(L, y, ...winR, 2, 4); frontRect(L, y, ...doorH); }
   box(cx0 + pw, cx1 - pw, yf, yf + sd, 0, 0.3, M.deck);                 // stage floor, level with the half-round step
   box(cx0 + pw, cx1 - pw, yf, yf + 0.3, 2.05, F2, M.w);                 // header over the opening (opening 2.05 m high)
-  for (const sgn of [1, -1]) {                                          // carved curtains, gathered at the middle, flaring at the foot
-    const xo = sgn > 0 ? cx0 + pw : cx1 - pw, X = (d) => xo + sgn * d, sh = new THREE.Shape();
-    sh.moveTo(X(0), 2.05); sh.lineTo(X(0.65), 2.05); sh.quadraticCurveTo(X(0.2), 1.5, X(0.18), 1.05);
-    sh.quadraticCurveTo(X(0.2), 0.6, X(0.45), 0.3); sh.lineTo(X(0), 0.3); sh.closePath();
-    const g = new THREE.ExtrudeGeometry(sh, { depth: 0.06, bevelEnabled: false, curveSegments: 16 }), m = new THREE.Mesh(g, M.w);
-    m.position.set(0, 0, -(yf + 0.12)); add(m, { curved: true });
-    for (const tt of [0.3, 0.55]) L.push(V(X(tt * 0.65), yf + 0.05, 2.05), V(X(0.18 + tt * 0.1), yf + 0.05, 1.1));   // folds
+  box(cx0 + pw, cx0 + pw + 0.2, yf + 0.02, yf + 0.22, 0.3, 2.05, M.w); box(cx1 - pw - 0.2, cx1 - pw, yf + 0.02, yf + 0.22, 0.3, 2.05, M.w);   // wooden frame posts inside the pillars (photo)
+  box(cx0 + pw, cx1 - pw, yf + 0.02, yf + 0.22, 1.9, 2.05, M.w);                                                                         // and their wooden header
+  for (const sgn of [1, -1]) {                                          // carved wooden curtains (photo): wide at the top, a board slanting in, gathered low near the post, flaring at the foot
+    const xo = sgn > 0 ? cx0 + pw + 0.2 : cx1 - pw - 0.2, X = (d) => xo + sgn * d, sh = new THREE.Shape();
+    sh.moveTo(X(0), 1.9); sh.lineTo(X(0.72), 1.9); sh.quadraticCurveTo(X(0.6), 1.25, X(0.24), 0.95);
+    sh.quadraticCurveTo(X(0.18), 0.6, X(0.46), 0.3); sh.lineTo(X(0), 0.3); sh.closePath();
+    const g = new THREE.ExtrudeGeometry(sh, { depth: 0.12, bevelEnabled: false, curveSegments: 16 }), m = new THREE.Mesh(g, M.w);
+    m.position.set(0, 0, -(yf + 0.2)); add(m, { curved: true });
+    const y = yf + 0.07; L.push(V(X(0), y, 1.35), V(X(0.6), y, 1.9));   // the slanting board across the top of the drape
+    for (const tt of [0.35, 0.6]) L.push(V(X(tt * 0.72), y, 1.9), V(X(0.1 + tt * 0.2), y, 1.0), V(X(0.1 + tt * 0.2), y, 0.85), V(X(0.12 + tt * 0.4), y, 0.32));   // carved folds
   }
   wallY(yb - t, cx0, cx1, 0, F2, [[cm - 0.45, cm + 0.45, 0, 1.9]]);     // back wall, ground floor, with a doorway out the back
   // ----- upstairs floor (its edge is the beam in the photo)
@@ -414,9 +417,13 @@ function playhouse() {   // an open building (Ahmed): real walls with open windo
   { const g = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.0), M.glass); g.position.copy(V(cm, yb - t / 2, 3.5)); add(g, { noEdge: true }); }
   wallY(yb - t, cx0, cx1, CW, AP - 0.1, [], t, M.w, [[cx0, CW], [cx1, CW], [cm, AP - 0.1]]);   // back gable, closed
   box(cx0 - 0.1, cx1 + 0.1, yf - 0.12, yf + 0.05, CW - 0.12, CW, M.w);   // band under the front gable
-  { const y0 = yf - 0.02, hw = (cx1 - cx0) / 2, rise = AP - 0.1 - CW, b = 0.05;   // open lattice in the front triangle: thin bars
-    for (let x = cx0 + 0.42; x < cx1 - 0.2; x += 0.42) { const zt = CW + rise * (1 - Math.abs(x - cm) / hw); if (zt > CW + 0.15) box(x - b / 2, x + b / 2, y0, y0 + b, CW, zt - 0.03, M.w); }
-    for (let z = CW + 0.33; z < AP - 0.3; z += 0.33) { const half = hw * (1 - (z - CW) / rise); box(cm - half, cm + half, y0, y0 + b, z - b / 2, z + b / 2, M.w); } }
+  { const y0 = yf - 0.02, hw = (cx1 - cx0) / 2, rise = AP - 0.1 - CW, b = 0.04, tw = 0.16;   // gable (photo): wooden rake boards inside the roof edge, a king post, a fine open grid
+    const half = (z) => hw * (1 - (z - CW) / rise);
+    xzPrism([[cx0, CW], [cm, AP - 0.1], [cm, AP - 0.32], [cx0 + 0.3, CW]], y0, y0 + 0.08, M.w);   // rake boards just inside the roof edge
+    xzPrism([[cm, AP - 0.1], [cx1, CW], [cx1 - 0.3, CW], [cm, AP - 0.32]], y0, y0 + 0.08, M.w);
+    box(cm - 0.06, cm + 0.06, y0, y0 + 0.08, CW, AP - 0.15, M.w);                       // king post
+    for (let x = cm + 0.33; x < cx1; x += 0.33) for (const xx of [x, 2 * cm - x]) { const zt = CW + rise * (1 - Math.abs(xx - cm) / hw) - 0.18; if (zt > CW + 0.08) box(xx - b / 2, xx + b / 2, y0, y0 + b, CW, zt, M.w); }
+    for (let z = CW + 0.27; z < AP - 0.4; z += 0.27) { const h = half(z) - 0.2; box(cm - h, cm + h, y0, y0 + b, z - b / 2, z + b / 2, M.w); } }
   for (const sgn of [-1, 1]) {                                          // roof slabs with an overhang
     const xe = sgn < 0 ? cx0 - 0.45 : cx1 + 0.45, ze = CW - 0.12 - 0.45 * (AP - CW) / ((cx1 - cx0) / 2);
     xzPrism(sgn < 0 ? [[xe, ze], [cm, AP], [cm, AP + 0.14], [xe, ze + 0.14]] : [[cm, AP], [xe, ze], [xe, ze + 0.14], [cm, AP + 0.14]], yf - 0.35, yb + 0.35, M.shingle);
@@ -437,7 +444,7 @@ function playhouse() {   // an open building (Ahmed): real walls with open windo
     for (let x = a + 0.12; x < b - 0.08; x += 0.11) box(x - 0.02, x + 0.02, ywf + 0.01, ywf + 0.05, 0.26, 0.95, M.w);   // balusters
     { const x = xo - s * 0.03; box(x - 0.03, x + 0.03, ywf, ywf + pd, 0.95, 1.03, M.w); box(x - 0.03, x + 0.03, ywf, ywf + pd, 0.2, 0.26, M.w);
       for (let y = ywf + 0.14; y < ywf + pd - 0.1; y += 0.11) box(x - 0.02, x + 0.02, y - 0.02, y + 0.02, 0.26, 0.95, M.w); }
-    for (const x of [xo - s * 0.16, xi]) L.push(V(x, ywf - 0.01, F2 - 0.6), V(x + (x === xi ? s : -s) * 0.45, ywf - 0.01, F2), V(x, ywf - 0.01, F2 - 0.6), V(x, ywf - 0.01, F2));   // porch corner brackets
+    for (const [p, d] of [[xo - s * 0.16, -s], [xi, s]]) xzPrism([[p, F2], [p + d * 0.55, F2], [p, F2 - 0.55]], ywf, ywf + 0.07, M.w);   // wooden corner brackets in the porch opening (photo)
     const prof = s < 0 ? [[xo, B2], [xi, B2], [xi, CW - 0.1], [xo, WE]] : [[xi, B2], [xo, B2], [xo, WE], [xi, CW - 0.1]];
     const uw = [wc - 0.34, wc + 0.34, 3.1, 3.9];                         // 0.68 x 0.8 m
     wallY(ywf, a, b, B2, CW, [uw], t, M.siding, prof); gridWindow(L, ywf - 0.01, ...uw, 4, 5);
