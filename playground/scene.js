@@ -369,13 +369,25 @@ function houseArea() {   // the playhouse: mulch yard, symmetric house, half-rou
 // the playhouse, built from Ahmed's photo: a two-storey front, a tall middle bay with a gable (open lattice in the triangle),
 // lower side wings with lean-to roofs, an open stage with carved curtains below, porches with railings in the wings,
 // three gridded windows under a shingle awning upstairs, a small window with its own awning in each wing, an oval sign on the beam
+function shingleUV(m) {   // shingles laid in metres on the top face of every roof, all the same size (Ahmed); the slab's edges and underside stay plain
+  m.updateMatrix(); let g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry; m.geometry = g;
+  const P = g.attributes.position, uv = g.attributes.uv, a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  for (let i = 0; i < P.count; i += 3) {
+    a.fromBufferAttribute(P, i).applyMatrix4(m.matrix); b.fromBufferAttribute(P, i + 1).applyMatrix4(m.matrix); c.fromBufferAttribute(P, i + 2).applyMatrix4(m.matrix);
+    const n = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a)).normalize();
+    if (n.y < 0.3) { for (let j = 0; j < 3; j++) uv.setXY(i + j, 12 / 128, 16 / 128); continue; }   // edges, underside: a blank spot of the texture
+    const e1 = new THREE.Vector3().crossVectors(up, n); if (e1.lengthSq() < 1e-6) e1.set(1, 0, 0); e1.normalize(); const e2 = new THREE.Vector3().crossVectors(n, e1);
+    [a, b, c].forEach((p, j) => uv.setXY(i + j, p.dot(e1), p.dot(e2)));
+  }
+  uv.needsUpdate = true;
+}
 function xzPrism(pts, yA, yB, mat = M.w, o = {}) {   // profile in (x, z), pushed back from plan y = yA to yB (yA < yB)
   const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(x, z))), { depth: yB - yA, bevelEnabled: false, curveSegments: 24 });
-  const m = new THREE.Mesh(g, mat); m.position.set(0, 0, -yB); return add(m, o);
+  const m = new THREE.Mesh(g, mat); m.position.set(0, 0, -yB); if (mat === M.shingle) shingleUV(m); return add(m, o);
 }
 function awning(xa, xb, yw, proj, zt, drop, mat = M.shingle) {   // a sloped slab off the wall at yw, its low edge out front
   const len = Math.hypot(proj, drop), m = new THREE.Mesh(new THREE.BoxGeometry(xb - xa, 0.08, len), mat);
-  m.rotation.x = Math.atan2(drop, proj); m.position.copy(V((xa + xb) / 2, yw - proj / 2, zt - drop / 2)); add(m);
+  m.rotation.x = Math.atan2(drop, proj); m.position.copy(V((xa + xb) / 2, yw - proj / 2, zt - drop / 2)); if (mat === M.shingle) shingleUV(m); add(m);
   const L = []; for (const x of [xa + 0.12, xb - 0.12]) L.push(V(x, yw - 0.01, zt - drop - 0.25), V(x, yw - proj * 0.7, zt - drop * 0.7 - 0.02));   // brackets
   lines(L);
 }
