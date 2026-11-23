@@ -415,11 +415,11 @@ function playhouse() {   // an open building (Ahmed): real walls with open windo
       xzPrism(sgn > 0 ? [[X(0), 1.35], [X(0.62), 2.02], [X(0.46), 2.02], [X(0), 1.52]] : [[X(0.62), 2.02], [X(0), 1.35], [X(0), 1.52], [X(0.46), 2.02]], yA + 0.04, yB - 0.04, M.w); } }
   for (const sgn of [1, -1]) {                                          // carved wooden curtains (photo): wide at the top, a board slanting in, gathered low near the post, flaring at the foot
     const xo = sgn > 0 ? cx0 + pw + 0.24 : cx1 - pw - 0.24, X = (d) => xo + sgn * d, sh = new THREE.Shape();
-    sh.moveTo(X(0), F2); sh.lineTo(X(0.72), F2); sh.quadraticCurveTo(X(0.6), 1.35, X(0.24), 0.95);   // up to the ground-floor ceiling (Ahmed)
+    sh.moveTo(X(0), 2.02); sh.lineTo(X(0.72), 2.02); sh.quadraticCurveTo(X(0.6), 1.35, X(0.24), 0.95);   // up to the underside of the header = the ground-floor ceiling at the front (Ahmed)
     sh.quadraticCurveTo(X(0.18), 0.6, X(0.46), 0.3); sh.lineTo(X(0), 0.3); sh.closePath();
     const g = new THREE.ExtrudeGeometry(sh, { depth: 0.12, bevelEnabled: false, curveSegments: 16 }), m = new THREE.Mesh(g, M.w);
-    m.position.set(0, 0, -(yf + 0.42)); add(m, { curved: true });   // just behind the header, touching, not through it
-    const y = yf + 0.295;
+    m.position.set(0, 0, -(yf + 0.18)); add(m, { curved: true });   // right behind the wooden posts, at the front (Ahmed), touching the header above
+    const y = yf + 0.055;
     for (const tt of [0.35, 0.6]) L.push(V(X(tt * 0.72), y, 2.02), V(X(0.1 + tt * 0.2), y, 1.0), V(X(0.1 + tt * 0.2), y, 0.85), V(X(0.12 + tt * 0.4), y, 0.32));   // carved folds
   }
   wallY(yb - t, cx0, cx1, 0, F2, [[cm - 0.45, cm + 0.45, 0, 1.9]]);     // back wall, ground floor, with a doorway out the back
