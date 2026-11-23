@@ -167,7 +167,7 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=6")).json();
+const J = await (await fetch("./layout.json?v=7")).json();
 const TOP = 3.0;   // the high level: car park / park entrance; the playground floor is 0
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
@@ -234,9 +234,23 @@ function slideHill() {
   line3(o.map(([x, y]) => [x, y, near(x, y) + 0.14]), 0, true);
   each(J.bank, (s) => prism(s, 0, TOP, M.pavers));                         // the high entrance plaza: behind the slides and the first leg of the house bridge (Ahmed)
   for (const r of J.bankrail) rail(r.map(([x, y]) => [x, y, TOP]));       // railing where the plaza drops to the low level
-  for (const [[tx, ty, tz], [bx, by]] of J.slides) slide(tx, ty, tz, bx, by);
+  for (const pr of J.slideprof) slideOn(pr);
 }
 const SLW = 0.6;   // slide width (Ahmed: about 60 cm)
+function slideOn(pr) {   // chute lying on the bank, following its slope from the crest down to the ground (Ahmed)
+  const [tx, ty] = pr[0], [bx, by] = pr[pr.length - 1], d = Math.hypot(bx - tx, by - ty), ux = (bx - tx) / d, uy = (by - ty) / d, nx = -uy, ny = ux, w = SLW / 2;
+  const pos = [], idx = [], k = 0.18, lip = 0.22;
+  const P = (x, y, z) => { pos.push(...V(x, y, z).toArray()); return pos.length / 3 - 1; };
+  for (let i = 0; i < pr.length - 1; i++) { const [ax, ay, az] = pr[i], [cx, cy, cz] = pr[i + 1];
+    const q = (o, h) => [P(ax + nx * o, ay + ny * o, az + k + h), P(cx + nx * o, cy + ny * o, cz + k + h)];
+    const [l0, l1] = q(-w, 0), [r0, r1] = q(w, 0); idx.push(l0, r0, r1, l0, r1, l1);                 // bed
+    for (const o of [-w, w]) { const [a, b] = q(o, 0), [c, e] = q(o, lip); idx.push(a, b, e, a, e, c); } }   // side lips
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  add(new THREE.Mesh(g, M.w));
+  const L = []; for (const o of [-w, w]) for (let i = 0; i < pr.length - 1; i++) { const [ax, ay, az] = pr[i], [cx, cy, cz] = pr[i + 1];
+    L.push(V(ax + nx * o, ay + ny * o, az + k + lip), V(cx + nx * o, cy + ny * o, cz + k + lip), V(ax + nx * o, ay + ny * o, az + k), V(cx + nx * o, cy + ny * o, cz + k)); }
+  lines(L);
+}
 function slide(tx, ty, tz, bx, by) {   // straight chute with raised sides from (tx, ty, tz) down to a flat run-out ending at (bx, by)
   const dx = bx - tx, dy = by - ty, run = Math.hypot(dx, dy), ux = dx / run, uy = dy / run, out = 1.2;
   const ex = bx - ux * out, ey = by - uy * out, z0 = 0.45, L = Math.hypot(run - out, tz + 0.6 - z0);
