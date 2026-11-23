@@ -39,9 +39,13 @@ export function mapTouch(controls, camera, canvas, scene) {
     const cam = camera.position, tgt = controls.target, d0 = cam.distanceTo(tgt), h = canvas.clientHeight || 1;
     k = THREE.MathUtils.clamp(k, controls.minDistance / d0, controls.maxDistance / d0);
     cam.sub(P).multiplyScalar(k).add(P); tgt.sub(P).multiplyScalar(k).add(P);
-    // round about the upright line through P: the twist, plus a sideways drag at one-finger speed
-    const q = new THREE.Quaternion().setFromAxisAngle(up, th - 2 * Math.PI * dx / h * controls.rotateSpeed);
+    // the twist turns round the upright line through P (the point between the fingers)
+    const q = new THREE.Quaternion().setFromAxisAngle(up, th);
     cam.sub(P).applyQuaternion(q).add(P); tgt.sub(P).applyQuaternion(q).add(P);
+    // a sideways drag turns round the aim point, exactly like one finger, so the model moves with the fingers even when zoomed in
+    // (turning round P kept the spot under the fingers still, so after a pinch the view seemed not to follow - Ahmed's iPad)
+    const qs = new THREE.Quaternion().setFromAxisAngle(up, -2 * Math.PI * dx / h * controls.rotateSpeed);
+    cam.sub(tgt).applyQuaternion(qs).add(tgt);
     // over the top: a drag down rises to look from above, a drag up sinks toward the ground (as with one finger)
     const off = cam.clone().sub(tgt), phi = Math.acos(THREE.MathUtils.clamp(off.y / off.length(), -1, 1));
     const nphi = THREE.MathUtils.clamp(phi - 2 * Math.PI * dy / h * controls.rotateSpeed * TILT, 0.03, controls.maxPolarAngle);
@@ -49,7 +53,7 @@ export function mapTouch(controls, camera, canvas, scene) {
       const axis = new THREE.Vector3().crossVectors(up, off).normalize(), qt = new THREE.Quaternion().setFromAxisAngle(axis, phi - nphi);
       const o2 = off.clone().applyQuaternion(qt);
       if (Math.abs(Math.acos(THREE.MathUtils.clamp(o2.y / o2.length(), -1, 1)) - nphi) > 1e-3) qt.setFromAxisAngle(axis, nphi - phi);
-      cam.sub(P).applyQuaternion(qt).add(P); tgt.sub(P).applyQuaternion(qt).add(P);
+      cam.sub(tgt).applyQuaternion(qt).add(tgt);                // tilt round the aim point too, like one finger
       if (cam.y < 0.3) { const lift = 0.3 - cam.y; cam.y += lift; tgt.y += lift; }   // never below the ground
     }
     if (tgt.y < -3) {                                        // the aim point (what one finger turns about) sank well under the ground: bring it up to the ground
