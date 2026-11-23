@@ -26,6 +26,7 @@ function tufts(n, len, seed) {   // grass tufts in line, for planted beds and th
 function makeMats() {
   const L = (o) => new THREE.MeshLambertMaterial({ side: THREE.DoubleSide, color: 0xffffff, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, ...o });
   M.w = L({});
+  M.glass = new THREE.MeshBasicMaterial({ color: 0xbfd3dc, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false });   // clear glass (Ahmed)
   const plant = tufts(90, 12, 7); plant.repeat.set(0.25, 0.25); M.plant = L({ map: plant });
   const lawn = tufts(25, 8, 3); lawn.repeat.set(0.1, 0.1); M.lawn = L({ map: lawn });
   const deck = canvasTex(256, 256, (g, w, h) => { g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.strokeStyle = "#000"; g.lineWidth = 2;
@@ -365,6 +366,7 @@ function awning(xa, xb, yw, proj, zt, drop, mat = M.shingle) {   // a sloped sla
 function frontRect(L, y, xa, xb, za, zb) { L.push(V(xa, y, za), V(xb, y, za), V(xb, y, za), V(xb, y, zb), V(xb, y, zb), V(xa, y, zb), V(xa, y, zb), V(xa, y, za)); }
 function gridWindow(L, y, xa, xb, za, zb, nx = 5, nz = 6) {   // window with its wire grid, and a sill
   frontRect(L, y, xa, xb, za, zb); frontRect(L, y, xa + 0.06, xb - 0.06, za + 0.06, zb - 0.06);
+  { const g = new THREE.Mesh(new THREE.PlaneGeometry(xb - xa, zb - za), M.glass); g.position.copy(V((xa + xb) / 2, y + 0.06, (za + zb) / 2)); add(g, { noEdge: true }); }   // clear glass pane in the opening
   for (let i = 1; i < nx; i++) { const x = xa + 0.06 + (xb - xa - 0.12) * i / nx; L.push(V(x, y, za + 0.06), V(x, y, zb - 0.06)); }
   for (let i = 1; i < nz; i++) { const z = za + 0.06 + (zb - za - 0.12) * i / nz; L.push(V(xa + 0.06, y, z), V(xb - 0.06, y, z)); }
   box(xa - 0.05, xb + 0.05, y - 0.08, y + 0.01, za - 0.08, za, M.w);
@@ -409,6 +411,7 @@ function playhouse() {   // an open building (Ahmed): real walls with open windo
   wallY(yf, cx0, cx1, B2, CW, W3); for (const w of W3) gridWindow(L, yf - 0.01, ...w);
   wallX(cx0, yf, ywf, B2, CW); wallX(cx1, yf, ywf, B2, CW, [], -t);
   wallY(yb - t, cx0, cx1, B2, CW, [[cm - 0.6, cm + 0.6, 3.0, 4.0]]);   // back, one open window
+  { const g = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.0), M.glass); g.position.copy(V(cm, yb - t / 2, 3.5)); add(g, { noEdge: true }); }
   wallY(yb - t, cx0, cx1, CW, AP - 0.1, [], t, M.w, [[cx0, CW], [cx1, CW], [cm, AP - 0.1]]);   // back gable, closed
   box(cx0 - 0.1, cx1 + 0.1, yf - 0.12, yf + 0.05, CW - 0.12, CW, M.w);   // band under the front gable
   { const y0 = yf - 0.02, hw = (cx1 - cx0) / 2, rise = AP - 0.1 - CW, b = 0.05;   // open lattice in the front triangle: thin bars
@@ -439,6 +442,7 @@ function playhouse() {   // an open building (Ahmed): real walls with open windo
     const uw = [wc - 0.34, wc + 0.34, 3.1, 3.9];                         // 0.68 x 0.8 m
     wallY(ywf, a, b, B2, CW, [uw], t, M.siding, prof); gridWindow(L, ywf - 0.01, ...uw, 4, 5);
     wallX(xo, ywf, ywb, B2, WE, [[ywf + 1.2, ywb - 1.2, 3.1, 3.9]], -s * t);   // outer side, an open window
+    { const g = new THREE.Mesh(new THREE.PlaneGeometry(ywb - ywf - 2.4, 0.8), M.glass); g.rotation.y = Math.PI / 2; g.position.copy(V(xo - s * t / 2, (ywf + ywb) / 2, 3.5)); add(g, { noEdge: true }); }
     const door = xo === wx0 ? [[wc - 0.45, wc + 0.45, B2 + 0.4, B2 + 2.3]] : [];   // the bridge from the high ground comes in at the back of the west wing
     wallY(ywb - t, a, b, B2, CW, door, t, M.siding, prof);
     { const xe = xo + s * 0.4, zAt = (x) => WE + (CW - 0.1 - WE) * (x - xo) / (xi - xo), ze = zAt(xe);
