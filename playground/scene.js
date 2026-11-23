@@ -308,6 +308,21 @@ function slide(tx, ty, tz, bx, by) {   // straight chute with raised sides from 
 }
 
 // raised walk at the high level: deck, posts down to the playground floor, rails on the sides that are over the low level
+const RB = { x0: 22.541, x1: 26.836, y0: 14.143, y1: 15.893 };   // the rope bridge on the house bridge (Ahmed's aerial photo)
+const ropeGap = (x, y) => x > RB.x0 - 0.01 && x < RB.x1 + 0.01 && y > RB.y0 + 0.01 && y < RB.y1 - 0.01;
+function ropeBridge(z = TOP) {   // wooden slats with gaps hung on ropes, sagging in the middle; rope nets on both sides; a post at each corner
+  const { x0, x1, y0, y1 } = RB, sag = 0.18, zd = (x) => z - sag * Math.sin(Math.PI * (x - x0) / (x1 - x0)), zr = (x) => z + 1.0 - 0.06 * Math.sin(Math.PI * (x - x0) / (x1 - x0)), L = [];
+  for (let x = x0 + 0.1; x + 0.12 < x1 - 0.06; x += 0.18) box(x, x + 0.12, y0 + 0.12, y1 - 0.12, zd(x + 0.06) - 0.04, zd(x + 0.06), M.deck);   // slats, 6 cm gaps
+  for (const y of [y0 + 0.2, y1 - 0.2]) { const P = []; for (let i = 0; i <= 24; i++) { const x = x0 + (x1 - x0) * i / 24; P.push(V(x, y, zd(x) - 0.065)); } tube(P, 0.025); }   // ropes under the slats
+  for (const y of [y0 + 0.06, y1 - 0.06]) {
+    box(x0, x0 + 0.12, y - 0.06, y + 0.06, 0, z + 1.15); box(x1 - 0.12, x1, y - 0.06, y + 0.06, 0, z + 1.15);   // corner posts
+    const T = [], B = []; for (let i = 0; i <= 24; i++) { const x = x0 + 0.12 + (x1 - x0 - 0.24) * i / 24; T.push(V(x, y, zr(x))); B.push(V(x, y, zd(x) + 0.03)); } tube(T, 0.03); tube(B, 0.02);   // hand rope, foot rope
+    const g = 0.2, xa = x0 + 0.12, xb = x1 - 0.12;   // diamond rope net between them
+    for (let k = -6; xa + k * g < xb; k++) for (const d of [1, -1]) { const u0 = xa + k * g, u1 = u0 + d * 0.9, ta = (xa - u0) / (u1 - u0), tb = (xb - u0) / (u1 - u0);
+      const t0 = Math.max(0, Math.min(ta, tb)), t1 = Math.min(1, Math.max(ta, tb)); if (t1 - t0 < 0.02) continue;
+      const at = (t) => { const x = u0 + (u1 - u0) * t; return V(x, y, zd(x) + 0.03 + (zr(x) - zd(x) - 0.03) * t); }; L.push(at(t0), at(t1)); } }
+  lines(L);
+}
 function deck(p, z = TOP) {
   prism(shp(p), z - 0.25, z, M.deck);
   const o = p.o, [x0, x1] = [Math.min(...o.map((q) => q[0])), Math.max(...o.map((q) => q[0]))], [y0, y1] = [Math.min(...o.map((q) => q[1])), Math.max(...o.map((q) => q[1]))];
@@ -315,9 +330,9 @@ function deck(p, z = TOP) {
   const L = [];
   for (let i = 0; i < o.length; i++) { const a = o[i], b = o[(i + 1) % o.length]; if (!inEdge((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue;
     const n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.15)), atHouse = (x, y) => x > 20.7 && x < 28.6 && y > 5.5 && y < 10.45;   // no fence where the bridge meets the playhouse (Ahmed)
-    let first = null, last = null;
-    for (let k = 0; k <= n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, y = a[1] + (b[1] - a[1]) * k / n; if (atHouse(x, y)) continue; L.push(V(x, y, z), V(x, y, z + 1.0)); if (!first) first = [x, y]; last = [x, y]; }
-    if (first && last !== first) L.push(V(first[0], first[1], z + 1.0), V(last[0], last[1], z + 1.0)); }
+    let prev = null;   // fence posts and top rail, broken where the bridge meets the playhouse or the rope bridge
+    for (let k = 0; k <= n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, y = a[1] + (b[1] - a[1]) * k / n;
+      if (atHouse(x, y) || ropeGap(x, y)) { prev = null; continue; } L.push(V(x, y, z), V(x, y, z + 1.0)); if (prev) L.push(V(prev[0], prev[1], z + 1.0), V(x, y, z + 1.0)); prev = [x, y]; } }
   lines(L);
 }
 
@@ -362,7 +377,8 @@ function houseArea() {   // the playhouse: mulch yard, symmetric house, half-rou
     for (const k of [-0.4, -0.1, 0.2]) for (const w of [-0.08, 0.06]) L.push(V(cx + ux * len * k + px * w, cy + uy * len * k + py * w, zt + 0.003), V(cx + ux * len * (k + 0.2) + px * w, cy + uy * len * (k + 0.2) + py * w, zt + 0.003));   // grain on the seat
     lines(L);
   }
-  each(J.h_bridge, (s, p) => deck(p));
+  { const o = J.h_bridge[0].o, A = [o[0], o[1], [RB.x0, RB.y0], [RB.x0, RB.y1], ...o.slice(9)], B = [[RB.x1, RB.y0], ...o.slice(4, 8), [RB.x1, RB.y1]];   // the house bridge in two decks, the rope bridge between them
+    for (const q of [A, B]) each([{ o: q, h: [] }], (s, p) => deck(p)); ropeBridge(); }
   rail(J.fence.map(([x, y]) => [x, y, 0.15]));
   line3(J.offset, 0.14);
 }
@@ -580,7 +596,7 @@ function playhouse() {   // an open building (Ahmed): real walls with open windo
     const ow = E ? [(ywf + yR) / 2 - 0.4, (ywf + yR) / 2 + 0.4] : [ywf + 1.2, ywb - 1.2];
     wallX(xo, ywf + t, yR - t, B2, WE, [[ow[0], ow[1], 3.0, 3.7]], -s * t);   // outer side, an open window
     { const g = new THREE.Mesh(new THREE.PlaneGeometry(ow[1] - ow[0], 0.8), M.glass); g.rotation.y = Math.PI / 2; g.position.copy(V(xo - s * t / 2, (ow[0] + ow[1]) / 2, 3.5)); add(g, { noEdge: true }); }
-    const door = xo === wx0 ? [[wc - 0.45, wc + 0.45, B2 + 0.4, 4.15]] : [];   // door stays under the lean-to (it used to poke out through the roof)   // the bridge from the high ground comes in at the back of the west wing
+    const door = xo === wx0 ? [[xi - 1.1, xi - 0.1, B2 + 0.4, 4.3]] : [];   // bridge door: 1 m wide, 10 cm from the middle bay's wall (Ahmed), under the lean-to   // the bridge from the high ground comes in at the back of the west wing
     if (!E) wallY(ywb - t, a, b, B2, CW, door, t, M.siding, prof);
     else {   // east room's back wall, onto the balcony (back photo): a little house-shaped window near the outside, a pointed-arch doorway by the middle bay
       const win = pentPts(xo - 0.45, 0.46, 3.3, 3.8, 4.02), dr = gothicPts(xi + 0.38, 0.6, B2 + 0.02, 3.85);
