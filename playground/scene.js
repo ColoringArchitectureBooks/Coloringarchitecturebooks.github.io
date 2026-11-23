@@ -167,7 +167,7 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=13")).json();
+const J = await (await fetch("./layout.json?v=14")).json();
 const TOP = 3.0;   // the high level: car park / park entrance; the playground floor is 0
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
@@ -206,11 +206,15 @@ function zones() {
   // swings on the sand
   for (const [x, y] of [[-14, -24.5], [-4, -27.5], [7, -27], [17, -21.5]]) swing(x, y, Math.atan2(y, x) / deg);
   musicArch();
+  { const { p, low, high } = J.music_panel, dx = high[0] - low[0], dy = high[1] - low[1], d2 = dx * dx + dy * dy;   // the way in: a gap in the seat wall, and a sign block rising and sloping beside it (music instructions)
+    for (const q of p) { const m = prism(shp(q), 0, 1.15, M.w), pa = m.geometry.attributes.position;
+      for (let i = 0; i < pa.count; i++) if (pa.getY(i) > 0.6) { const x = pa.getX(i), y = -pa.getZ(i), t = Math.max(0, Math.min(1, ((x - low[0]) * dx + (y - low[1]) * dy) / d2)); pa.setY(i, 0.57 + (1.15 - 0.57) * t); }
+      pa.needsUpdate = true; m.geometry.computeVertexNormals(); } }
 }
 
 function musicArch() {   // the music arch (photo): a flat band, straight legs down into the two gardens, chimes hanging under its top, a string of beads
   const [[x0, y0], [x1, y1]] = J.music, L = Math.hypot(x1 - x0, y1 - y0), ux = (x1 - x0) / L, uy = (y1 - y0) / L, nx = -uy, ny = ux;
-  const leg = 2.2, rise = 2.0, W = 0.45, T = 0.22, n = 40, P = [];   // centreline in (s along the line, z)
+  const leg = 2.1, rise = 0.8, W = 0.45, T = 0.22, n = 40, P = [];   // lower, like the photo: about 2.1 m legs, top near 2.9 m   // centreline in (s along the line, z)
   for (let i = 0; i <= 8; i++) P.push([0, 0.14 + (leg - 0.14) * i / 8]);
   const R = (rise * rise + (L / 2) ** 2) / (2 * rise), zc = leg + rise - R, a0 = Math.asin((L / 2) / R);
   for (let i = 1; i < n; i++) { const a = -a0 + 2 * a0 * i / n; P.push([L / 2 + R * Math.sin(a), zc + R * Math.cos(a)]); }
