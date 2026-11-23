@@ -167,7 +167,7 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=1")).json();
+const J = await (await fetch("./layout.json?v=2")).json();
 const TOP = 3.0;   // the high level: car park / park entrance; the playground floor is 0
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
@@ -213,26 +213,12 @@ function musicArch() {   // the music line: an arch along it, its feet a little 
   for (let i = 3; i <= n - 3; i++) { const t = i / n; cyl(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, 0.07, 0.45 + Math.sin(Math.PI * t) * 4.2 - 0.6, 0.45 + Math.sin(Math.PI * t) * 4.2 - 0.2, M.w, 10); }
 }
 
-// slide bank: crest = Ahmed's top line at the high level, sloping down to the slides' feet, then flat turf
+// two levels (Ahmed's photo): the entrance plaza behind the crest is high (TOP); the tent zone in front of it is low and flat.
+// From the plaza you go down by the slides, or by stairs at its sides.
 function slideHill() {
-  const { v, f } = J.hill, pos = [], uv = [], idx = [];
-  for (const [x, y, z] of v) { pos.push(...V(x, y, z + 0.12).toArray()); uv.push(x, y); }
-  for (const t of f) idx.push(...t);
-  // skirt: every open edge of the surface drops a wall to the floor
-  const cnt = new Map(); const key = (a, b) => (a < b ? a + "," + b : b + "," + a);
-  for (const t of f) for (let k = 0; k < 3; k++) { const K = key(t[k], t[(k + 1) % 3]); cnt.set(K, (cnt.get(K) || 0) + 1); }
-  let n = v.length;
-  for (const [K, c] of cnt) { if (c !== 1) continue; const [a, b] = K.split(",").map(Number);
-    if (v[a][2] < 0.05 && v[b][2] < 0.05) continue;
-    pos.push(...V(v[a][0], v[a][1], 0).toArray(), ...V(v[b][0], v[b][1], 0).toArray()); uv.push(0, 0, 0, 0);
-    idx.push(a, b, n + 1, a, n + 1, n); n += 2; }
-  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
-  add(new THREE.Mesh(g, M.turf));
-  // outline of the zone on the surface
-  const o = J.tent[0].o, near = (x, y) => { let best = 0, d = 1e9; for (const [vx, vy, vz] of v) { const e = (vx - x) ** 2 + (vy - y) ** 2; if (e < d) { d = e; best = vz; } } return best; };
-  line3(o.map(([x, y]) => [x, y, near(x, y) + 0.14]), 0, true);
-  each(J.bank, (s) => prism(s, 0, TOP, M.lawn));                           // the high ground behind the crest
-  rail(J.crest.map(([x, y]) => [x, y, TOP]));
+  each(J.tent, (s) => prism(s, 0, 0.15, M.turf, true));                   // tent zone: turf, low level
+  each(J.bank, (s) => prism(s, 0, TOP, M.w));                              // the high entrance plaza
+  for (const r of J.bankrail) rail(r.map(([x, y]) => [x, y, TOP]));       // railing where the plaza drops to the low level
   for (const [[tx, ty, tz], [bx, by]] of J.slides) slide(tx, ty, tz, bx, by);
 }
 const SLW = 0.6;   // slide width (Ahmed: about 60 cm)
