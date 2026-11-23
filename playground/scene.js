@@ -167,7 +167,7 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=5")).json();
+const J = await (await fetch("./layout.json?v=6")).json();
 const TOP = 3.0;   // the high level: car park / park entrance; the playground floor is 0
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
@@ -186,6 +186,7 @@ function ground() {
   prism(poly(J.edge), 0, 0.12, M.w, true);                 // the agreed outer edge: one concrete floor, the zones sit on it
   line3(J.walk, 0.125, true);                              // the 2.5 m walk all round, inside the edge
   each(J.plateau, (s) => prism(s, 0, TOP, M.lawn));         // high ground north of the playground (car park / entrance level)
+  for (const f of J.edgefence) rail(f.p.map(([x, y]) => [x, y, f.z]));   // the same railing all round the outer edge (Ahmed)
 }
 
 function zones() {
