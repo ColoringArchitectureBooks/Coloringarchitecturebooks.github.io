@@ -242,20 +242,15 @@ function musicArch() {   // the music arch (photo): a flat band, straight legs d
     m.position.copy(V(x0 + ux * sv + nx * (off + f * (depth / 2 + o)), y0 + uy * sv + ny * (off + f * (depth / 2 + o)), z)); return add(m, { curved: true }); };
   for (let k = 0; k < 24; k++) { const sv = sw(L * (0.12 + 0.8 * k / 23)), z = zc + Math.sqrt(R * R - (sv - L / 2) ** 2);   // 24 short chimes under the band, counted on Ahmed's photo, from just past the beads to near the right leg
     cyl(x0 + ux * sv, y0 + uy * sv, 0.065, z - T / 2 - 0.13, z - T / 2, M.w, 12); }
-  const u0 = cum[8] / cum[cum.length - 1];                                     // top of the left leg
-  const beads = [];
-  for (let k = 0; k <= 4; k++) beads.push(at(u0 - 0.03 + (0.3 - u0 + 0.03) * k / 4));   // up along the band from the left corner
-  { const [sa, za] = beads[beads.length - 1], [sb, zb] = at(0.5);              // then a loose swag down under the band and back up near the middle
-    for (let k = 1; k <= 6; k++) { const t = k / 6, sv = sa + (sb - sa) * t; beads.push([sv, za + (zb - za) * t - 0.55 * Math.sin(Math.PI * t)]); } }
-  const bp = beads.map(([sv, z]) => V(x0 + ux * sv + nx * (off + f * 0.05), y0 + uy * sv + ny * (off + f * 0.05), z));
-  lines(bp.slice(1).flatMap((b, i) => [bp[i], b]));                           // the cord
-  for (const [sv, z] of beads) onFace(sv, z, 0.11, 0.03, 0.02);
-  const sound = [at(0.36), at(0.76), [sw(0), leg - 0.45], [sw(L), leg - 0.45]];
-  for (const [sv, z] of sound) { onFace(sv, z, 0.1, 0.04); onFace(sv, z, 0.04, 0.03, 0.04);   // round sound disc with a hub and spokes
-    const c = new THREE.Vector3(x0 + ux * sv + nx * (off + f * 0.05), z, -(y0 + uy * sv + ny * (off + f * 0.05))), up = new THREE.Vector3(0, 1, 0), sd = new THREE.Vector3(ux, 0, -uy), sp = [];
-    for (let a = 0; a < 6; a++) { const th = a * Math.PI / 3, dvec = sd.clone().multiplyScalar(Math.cos(th)).add(up.clone().multiplyScalar(Math.sin(th)));
-      sp.push(c.clone().addScaledVector(dvec, 0.04), c.clone().addScaledVector(dvec, 0.09)); }
-    lines(sp); }
+  // four sound discs built into the arch (Ahmed): two flush on the front of the top band, one flush on the inner side of each leg
+  const disc = (c, a, b, R0 = 0.1) => { const L2 = [], ring = (r) => { for (let k = 0; k < 32; k++) { const t0 = k / 32 * 2 * Math.PI, t1 = (k + 1) / 32 * 2 * Math.PI;
+      L2.push(c.clone().addScaledVector(a, r * Math.cos(t0)).addScaledVector(b, r * Math.sin(t0)), c.clone().addScaledVector(a, r * Math.cos(t1)).addScaledVector(b, r * Math.sin(t1))); } };
+    ring(R0); ring(R0 * 0.35); for (let k = 0; k < 6; k++) { const t = k * Math.PI / 3, d = a.clone().multiplyScalar(Math.cos(t)).addScaledVector(b, Math.sin(t)); L2.push(c.clone().addScaledVector(d, R0 * 0.35), c.clone().addScaledVector(d, R0)); }
+    lines(L2); };
+  const S3 = new THREE.Vector3(ux, 0, -uy), N3n = new THREE.Vector3(nx, 0, -ny), UP = new THREE.Vector3(0, 1, 0), P3 = (sv, w, z) => new THREE.Vector3(x0 + ux * sv + nx * w, z, -(y0 + uy * sv + ny * w));
+  for (const u of [0.36, 0.76]) { const [sv, z] = at(u); const k = Math.min(P.length - 2, Math.max(1, Math.round(u * (P.length - 1)))), tg = new THREE.Vector3().subVectors(P3(P[k + 1][0], 0, P[k + 1][1]), P3(P[k - 1][0], 0, P[k - 1][1])).normalize();
+    const nrm = new THREE.Vector3().crossVectors(tg, N3n).normalize(); disc(P3(sv, f * (W / 2 + 0.005), z), tg, nrm.y < 0 ? nrm.negate() : nrm, T / 2 - 0.012); }   // fits inside the band's height
+  for (const [sv, dir] of [[T / 2 + 0.005, 1], [L - T / 2 - 0.005, -1]]) disc(P3(sv, 0, leg - 0.45), N3n, UP);   // inner faces of the legs, centred, not on the edge
 }
 
 // slide bank: crest = Ahmed's top line at the high level, sloping down to the slides' feet, then flat turf
