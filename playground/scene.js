@@ -344,17 +344,19 @@ function houseArea() {   // the playhouse: mulch yard, symmetric house, half-rou
   each(J.h_yard, (s) => prism(s, 0, 0.15, M.mulch, true));
   playhouse();
   each(J.h_step, (s) => prism(s, 0, 0.3, M.deck, true));
-  for (const p of J.logs) {   // log benches (photo): a straight round log on two short posts, cracked rings on the cut ends
+  for (const p of J.logs) {   // log benches (photo): a half log, flat seat on top, round underneath, on two short posts; cracked rings on the cut ends
     const o = p.o, n = o.length, A = o[0], B = o[Math.floor(n / 2) - 1], cx = o.reduce((s, q) => s + q[0], 0) / n, cy = o.reduce((s, q) => s + q[1], 0) / n;
-    const dx = B[0] - A[0], dy = B[1] - A[1], len = Math.hypot(dx, dy) * 0.92, ux = dx / Math.hypot(dx, dy), uy = dy / Math.hypot(dx, dy), r = 0.19, zc = 0.15 + 0.12 + r;   // seat top 0.5 m above the mulch (photo)
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 32), M.w); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(ux, 0, -uy)); m.position.copy(V(cx, cy, zc)); add(m, { hull: true });
-    for (const k of [-0.3, 0.3]) cyl(cx + ux * len * k, cy + uy * len * k, 0.07, 0.15, zc - r + 0.02, M.w, 16);
-    const L = []; for (const e of [-0.5, 0.5]) { const ex = cx + ux * (len * e + Math.sign(e) * 0.005), ey = cy + uy * (len * e + Math.sign(e) * 0.005), px = -uy, py = ux;
-      for (const rr of [0.06, 0.12]) for (let i = 0; i < 20; i++) { const a0 = i / 20 * 2 * Math.PI, a1 = (i + 1) / 20 * 2 * Math.PI;
-        L.push(V(ex + px * rr * Math.cos(a0), ey + py * rr * Math.cos(a0), zc + rr * Math.sin(a0)), V(ex + px * rr * Math.cos(a1), ey + py * rr * Math.cos(a1), zc + rr * Math.sin(a1))); }
-      for (const a of [0.4, 2.2, 4.0]) L.push(V(ex + px * 0.03 * Math.cos(a), ey + py * 0.03 * Math.cos(a), zc + 0.03 * Math.sin(a)), V(ex + px * 0.17 * Math.cos(a + 0.3), ey + py * 0.17 * Math.cos(a + 0.3), zc + 0.17 * Math.sin(a + 0.3))); }
+    const dx = B[0] - A[0], dy = B[1] - A[1], dl = Math.hypot(dx, dy), len = dl * 0.92, ux = dx / dl, uy = dy / dl, px = -uy, py = ux, r = 0.21, zt = 0.15 + 0.5;   // seat 0.5 m above the mulch
+    const sh = new THREE.Shape(); sh.moveTo(-r, 0); sh.absarc(0, 0, r, Math.PI, 2 * Math.PI, false); sh.lineTo(-r, 0);
+    const g = new THREE.ExtrudeGeometry(sh, { depth: len, bevelEnabled: false, curveSegments: 24 }); g.translate(0, 0, -len / 2);
+    const m = new THREE.Mesh(g, M.w);
+    m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(px, 0, -py), new THREE.Vector3(0, 1, 0), new THREE.Vector3(ux, 0, -uy))); m.position.copy(V(cx, cy, zt)); add(m, { curved: true });
+    for (const k of [-0.3, 0.3]) cyl(cx + ux * len * k, cy + uy * len * k, 0.07, 0.15, zt - r + 0.03, M.w, 16);
+    const L = [], P = (e, a, rr) => V(cx + ux * len * e + px * rr * Math.cos(a), cy + uy * len * e + py * rr * Math.cos(a), zt + rr * Math.sin(a));
+    for (const e of [-0.501, 0.501]) { for (const rr of [0.07, 0.14]) for (let i = 0; i < 12; i++) { const a0 = Math.PI + i / 12 * Math.PI, a1 = Math.PI + (i + 1) / 12 * Math.PI; L.push(P(e, a0, rr), P(e, a1, rr)); }
+      for (const a of [3.6, 4.7, 5.8]) L.push(P(e, a, 0.02), P(e, a + 0.2, 0.19)); }
+    for (const k of [-0.4, -0.1, 0.2]) for (const w of [-0.08, 0.06]) L.push(V(cx + ux * len * k + px * w, cy + uy * len * k + py * w, zt + 0.003), V(cx + ux * len * (k + 0.2) + px * w, cy + uy * len * (k + 0.2) + py * w, zt + 0.003));   // grain on the seat
     lines(L);
-    for (const zz of [zc + r * 0.55]) { const L2 = []; for (const k of [-0.35, -0.05, 0.25]) L2.push(V(cx + ux * len * k, cy + uy * len * k, zc + r * 0.98), V(cx + ux * len * (k + 0.18), cy + uy * len * (k + 0.18), zc + r * 0.98)); lines(L2); }   // bark grain on top
   }
   each(J.h_bridge, (s, p) => deck(p));
   rail(J.fence.map(([x, y]) => [x, y, 0.15]));
