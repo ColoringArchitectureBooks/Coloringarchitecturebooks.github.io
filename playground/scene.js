@@ -219,7 +219,7 @@ function zones() {
 
 function musicArch() {   // the music arch (photo): a flat band, straight legs down into the two gardens, chimes hanging under its top, a string of beads
   const [[x0, y0], [x1, y1]] = J.music, L = Math.hypot(x1 - x0, y1 - y0), ux = (x1 - x0) / L, uy = (y1 - y0) / L, nx = -uy, ny = ux;
-  const leg = 2.1, rise = 0.8, W = 0.45, T = 0.22, n = 40, P = [];   // lower, like the photo: about 2.1 m legs, top near 2.9 m   // centreline in (s along the line, z)
+  const leg = 2.1, rise = 0.8, W = 0.32, T = 0.15, n = 40, P = [];   // lower, like the photo: about 2.1 m legs, top near 2.9 m   // centreline in (s along the line, z)
   for (let i = 0; i <= 8; i++) P.push([0, 0.14 + (leg - 0.14) * i / 8]);
   const R = (rise * rise + (L / 2) ** 2) / (2 * rise), zc = leg + rise - R, a0 = Math.asin((L / 2) / R);
   for (let i = 1; i < n; i++) { const a = -a0 + 2 * a0 * i / n; P.push([L / 2 + R * Math.sin(a), zc + R * Math.cos(a)]); }
