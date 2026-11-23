@@ -421,9 +421,10 @@ function playhouse() {   // an open building (Ahmed): real walls with open windo
     const half = (z) => hw * (1 - (z - CW) / rise);
     xzPrism([[cx0, CW], [cm, AP - 0.1], [cm, AP - 0.32], [cx0 + 0.3, CW]], y0, y0 + 0.08, M.w);   // rake boards just inside the roof edge
     xzPrism([[cm, AP - 0.1], [cx1, CW], [cx1 - 0.3, CW], [cm, AP - 0.32]], y0, y0 + 0.08, M.w);
-    box(cm - 0.06, cm + 0.06, y0, y0 + 0.08, CW, AP - 0.15, M.w);                       // king post
-    for (let x = cm + 0.33; x < cx1; x += 0.33) for (const xx of [x, 2 * cm - x]) { const zt = CW + rise * (1 - Math.abs(xx - cm) / hw) - 0.18; if (zt > CW + 0.08) box(xx - b / 2, xx + b / 2, y0, y0 + b, CW, zt, M.w); }
-    for (let z = CW + 0.27; z < AP - 0.4; z += 0.27) { const h = half(z) - 0.2; box(cm - h, cm + h, y0, y0 + b, z - b / 2, z + b / 2, M.w); } }
+    const hi = hw - 0.3, top = AP - 0.32 - CW, inner = (z) => hi * (1 - (z - CW) / top);   // the grid stops at the inner edge of the rake boards (Ahmed)
+    box(cm - 0.06, cm + 0.06, y0, y0 + 0.08, CW, AP - 0.32, M.w);                       // king post
+    for (let x = cm + 0.33; x < cm + hi; x += 0.33) for (const xx of [x, 2 * cm - x]) { const zt = CW + top * (1 - Math.abs(xx - cm) / hi); if (zt > CW + 0.08) box(xx - b / 2, xx + b / 2, y0, y0 + b, CW, zt, M.w); }
+    for (let z = CW + 0.27; z < CW + top - 0.1; z += 0.27) { const h = inner(z); box(cm - h, cm + h, y0, y0 + b, z - b / 2, z + b / 2, M.w); } }
   for (const sgn of [-1, 1]) {                                          // roof slabs with an overhang
     const xe = sgn < 0 ? cx0 - 0.45 : cx1 + 0.45, ze = CW - 0.12 - 0.45 * (AP - CW) / ((cx1 - cx0) / 2);
     xzPrism(sgn < 0 ? [[xe, ze], [cm, AP], [cm, AP + 0.14], [xe, ze + 0.14]] : [[cm, AP], [xe, ze], [xe, ze + 0.14], [cm, AP + 0.14]], yf - 0.35, yb + 0.35, M.shingle);
