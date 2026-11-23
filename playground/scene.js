@@ -398,7 +398,8 @@ function wallX(x, ya, yb, za, zb, holes = [], t = 0.12, mat = M.siding) {   // w
 }
 function playhouse() {   // an open building (Ahmed): real walls with open windows and doorways, floors and roofs, so the inside shows
   const cx0 = 22.535, cx1 = 26.72, wx0 = 20.791, wx1 = 28.464, yf = 5.857, ywf = 6.555, yb = 10.391, ywb = 9.81, cm = (cx0 + cx1) / 2, t = 0.12;
-  const F2 = 2.35, B2 = 2.6, WE = 4.55, CW = 5.1, AP = 6.6, L = [];   // beam/floor 2.35-2.6, wing eaves 4.55, middle walls 5.1, ridge 6.6 (photo, 1 m = 126 px)
+  const F2 = 2.35, B2 = 2.6, WE = 4.15, WR = 4.5, CW = 5.1,   // WR: wing roof meets the middle wall here, under the main eave (Ahmed's side photo)
+        AP = 6.6, L = [];   // beam/floor 2.35-2.6, wing eaves 4.55, middle walls 5.1, ridge 6.6 (photo, 1 m = 126 px)
   // ----- middle bay, ground floor: the stage
   const pw = 0.42, sd = 1.4;
   box(cx0, cx0 + pw, yf, yf + 0.35, 0, F2, M.w); box(cx1 - pw, cx1, yf, yf + 0.35, 0, F2, M.w);   // the two light pillars
@@ -443,7 +444,7 @@ function playhouse() {   // an open building (Ahmed): real walls with open windo
     for (let x = cm + 0.33; x < cm + hi; x += 0.33) for (const xx of [x, 2 * cm - x]) { const zt = CW + top * (1 - Math.abs(xx - cm) / hi); if (zt > CW + 0.08) box(xx - b / 2, xx + b / 2, y0, y0 + b, CW, zt, M.w); }
     for (let z = CW + 0.27; z < CW + top - 0.1; z += 0.27) { const h = inner(z); box(cm - h, cm + h, y0 - b, y0, z - b / 2, z + b / 2, M.w); } }
   for (const sgn of [-1, 1]) {                                          // roof slabs with an overhang
-    const xe = sgn < 0 ? cx0 - 0.45 : cx1 + 0.45, ze = CW - 0.12 - 0.45 * (AP - CW) / ((cx1 - cx0) / 2);
+    const xe = sgn < 0 ? cx0 - 0.35 : cx1 + 0.35, ze = CW - 0.12 - 0.35 * (AP - CW) / ((cx1 - cx0) / 2);
     xzPrism(sgn < 0 ? [[xe, ze], [cm, AP], [cm, AP + 0.14], [xe, ze + 0.14]] : [[cm, AP], [xe, ze], [xe, ze + 0.14], [cm, AP + 0.14]], yf - 0.35, yb + 0.35, M.shingle);
   }
   awning(cx0 + 0.05, cx1 - 0.05, yf, 0.7, 4.78, 0.45);
@@ -463,16 +464,18 @@ function playhouse() {   // an open building (Ahmed): real walls with open windo
     { const x = xo - s * 0.03; box(x - 0.03, x + 0.03, ywf + 0.16, ywf + pd - 0.16, 0.95, 1.03, M.w); box(x - 0.03, x + 0.03, ywf + 0.16, ywf + pd - 0.16, 0.2, 0.26, M.w);
       for (let y = ywf + 0.14; y < ywf + pd - 0.1; y += 0.11) box(x - 0.02, x + 0.02, y - 0.02, y + 0.02, 0.26, 0.95, M.w); }
     for (const [p, d] of [[xo - s * 0.16, -s], [xi, s]]) xzPrism([[p, F2], [p + d * 0.55, F2], [p, F2 - 0.55]], ywf, ywf + 0.07, M.w);   // wooden corner brackets in the porch opening (photo)
-    const prof = s < 0 ? [[xo, B2], [xi, B2], [xi, CW - 0.1], [xo, WE]] : [[xi, B2], [xo, B2], [xo, WE], [xi, CW - 0.1]];
-    const uw = [wc - 0.34, wc + 0.34, 3.1, 3.9];                         // 0.68 x 0.8 m
+    const prof = s < 0 ? [[xo, B2], [xi, B2], [xi, WR], [xo, WE]] : [[xi, B2], [xo, B2], [xo, WE], [xi, WR]];
+    const uw = [wc - 0.34, wc + 0.34, 3.0, 3.7];                         // 0.68 x 0.8 m
     wallY(ywf, a, b, B2, CW, [uw], t, M.siding, prof); gridWindow(L, ywf - 0.01, ...uw, 4, 5);
-    wallX(xo, ywf + t, ywb - t, B2, WE, [[ywf + 1.2, ywb - 1.2, 3.1, 3.9]], -s * t);   // outer side, an open window
+    wallX(xo, ywf + t, ywb - t, B2, WE, [[ywf + 1.2, ywb - 1.2, 3.0, 3.7]], -s * t);   // outer side, an open window
     { const g = new THREE.Mesh(new THREE.PlaneGeometry(ywb - ywf - 2.4, 0.8), M.glass); g.rotation.y = Math.PI / 2; g.position.copy(V(xo - s * t / 2, (ywf + ywb) / 2, 3.5)); add(g, { noEdge: true }); }
     const door = xo === wx0 ? [[wc - 0.45, wc + 0.45, B2 + 0.4, B2 + 2.3]] : [];   // the bridge from the high ground comes in at the back of the west wing
     wallY(ywb - t, a, b, B2, CW, door, t, M.siding, prof);
-    { const xe = xo + s * 0.4, zAt = (x) => WE + (CW - 0.1 - WE) * (x - xo) / (xi - xo), ze = zAt(xe);
-      xzPrism(s < 0 ? [[xe, ze], [xi, CW - 0.1], [xi, CW + 0.02], [xe, ze + 0.12]] : [[xi, CW - 0.1], [xe, ze], [xe, ze + 0.12], [xi, CW + 0.02]], ywf - 0.3, ywb + 0.3, M.shingle); }
-    awning(wc - 0.6, wc + 0.6, ywf, 0.45, 4.37, 0.45);
+    { const xe = xo + s * 0.4, zAt = (x) => WE + (WR - WE) * (x - xo) / (xi - xo), ze = zAt(xe);
+      xzPrism(s < 0 ? [[xe, ze], [xi, WR], [xi, WR + 0.12], [xe, ze + 0.12]] : [[xi, WR], [xe, ze], [xe, ze + 0.12], [xi, WR + 0.12]], ywf - 0.3, ywb + 0.3, M.shingle); }   // lean-to stops at the middle wall, under the main eave, no clash
+    wallX(xi, ywf, ywb, WR, CW, [], -s * t);                                  // middle wall above the lean-to
+    wallX(xi, ywb, yb - t, 0, F2, [], -s * t); wallX(xi, ywb, yb - t, B2, CW, [], -s * t);   // middle bay's side walls behind the wing
+    awning(wc - 0.6, wc + 0.6, ywf, 0.4, 4.05, 0.3);
   }
   lines(L);
 }
