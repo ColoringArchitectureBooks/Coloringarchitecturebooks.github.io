@@ -343,7 +343,9 @@ function eastRamp() {   // the east walk slopes from the high level (by the plaz
 function houseArea() {   // the playhouse: mulch yard, symmetric house, half-round step, log seats, bridge from the high ground into the 2nd floor
   each(J.h_yard, (s) => prism(s, 0, 0.15, M.mulch, true));
   playhouse();
-  each(J.h_step, (s) => prism(s, 0, 0.3, M.deck, true));
+  { const cx = 24.6275, y0 = 5.857, rx = 2.0925, ry = 2.3, o = [];   // half-round step, wider: pillar to pillar and deeper (Ahmed's sketch)
+    for (let i = 0; i <= 96; i++) { const a = Math.PI * i / 96; o.push([cx - rx * Math.cos(a), y0 - ry * Math.sin(a)]); }
+    each([{ o, h: [] }], (s) => prism(s, 0, 0.3, M.deck, true)); }
   for (const p of J.logs) {   // log benches (photo): a half log, flat seat on top, round underneath, on two short posts; cracked rings on the cut ends
     const o = p.o, n = o.length, A = o[0], B = o[Math.floor(n / 2) - 1], c0x = o.reduce((s, q) => s + q[0], 0) / n, c0y = o.reduce((s, q) => s + q[1], 0) / n;
     const away = 1.0, rx = c0x - 24.63, ry = c0y - 5.0, rd = Math.hypot(rx, ry), cx = c0x + rx / rd * away, cy = c0y + ry / rd * away;   // 1 m further from the stage (Ahmed)
@@ -398,8 +400,9 @@ function wallX(x, ya, yb, za, zb, holes = [], t = 0.12, mat = M.siding) {   // w
 }
 function playhouse() {   // an open building (Ahmed): real walls with open windows and doorways, floors and roofs, so the inside shows
   const cx0 = 22.535, cx1 = 26.72, wx0 = 20.791, wx1 = 28.464, yf = 5.857, ywf = 6.555, yb = 10.391, ywb = 9.81, cm = (cx0 + cx1) / 2, t = 0.12;
-  const F2 = 2.35, B2 = 2.6, WE = 4.15, WR = 4.5, CW = 5.1,   // WR: wing roof meets the middle wall here, under the main eave (Ahmed's side photo)
-        AP = 6.6, L = [];   // beam/floor 2.35-2.6, wing eaves 4.55, middle walls 5.1, ridge 6.6 (photo, 1 m = 126 px)
+  const F2 = 2.35, B2 = 2.6, WE = 4.15, WR = 4.6, CW = 5.1,   // WR: wing roof meets the middle wall here, under the main eave (Ahmed's side photo)
+        AP = 6.2, L = [];   // ridge lowered to 6.2: flatter main roof whose eaves come down onto the wings (Ahmed's sketch)
+          // beam/floor 2.35-2.6, wing eaves 4.55, middle walls 5.1, ridge 6.6 (photo, 1 m = 126 px)
   // ----- middle bay, ground floor: the stage
   const pw = 0.42, sd = 1.4;
   box(cx0, cx0 + pw, yf, yf + 0.35, 0, F2, M.w); box(cx1 - pw, cx1, yf, yf + 0.35, 0, F2, M.w);   // the two light pillars
@@ -444,7 +447,7 @@ function playhouse() {   // an open building (Ahmed): real walls with open windo
     for (let x = cm + 0.33; x < cm + hi; x += 0.33) for (const xx of [x, 2 * cm - x]) { const zt = CW + top * (1 - Math.abs(xx - cm) / hi); if (zt > CW + 0.08) box(xx - b / 2, xx + b / 2, y0, y0 + b, CW, zt, M.w); }
     for (let z = CW + 0.27; z < CW + top - 0.1; z += 0.27) { const h = inner(z); box(cm - h, cm + h, y0 - b, y0, z - b / 2, z + b / 2, M.w); } }
   for (const sgn of [-1, 1]) {                                          // roof slabs with an overhang
-    const xe = sgn < 0 ? cx0 - 0.35 : cx1 + 0.35, ze = CW - 0.12 - 0.35 * (AP - CW) / ((cx1 - cx0) / 2);
+    const xe = sgn < 0 ? cx0 - 0.5 : cx1 + 0.5, ze = CW - 0.12 - 0.5 * (AP - CW) / ((cx1 - cx0) / 2);
     xzPrism(sgn < 0 ? [[xe, ze], [cm, AP], [cm, AP + 0.14], [xe, ze + 0.14]] : [[cm, AP], [xe, ze], [xe, ze + 0.14], [cm, AP + 0.14]], yf - 0.35, yb + 0.35, M.shingle);
   }
   awning(cx0 + 0.05, cx1 - 0.05, yf, 0.7, 4.78, 0.45);
