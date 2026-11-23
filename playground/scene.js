@@ -26,7 +26,7 @@ function tufts(n, len, seed) {   // grass tufts in line, for planted beds and th
 function makeMats() {
   const L = (o) => new THREE.MeshLambertMaterial({ side: THREE.DoubleSide, color: 0xffffff, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, ...o });
   M.w = L({});
-  M.glass = new THREE.MeshBasicMaterial({ color: 0xbfd3dc, transparent: true, opacity: 0.59, side: THREE.DoubleSide, depthWrite: false });   // clear glass (Ahmed)
+  M.glass = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.59, side: THREE.DoubleSide, depthWrite: false });   // clear glass (Ahmed)
   const plant = tufts(90, 12, 7); plant.repeat.set(0.25, 0.25); M.plant = L({ map: plant });
   const lawn = tufts(25, 8, 3); lawn.repeat.set(0.1, 0.1); M.lawn = L({ map: lawn });
   const deck = canvasTex(256, 256, (g, w, h) => { g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.strokeStyle = "#000"; g.lineWidth = 2;
