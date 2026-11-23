@@ -329,7 +329,7 @@ function deck(p, z = TOP) {
   for (let x = x0 + 0.3; x < x1; x += 2.4) for (let y = y0 + 0.3; y < y1; y += 2.4) if (inPoly(o, x, y) && inEdge(x, y)) box(x - 0.1, x + 0.1, y - 0.1, y + 0.1, 0, z - 0.25);
   const L = [];
   for (let i = 0; i < o.length; i++) { const a = o[i], b = o[(i + 1) % o.length]; if (!inEdge((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue;
-    const n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.15)), atHouse = (x, y) => x > 20.7 && x < 28.6 && y > 5.5 && y < 10.45;   // no fence where the bridge meets the playhouse (Ahmed)
+    const n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.15)), atHouse = (x, y) => x > 20.85 && x < 28.6 && y > 5.5 && y < 10.45;   // no fence where the bridge meets the playhouse (Ahmed)
     let prev = null;   // fence posts and top rail, broken where the bridge meets the playhouse or the rope bridge
     for (let k = 0; k <= n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, y = a[1] + (b[1] - a[1]) * k / n;
       if (atHouse(x, y) || ropeGap(x, y)) { prev = null; continue; } L.push(V(x, y, z), V(x, y, z + 1.0)); if (prev) L.push(V(prev[0], prev[1], z + 1.0), V(x, y, z + 1.0)); prev = [x, y]; } }
@@ -380,6 +380,9 @@ function houseArea() {   // the playhouse: mulch yard, symmetric house, half-rou
   { const o = J.h_bridge[0].o, A = [o[0], o[1], [RB.x0, RB.y0], [RB.x0, RB.y1], ...o.slice(9)], B = [[RB.x1, RB.y0], ...o.slice(4, 8), [RB.x1, RB.y1]];   // the house bridge in two decks, the rope bridge between them
     for (const q of [A, B]) each([{ o: q, h: [] }], (s, p) => deck(p)); ropeBridge(); }
   rail(J.fence.map(([x, y]) => [x, y, 0.15]));
+  { const o = J.h_yard[0].o, i0 = o.findIndex((p) => p[0] === 20.791 && p[1] === 14.576), i1 = o.findIndex((p) => p[0] === 26.952 && p[1] === -6.349), P = [];   // the same fence down the west side of the yard, from the bridge round to the front (Ahmed)
+    for (let i = i0; ; i = (i + 1) % o.length) { const p = o[i]; if (i === i0) P.push([20.791 + (19.396 - 20.791) * 0.15, 14.576 + (13.878 - 14.576) * 0.15]); else if (!P.length || Math.hypot(p[0] - P[P.length - 1][0], p[1] - P[P.length - 1][1]) > 0.9 || i === i1) P.push(p); if (i === i1) break; }
+    rail(P.map(([x, y]) => [x, y, 0.15])); }
   line3(J.offset, 0.14);
 }
 
@@ -594,9 +597,9 @@ function playhouse() {   // an open building (Ahmed): real walls with open windo
     const uw = [wc - 0.34, wc + 0.34, 3.0, 3.7];                         // 0.68 x 0.8 m
     wallY(ywf, a, b, B2, CW, [uw], t, M.siding, prof); gridWindow(L, ywf - 0.01, ...uw, 4, 5);
     const ow = E ? [(ywf + yR) / 2 - 0.4, (ywf + yR) / 2 + 0.4] : [ywf + 1.2, ywb - 1.2];
-    wallX(xo, ywf + t, yR - t, B2, WE, [[ow[0], ow[1], 3.0, 3.7]], -s * t);   // outer side, an open window
-    { const g = new THREE.Mesh(new THREE.PlaneGeometry(ow[1] - ow[0], 0.8), M.glass); g.rotation.y = Math.PI / 2; g.position.copy(V(xo - s * t / 2, (ow[0] + ow[1]) / 2, 3.5)); add(g, { noEdge: true }); }
-    const door = xo === wx0 ? [[xi - 1.1, xi - 0.1, B2 + 0.4, 4.3]] : [];   // bridge door: 1 m wide, 10 cm from the middle bay's wall (Ahmed), under the lean-to   // the bridge from the high ground comes in at the back of the west wing
+    wallX(xo, ywf + t, yR - t, B2, WE, [[ow[0], ow[1], 3.25, 3.97]], -s * t);   // outer side, an open window, as high as the wall lets it (Ahmed)
+    { const g = new THREE.Mesh(new THREE.PlaneGeometry(ow[1] - ow[0], 0.72), M.glass); g.rotation.y = Math.PI / 2; g.position.copy(V(xo - s * t / 2, (ow[0] + ow[1]) / 2, 3.61)); add(g, { noEdge: true }); }
+    const door = xo === wx0 ? [[xi - 0.9, xi - 0.1, B2 + 0.4, 4.3]] : [];   // bridge door: 0.8 m wide, 10 cm from the middle bay's wall (Ahmed), under the lean-to   // the bridge from the high ground comes in at the back of the west wing
     if (!E) wallY(ywb - t, a, b, B2, CW, door, t, M.siding, prof);
     else {   // east room's back wall, onto the balcony (back photo): a little house-shaped window near the outside, a pointed-arch doorway by the middle bay
       const win = pentPts(xo - 0.45, 0.46, 3.3, 3.8, 4.02), dr = gothicPts(xi + 0.38, 0.6, B2 + 0.02, 3.85);
