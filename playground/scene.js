@@ -314,9 +314,10 @@ function deck(p, z = TOP) {
   for (let x = x0 + 0.3; x < x1; x += 2.4) for (let y = y0 + 0.3; y < y1; y += 2.4) if (inPoly(o, x, y) && inEdge(x, y)) box(x - 0.1, x + 0.1, y - 0.1, y + 0.1, 0, z - 0.25);
   const L = [];
   for (let i = 0; i < o.length; i++) { const a = o[i], b = o[(i + 1) % o.length]; if (!inEdge((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue;
-    const n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.15));
-    for (let k = 0; k <= n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, y = a[1] + (b[1] - a[1]) * k / n; L.push(V(x, y, z), V(x, y, z + 1.0)); }
-    L.push(V(a[0], a[1], z + 1.0), V(b[0], b[1], z + 1.0)); }
+    const n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.15)), atHouse = (x, y) => x > 20.7 && x < 28.6 && y > 5.5 && y < 10.45;   // no fence where the bridge meets the playhouse (Ahmed)
+    let first = null, last = null;
+    for (let k = 0; k <= n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, y = a[1] + (b[1] - a[1]) * k / n; if (atHouse(x, y)) continue; L.push(V(x, y, z), V(x, y, z + 1.0)); if (!first) first = [x, y]; last = [x, y]; }
+    if (first && last !== first) L.push(V(first[0], first[1], z + 1.0), V(last[0], last[1], z + 1.0)); }
   lines(L);
 }
 
@@ -579,7 +580,7 @@ function playhouse() {   // an open building (Ahmed): real walls with open windo
     const ow = E ? [(ywf + yR) / 2 - 0.4, (ywf + yR) / 2 + 0.4] : [ywf + 1.2, ywb - 1.2];
     wallX(xo, ywf + t, yR - t, B2, WE, [[ow[0], ow[1], 3.0, 3.7]], -s * t);   // outer side, an open window
     { const g = new THREE.Mesh(new THREE.PlaneGeometry(ow[1] - ow[0], 0.8), M.glass); g.rotation.y = Math.PI / 2; g.position.copy(V(xo - s * t / 2, (ow[0] + ow[1]) / 2, 3.5)); add(g, { noEdge: true }); }
-    const door = xo === wx0 ? [[wc - 0.45, wc + 0.45, B2 + 0.4, B2 + 2.3]] : [];   // the bridge from the high ground comes in at the back of the west wing
+    const door = xo === wx0 ? [[wc - 0.45, wc + 0.45, B2 + 0.4, 4.15]] : [];   // door stays under the lean-to (it used to poke out through the roof)   // the bridge from the high ground comes in at the back of the west wing
     if (!E) wallY(ywb - t, a, b, B2, CW, door, t, M.siding, prof);
     else {   // east room's back wall, onto the balcony (back photo): a little house-shaped window near the outside, a pointed-arch doorway by the middle bay
       const win = pentPts(xo - 0.45, 0.46, 3.3, 3.8, 4.02), dr = gothicPts(xi + 0.38, 0.6, B2 + 0.02, 3.85);
