@@ -70,7 +70,9 @@ function cyl(x, y, r, z0, z1, mat = M.w, seg = 48, r2 = r) {
   m.position.copy(V(x, y, (z0 + z1) / 2)); return add(m, { hull: true });
 }
 // flat piece from a plan outline (THREE.Shape in plan x, y), z0..z1
+const WALK = 0.12;   // top of the concrete walk floor
 function prism(shape, z0, z1, mat = M.w, curved = false) {
+  if (z0 === 0 && z1 > WALK && z1 <= 1.2) z0 = WALK;   // things sitting on the walk start on its top, so the line where they meet the ground is drawn right there (Ahmed)
   const g = new THREE.ExtrudeGeometry(shape, { depth: z1 - z0, bevelEnabled: false, curveSegments: 64 }); g.rotateX(-Math.PI / 2);
   const m = new THREE.Mesh(g, mat); m.position.y = z0; return add(m, { curved });
 }
@@ -167,7 +169,7 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=16")).json();
+const J = await (await fetch("./layout.json?v=17")).json();
 const TOP = 3.0;   // the high level: car park / park entrance; the playground floor is 0
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
@@ -208,7 +210,7 @@ function zones() {
   musicArch();
   { const { p, low, high } = J.music_panel, dx = high[0] - low[0], dy = high[1] - low[1], d2 = dx * dx + dy * dy;   // the way in: a gap in the seat wall, and a sign block rising and sloping beside it (music instructions)
     for (const q of p) { const m = prism(shp(q), 0, 1.15, M.w), pa = m.geometry.attributes.position;
-      for (let i = 0; i < pa.count; i++) if (pa.getY(i) > 0.6) { const x = pa.getX(i), y = -pa.getZ(i), t = Math.max(0, Math.min(1, ((x - low[0]) * dx + (y - low[1]) * dy) / d2)); pa.setY(i, 0.57 + (1.15 - 0.57) * t); }
+      for (let i = 0; i < pa.count; i++) if (pa.getY(i) > 0.6) { const x = pa.getX(i), y = -pa.getZ(i), t = Math.max(0, Math.min(1, ((x - low[0]) * dx + (y - low[1]) * dy) / d2)); pa.setY(i, 0.57 + (1.15 - 0.57) * t - m.position.y); }
       pa.needsUpdate = true; m.geometry.computeVertexNormals(); } }
 }
 
