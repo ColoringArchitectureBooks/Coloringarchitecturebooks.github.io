@@ -118,7 +118,7 @@ function bench(x, y, a) {   // park bench: seat, back, two legs
 function lamp(x, y) { cyl(x, y, 0.09, 0, 7, M.w, 12); rbox(x, y, 0, 1.4, 0.25, 6.9, 7.1); }
 
 function ropeCone(x, y) {   // photo: blue rim disc, centre mast, rope net to the top, a blue ring half way up
-  const z0 = 0.22, r = 2.4, top = 5.2;
+  const z0 = 0.45, r = 2.4, top = 5.4;
   cyl(x, y, r, z0 + 0.25, z0 + 0.45); cyl(x, y, 0.4, z0, z0 + 0.25, M.w, 24);
   cyl(x, y, 0.13, z0 + 0.45, top, M.w, 16); const cap = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.w); cap.position.copy(V(x, y, top)); add(cap, { hull: true });
   const zr = z0 + 0.45 + (top - z0 - 0.45) * 0.4, rr = r * 0.6;   // the middle ring
@@ -131,14 +131,14 @@ function ropeCone(x, y) {   // photo: blue rim disc, centre mast, rope net to th
 }
 
 function bowlSpinner(x, y) {   // photo: blue bowl seat on a post, two steel hoops crossing over it
-  cyl(x, y, 0.12, 0.22, 0.6, M.w, 16);
-  const b = new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), M.w); b.position.copy(V(x, y, 1.1)); add(b, { hull: true });
-  for (const a of [40, -40]) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.04, 8, 40), M.w); t.position.copy(V(x, y, 1.15)); t.rotation.set(0, a * deg, 0); t.rotateX(0.35); add(t, { hull: true, hw: 0.01 }); }
+  cyl(x, y, 0.12, 0.45, 0.75, M.w, 16);
+  const b = new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), M.w); b.position.copy(V(x, y, 1.25)); add(b, { hull: true });
+  for (const a of [40, -40]) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.04, 8, 40), M.w); t.position.copy(V(x, y, 1.3)); t.rotation.set(0, a * deg, 0); t.rotateX(0.35); add(t, { hull: true, hw: 0.01 }); }
 }
 
 function swing(x, y, a) {   // A-frame swing along the ring: legs at both ends, top beam, two seats on chains
   const t = [Math.cos((a + 90) * deg), Math.sin((a + 90) * deg)], n = [Math.cos(a * deg), Math.sin(a * deg)], L = 2.6, H = 2.8;
-  const leg = (s, w) => { const b = V(x + t[0] * L * s + n[0] * w, y + t[1] * L * s + n[1] * w, 0.18), top = V(x + t[0] * L * s, y + t[1] * L * s, H);
+  const leg = (s, w) => { const b = V(x + t[0] * L * s + n[0] * w, y + t[1] * L * s + n[1] * w, 0.45), top = V(x + t[0] * L * s, y + t[1] * L * s, H);
     const d = top.clone().sub(b), m = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, d.length(), 12), M.w);
     m.position.copy(b.clone().add(top).multiplyScalar(0.5)); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); add(m, { hull: true }); };
   for (const s of [-1, 1]) for (const w of [-1.1, 1.1]) leg(s, w);
@@ -167,11 +167,11 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=7")).json();
+const J = await (await fetch("./layout.json?v=8")).json();
 const TOP = 3.0;   // the high level: car park / park entrance; the playground floor is 0
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
-function garden(shape, h = 0.45) { return prism(shape, 0, h, M.plant, true); }
+function garden(shape, h = 0.14) { return prism(shape, 0, h, M.plant, true); }   // planting at walk level (Ahmed's photo)
 function line3(pts, z = 0.13, closed = false) {   // a drawn line on the ground
   const q = closed ? [...pts, pts[0]] : pts; lines(q.slice(1).flatMap((p, i) => [V(q[i][0], q[i][1], q[i][2] ?? z), V(p[0], p[1], p[2] ?? z)]));
 }
@@ -190,17 +190,19 @@ function ground() {
 }
 
 function zones() {
-  each(J.sand, (s) => prism(s, 0, 0.15, M.sand, true));                    // swings: sand
-  each(J.spin, (s) => prism(s, 0, 0.22, M.w, true));                       // spinning zone: rubber
-  each(J.grey, (s) => prism(s, 0, 0.18, M.w, true));                       // shade circle: rubber
-  each(J.mtop, (s) => prism(s, 0, 0.18, M.w, true)); each(J.mbot, (s) => prism(s, 0, 0.18, M.w, true));   // music oval, split by the music line
+  each(J.sand, (s) => prism(s, 0, 0.45, M.sand, true));                    // swings: sand
+  each(J.spin, (s) => prism(s, 0, 0.45, M.w, true));                       // spinning zone: rubber
+  each(J.grey, (s) => prism(s, 0, 0.45, M.w, true));                       // shade circle: rubber
+  each(J.mtop, (s) => prism(s, 0, 0.45, M.w, true)); each(J.mbot, (s) => prism(s, 0, 0.45, M.w, true));   // music oval, split by the music line
   each(J.wlower, (s) => prism(s, 0, 0.15, M.w, true));                     // west leaf, lower part (use still open)
   each(J.gardens, (s) => garden(s));                                       // all the agreed gardens
+  each(J.curb_play, (s) => prism(s, 0, 0.57, M.w, true));                 // thick seat-height curb round each play area
+  each(J.curb_garden, (s) => prism(s, 0, 0.27, M.w, true));              // thin low curb round each planted bed
   each(J.sail, (s) => garden(s));                                          // old sail garden (still to agree)
-  each(J.planter, (s) => garden(s, 0.6));                                  // the curved planter under the top-left bridges
+  each(J.planter, (s) => garden(s));                                  // the curved planter under the top-left bridges
   // spinning zone equipment round its centre
   const [cx, cy] = [4.1, -3.9]; ropeCone(cx - 2, cy + 3); bowlSpinner(cx + 4, cy - 2); bowlSpinner(cx + 1, cy - 6);
-  cyl(cx - 3, cy - 4, 2.0, 0.22, 0.34); cyl(cx - 3, cy - 4, 0.12, 0.34, 1.0, M.w, 16);
+  cyl(cx - 3, cy - 4, 2.0, 0.45, 0.57); cyl(cx - 3, cy - 4, 0.12, 0.57, 1.2, M.w, 16);
   // swings on the sand
   for (const [x, y] of [[-14, -24.5], [-4, -27.5], [7, -27], [17, -21.5]]) swing(x, y, Math.atan2(y, x) / deg);
   musicArch();
