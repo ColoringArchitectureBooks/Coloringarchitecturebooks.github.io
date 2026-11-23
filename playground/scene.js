@@ -346,7 +346,7 @@ function houseArea() {   // the playhouse: mulch yard, symmetric house, half-rou
   each(J.h_step, (s) => prism(s, 0, 0.3, M.deck, true));
   for (const p of J.logs) {   // log benches (photo): a straight round log on two short posts, cracked rings on the cut ends
     const o = p.o, n = o.length, A = o[0], B = o[Math.floor(n / 2) - 1], cx = o.reduce((s, q) => s + q[0], 0) / n, cy = o.reduce((s, q) => s + q[1], 0) / n;
-    const dx = B[0] - A[0], dy = B[1] - A[1], len = Math.hypot(dx, dy) * 0.92, ux = dx / Math.hypot(dx, dy), uy = dy / Math.hypot(dx, dy), r = 0.19, zc = 0.15 + 0.27 + r;
+    const dx = B[0] - A[0], dy = B[1] - A[1], len = Math.hypot(dx, dy) * 0.92, ux = dx / Math.hypot(dx, dy), uy = dy / Math.hypot(dx, dy), r = 0.19, zc = 0.15 + 0.12 + r;   // seat top 0.5 m above the mulch (photo)
     const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 32), M.w); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(ux, 0, -uy)); m.position.copy(V(cx, cy, zc)); add(m, { hull: true });
     for (const k of [-0.3, 0.3]) cyl(cx + ux * len * k, cy + uy * len * k, 0.07, 0.15, zc - r + 0.02, M.w, 16);
     const L = []; for (const e of [-0.5, 0.5]) { const ex = cx + ux * (len * e + Math.sign(e) * 0.005), ey = cy + uy * (len * e + Math.sign(e) * 0.005), px = -uy, py = ux;
