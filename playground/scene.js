@@ -169,7 +169,7 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=19")).json();
+const J = await (await fetch("./layout.json?v=20")).json();
 const TOP = 3.0;   // the high level: car park / park entrance; the playground floor is 0
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
@@ -208,10 +208,7 @@ function zones() {
   // swings on the sand
   for (const [x, y] of [[-14, -24.5], [-4, -27.5], [7, -27], [17, -21.5]]) swing(x, y, Math.atan2(y, x) / deg);
   musicArch();
-  { const { p, low, high } = J.music_panel, dx = high[0] - low[0], dy = high[1] - low[1], d2 = dx * dx + dy * dy;   // the way in: a gap in the seat wall, and a sign block rising and sloping beside it (music instructions)
-    for (const q of p) { const m = prism(shp(q), 0, 1.15, M.w), pa = m.geometry.attributes.position;
-      for (let i = 0; i < pa.count; i++) if (pa.getY(i) > 0.6) { const x = pa.getX(i), y = -pa.getZ(i), t = Math.max(0, Math.min(1, ((x - low[0]) * dx + (y - low[1]) * dy) / d2)); pa.setY(i, 0.57 + (1.15 - 0.57) * t - m.position.y); }
-      pa.needsUpdate = true; m.geometry.computeVertexNormals(); } }
+  for (const q of J.music_panel.p) prism(shp(q), 0, 1.2, M.w, true);   // the way in: a gap in the seat wall in the middle, an upright sign post on one side for the music instructions (Ahmed's sketch)
 }
 
 function musicArch() {   // the music arch (photo): a flat band, straight legs down into the two gardens, chimes hanging under its top, a string of beads
