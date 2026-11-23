@@ -120,7 +120,7 @@ function bench(x, y, a) {   // park bench: seat, back, two legs
 function lamp(x, y) { cyl(x, y, 0.09, 0, 7, M.w, 12); rbox(x, y, 0, 1.4, 0.25, 6.9, 7.1); }
 
 function ropeCone(x, y) {   // photo: blue rim disc, centre mast, rope net to the top, a blue ring half way up
-  const z0 = 0.16, r = 2.4, top = 5.2;
+  const z0 = FL, r = 2.4, top = 5.2;
   cyl(x, y, r, z0 + 0.25, z0 + 0.45); cyl(x, y, 0.4, z0, z0 + 0.25, M.w, 24);
   cyl(x, y, 0.13, z0 + 0.45, top, M.w, 16); const cap = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.w); cap.position.copy(V(x, y, top)); add(cap, { hull: true });
   const zr = z0 + 0.45 + (top - z0 - 0.45) * 0.4, rr = r * 0.6;   // the middle ring
@@ -133,14 +133,14 @@ function ropeCone(x, y) {   // photo: blue rim disc, centre mast, rope net to th
 }
 
 function bowlSpinner(x, y) {   // photo: blue bowl seat on a post, two steel hoops crossing over it
-  cyl(x, y, 0.12, 0.16, 0.6, M.w, 16);
+  cyl(x, y, 0.12, FL, 0.6, M.w, 16);
   const b = new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), M.w); b.position.copy(V(x, y, 1.1)); add(b, { hull: true });
   for (const a of [40, -40]) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.04, 8, 40), M.w); t.position.copy(V(x, y, 1.15)); t.rotation.set(0, a * deg, 0); t.rotateX(0.35); add(t, { hull: true, hw: 0.01 }); }
 }
 
 function swing(x, y, a) {   // A-frame swing along the ring: legs at both ends, top beam, two seats on chains
   const t = [Math.cos((a + 90) * deg), Math.sin((a + 90) * deg)], n = [Math.cos(a * deg), Math.sin(a * deg)], L = 2.6, H = 2.8;
-  const leg = (s, w) => { const b = V(x + t[0] * L * s + n[0] * w, y + t[1] * L * s + n[1] * w, 0.16), top = V(x + t[0] * L * s, y + t[1] * L * s, H);
+  const leg = (s, w) => { const b = V(x + t[0] * L * s + n[0] * w, y + t[1] * L * s + n[1] * w, FL), top = V(x + t[0] * L * s, y + t[1] * L * s, H);
     const d = top.clone().sub(b), m = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, d.length(), 12), M.w);
     m.position.copy(b.clone().add(top).multiplyScalar(0.5)); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); add(m, { hull: true }); };
   for (const s of [-1, 1]) for (const w of [-1.1, 1.1]) leg(s, w);
@@ -169,7 +169,7 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=20")).json();
+const J = await (await fetch("./layout.json?v=22")).json();
 const TOP = 3.0;   // the high level: car park / park entrance; the playground floor is 0
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
@@ -191,11 +191,13 @@ function ground() {
   for (const f of J.edgefence) rail(f.p.map(([x, y]) => [x, y, f.z]));   // the same railing all round the outer edge (Ahmed)
 }
 
+const FL = 0.13;   // play floors: flush with the walk (Ahmed), only the material changes
+function flat(shape, mat) { const m = prism(shape, 0, FL, mat, true); m.userData.noEdge = true; return m; }
 function zones() {
-  each(J.sand, (s) => prism(s, 0, 0.16, M.sand, true));                    // swings: sand
-  each(J.spin, (s) => prism(s, 0, 0.16, M.w, true));                       // spinning zone: rubber
-  each(J.grey, (s) => prism(s, 0, 0.16, M.w, true));                       // shade circle: rubber
-  each(J.moval, (s) => prism(s, 0, 0.16, M.w, true));                      // music oval: one floor (photo)
+  each(J.sand, (s) => flat(s, M.sand));                    // swings: sand
+  each(J.spin, (s) => flat(s, M.w));                       // spinning zone: rubber
+  each(J.grey, (s) => flat(s, M.w));                       // shade circle: rubber
+  each(J.moval, (s) => flat(s, M.w));                      // music oval: one floor (photo)
   each(J.wlower, (s) => prism(s, 0, 0.15, M.w, true));                     // west leaf, lower part (use still open)
   each(J.gardens, (s) => garden(s));                                       // all the agreed gardens
   each(J.curb_play, (s) => prism(s, 0, 0.57, M.w, true));                 // thick seat-height curb round each play area
@@ -204,11 +206,15 @@ function zones() {
   each(J.planter, (s) => garden(s));                                  // the curved planter under the top-left bridges
   // spinning zone equipment round its centre
   const [cx, cy] = [4.1, -3.9]; ropeCone(cx - 2, cy + 3); bowlSpinner(cx + 4, cy - 2); bowlSpinner(cx + 1, cy - 6);
-  cyl(cx - 3, cy - 4, 2.0, 0.16, 0.28); cyl(cx - 3, cy - 4, 0.12, 0.28, 1.0, M.w, 16);
+  cyl(cx - 3, cy - 4, 2.0, FL, 0.28); cyl(cx - 3, cy - 4, 0.12, 0.28, 1.0, M.w, 16);
   // swings on the sand
   for (const [x, y] of [[-14, -24.5], [-4, -27.5], [7, -27], [17, -21.5]]) swing(x, y, Math.atan2(y, x) / deg);
   musicArch();
-  for (const q of J.music_panel.p) prism(shp(q), 0, 1.2, M.w, true);   // the way in: a gap in the seat wall in the middle, an upright sign post on one side for the music instructions (Ahmed's sketch)
+  { const [cx, cy] = J.music_panel.c, d = (x, y) => Math.hypot(x - cx, y - cy);   // the sign post: its top slopes down toward the people coming in, a lectern for the instructions (Ahmed)
+    for (const q of J.music_panel.p) { const ds = q.o.map(([x, y]) => d(x, y)), d0 = Math.min(...ds), d1 = Math.max(...ds);
+      const m = prism(shp(q), 0, 1.2, M.w, true), pa = m.geometry.attributes.position;
+      for (let i = 0; i < pa.count; i++) if (pa.getY(i) > 0.6) { const t = (d(pa.getX(i), -pa.getZ(i)) - d0) / (d1 - d0); pa.setY(i, 1.2 - 0.3 * t - m.position.y); }
+      pa.needsUpdate = true; m.geometry.computeVertexNormals(); } }   // the way in: a gap in the seat wall in the middle, an upright sign post on one side for the music instructions (Ahmed's sketch)
 }
 
 function musicArch() {   // the music arch (photo): a flat band, straight legs down into the two gardens, chimes hanging under its top, a string of beads
