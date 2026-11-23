@@ -345,7 +345,8 @@ function houseArea() {   // the playhouse: mulch yard, symmetric house, half-rou
   playhouse();
   each(J.h_step, (s) => prism(s, 0, 0.3, M.deck, true));
   for (const p of J.logs) {   // log benches (photo): a half log, flat seat on top, round underneath, on two short posts; cracked rings on the cut ends
-    const o = p.o, n = o.length, A = o[0], B = o[Math.floor(n / 2) - 1], cx = o.reduce((s, q) => s + q[0], 0) / n, cy = o.reduce((s, q) => s + q[1], 0) / n;
+    const o = p.o, n = o.length, A = o[0], B = o[Math.floor(n / 2) - 1], c0x = o.reduce((s, q) => s + q[0], 0) / n, c0y = o.reduce((s, q) => s + q[1], 0) / n;
+    const away = 1.0, rx = c0x - 24.63, ry = c0y - 5.0, rd = Math.hypot(rx, ry), cx = c0x + rx / rd * away, cy = c0y + ry / rd * away;   // 1 m further from the stage (Ahmed)
     const dx = B[0] - A[0], dy = B[1] - A[1], dl = Math.hypot(dx, dy), len = dl * 0.92, ux = dx / dl, uy = dy / dl, px = -uy, py = ux, r = 0.21, zt = 0.15 + 0.5;   // seat 0.5 m above the mulch
     const sh = new THREE.Shape(); sh.moveTo(-r, 0); sh.absarc(0, 0, r, Math.PI, 2 * Math.PI, false); sh.lineTo(-r, 0);
     const g = new THREE.ExtrudeGeometry(sh, { depth: len, bevelEnabled: false, curveSegments: 24 }); g.translate(0, 0, -len / 2);
