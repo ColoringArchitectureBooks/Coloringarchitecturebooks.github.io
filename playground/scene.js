@@ -312,7 +312,7 @@ const RB = { x0: 22.541, x1: 26.836, y0: 14.143, y1: 15.893 };   // the rope bri
 const ropeGap = (x, y) => x > RB.x0 - 0.01 && x < RB.x1 + 0.01 && y > RB.y0 + 0.01 && y < RB.y1 - 0.01;
 function ropeBridge(z = TOP) {   // wooden slats with gaps hung on ropes, sagging in the middle; rope nets on both sides; a post at each corner
   const { x0, x1, y0, y1 } = RB, sag = 0.18, zd = (x) => z - sag * Math.sin(Math.PI * (x - x0) / (x1 - x0)), zr = (x) => z + 1.0 - 0.06 * Math.sin(Math.PI * (x - x0) / (x1 - x0)), L = [];
-  for (let x = x0 + 0.1; x + 0.12 < x1 - 0.06; x += 0.18) box(x, x + 0.12, y0 + 0.12, y1 - 0.12, zd(x + 0.06) - 0.04, zd(x + 0.06), M.deck);   // slats, 6 cm gaps
+  for (let x = x0 + 0.1; x + 0.12 < x1 - 0.06; x += 0.18) box(x, x + 0.12, y0 + 0.12, y1 - 0.12, zd(x + 0.06) - 0.04, zd(x + 0.06), M.w);   // slats, 6 cm gaps, plain (no texture, Ahmed)
   for (const y of [y0 + 0.2, y1 - 0.2]) { const P = []; for (let i = 0; i <= 24; i++) { const x = x0 + (x1 - x0) * i / 24; P.push(V(x, y, zd(x) - 0.065)); } tube(P, 0.025); }   // ropes under the slats
   for (const y of [y0 + 0.06, y1 - 0.06]) {
     box(x0, x0 + 0.12, y - 0.06, y + 0.06, 0, z + 1.15); box(x1 - 0.12, x1, y - 0.06, y + 0.06, 0, z + 1.15);   // corner posts
