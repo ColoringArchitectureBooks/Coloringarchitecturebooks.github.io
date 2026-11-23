@@ -167,7 +167,7 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=3")).json();
+const J = await (await fetch("./layout.json?v=4")).json();
 const TOP = 3.0;   // the high level: car park / park entrance; the playground floor is 0
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
@@ -268,6 +268,19 @@ function topLeft() {   // park entrance building and its bridges, all at the hig
   line3([[ax, ay - 0.02, TOP], [ax, ay - 0.02, TOP + 2.3], [bx, by - 0.02, TOP + 2.3], [bx, by - 0.02, TOP]], 0);   // the way in
 }
 
+function eastRamp() {   // the east walk slopes from the high level (by the plaza and the house bridge) down to the playground (Ahmed)
+  const R = J.ramp, pos = [], idx = [], uv = [];
+  const P = (x, y, z) => { pos.push(...V(x, y, z).toArray()); uv.push(x, y); return pos.length / 3 - 1; };
+  for (let i = 0; i < R.length - 1; i++) { const [ax, ay, bx, by, z] = R[i], [cx, cy, dx, dy, z2] = R[i + 1], t = 0.12;
+    const a = P(ax, ay, z + t), b = P(bx, by, z + t), c = P(cx, cy, z2 + t), d = P(dx, dy, z2 + t); idx.push(a, b, d, a, d, c);
+    for (const [px, py, qx, qy] of [[ax, ay, cx, cy], [bx, by, dx, dy]]) { const e = P(px, py, z + t), f = P(qx, qy, z2 + t), g = P(qx, qy, 0), h = P(px, py, 0); idx.push(e, f, g, e, g, h); } }
+  { const [ax, ay, bx, by, z] = R[0]; const a = P(ax, ay, z + 0.12), b = P(bx, by, z + 0.12), c = P(bx, by, 0), d = P(ax, ay, 0); idx.push(a, b, c, a, c, d); }
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+  add(new THREE.Mesh(g, M.w));
+  rail(R.filter((_, i) => i % 2 === 0 || i === R.length - 1).map(([x, y, , , z]) => [x, y, z + 0.12]));
+  rail(R.filter((_, i) => i % 2 === 0 || i === R.length - 1).map(([, , x, y, z]) => [x, y, z + 0.12]));
+}
+
 function houseArea() {   // the playhouse: mulch yard, symmetric house, half-round step, log seats, bridge from the high ground into the 2nd floor
   each(J.h_yard, (s) => prism(s, 0, 0.15, M.mulch, true));
   each(J.h_house, (s) => { prism(s, 0, TOP, M.siding); prism(s, TOP - 0.05, TOP + 0.15, M.w); });
@@ -312,7 +325,7 @@ function outline(root) {
 export function buildScene(scene) {
   makeMats();
   ROOT = new THREE.Group(); scene.add(ROOT);
-  ground(); zones(); slideHill(); topLeft(); houseArea(); details();
+  ground(); zones(); slideHill(); topLeft(); eastRamp(); houseArea(); details();
   outline(ROOT);
   scene.background = new THREE.Color(0xffffff);
   scene.add(new THREE.HemisphereLight(0xffffff, 0xeeeeee, 2.4));
