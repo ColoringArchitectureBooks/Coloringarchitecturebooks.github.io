@@ -169,11 +169,11 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=18")).json();
+const J = await (await fetch("./layout.json?v=19")).json();
 const TOP = 3.0;   // the high level: car park / park entrance; the playground floor is 0
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
-function garden(shape, h = 0.14) { return prism(shape, 0, h, M.plant, true); }   // planting at walk level (Ahmed's photo)
+function garden(shape, h = 0.13) { const m = prism(shape, 0, h, M.plant, true); m.userData.noEdge = true; return m; }   // planting flush with the walk; its curb draws the edge, so no extra line along the curbs (Ahmed)
 function line3(pts, z = 0.13, closed = false) {   // a drawn line on the ground
   const q = closed ? [...pts, pts[0]] : pts; lines(q.slice(1).flatMap((p, i) => [V(q[i][0], q[i][1], q[i][2] ?? z), V(p[0], p[1], p[2] ?? z)]));
 }
@@ -186,7 +186,7 @@ function ground() {
   const g = new THREE.Mesh(new THREE.PlaneGeometry(240, 170), M.lawn); g.rotation.x = -Math.PI / 2; g.position.copy(V(0, -5, -0.02));
   g.geometry.attributes.uv.array.forEach((v, i, a) => { a[i] = v * (i % 2 ? 170 : 240); }); add(g, { noEdge: true });
   prism(poly(J.edge), 0, 0.12, M.w, true);                 // the agreed outer edge: one concrete floor, the zones sit on it
-  line3(J.walk, 0.125, true);                              // the 2.5 m walk all round, inside the edge
+  J.walkline.forEach((l) => line3(l, 0.125));                              // the 2.5 m walk all round, inside the edge
   each(J.plateau, (s) => prism(s, 0, TOP, M.lawn));         // high ground north of the playground (car park / entrance level)
   for (const f of J.edgefence) rail(f.p.map(([x, y]) => [x, y, f.z]));   // the same railing all round the outer edge (Ahmed)
 }
