@@ -436,19 +436,20 @@ function playhouse() {   // an open building (Ahmed): real walls with open windo
   wallX(cx0, yf + t, ywf, B2, CW); wallX(cx1, yf + t, ywf, B2, CW, [], -t);   // walls butt, never overlap
   wallY(yb - t, cx0, cx1, B2, CW, [[cm - 0.6, cm + 0.6, 3.0, 4.0]]);   // back, one open window
   { const g = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.0), M.glass); g.position.copy(V(cm, yb - t / 2, 3.5)); add(g, { noEdge: true }); }
-  wallY(yb - t, cx0, cx1, CW, AP - 0.1, [], t, M.w, [[cx0, CW], [cx1, CW], [cm, AP - 0.1]]);   // back gable, closed
+  wallY(yb - t, cx0, cx1, CW, AP - 0.1, [], t, M.w, [[cx0, CW], [cx1, CW], [cm, AP]]);   // back gable, closed, its top parallel to the roof just under it
   box(cx0 - 0.1, cx1 + 0.1, yf - 0.12, yf + 0.05, CW - 0.12, CW, M.w);   // band under the front gable
   { const y0 = yf - 0.02, hw = (cx1 - cx0) / 2, rise = AP - 0.1 - CW, b = 0.04, tw = 0.16;   // gable (photo): wooden rake boards inside the roof edge, a king post, a fine open grid
     const half = (z) => hw * (1 - (z - CW) / rise);
-    xzPrism([[cx0, CW], [cm, AP - 0.1], [cm, AP - 0.32], [cx0 + 0.3, CW]], y0, y0 + 0.08, M.w);   // rake boards just inside the roof edge
-    xzPrism([[cm, AP - 0.1], [cx1, CW], [cx1 - 0.3, CW], [cm, AP - 0.32]], y0, y0 + 0.08, M.w);
-    const hi = hw - 0.3, top = AP - 0.32 - CW, inner = (z) => hi * (1 - (z - CW) / top);   // the grid stops at the inner edge of the rake boards (Ahmed)
-    box(cm - 0.06, cm + 0.06, y0, y0 + 0.08, CW, AP - 0.32, M.w);                       // king post
+    const k = (AP - CW) / hw, bt = 0.22, ri = (bt - 0.05) / k;          // rake boards follow the roof slope exactly (Ahmed): same pitch, even width, just under the roof
+    xzPrism([[cx0, CW], [cx0, CW + 0.05], [cm, AP + 0.05], [cm, AP + 0.05 - bt], [cx0 + ri, CW]], y0, y0 + 0.08, M.w);
+    xzPrism([[cx1 - ri, CW], [cm, AP + 0.05 - bt], [cm, AP + 0.05], [cx1, CW + 0.05], [cx1, CW]], y0, y0 + 0.08, M.w);
+    const hi = hw - ri, top = AP + 0.05 - bt - CW, inner = (z) => hi * (1 - (z - CW) / top);   // the grid stops at the inner edge of the rake boards (Ahmed)
+    box(cm - 0.06, cm + 0.06, y0, y0 + 0.08, CW, AP + 0.05 - bt, M.w);                       // king post
     for (let x = cm + 0.33; x < cm + hi; x += 0.33) for (const xx of [x, 2 * cm - x]) { const zt = CW + top * (1 - Math.abs(xx - cm) / hi); if (zt > CW + 0.08) box(xx - b / 2, xx + b / 2, y0, y0 + b, CW, zt, M.w); }
     for (let z = CW + 0.27; z < CW + top - 0.1; z += 0.27) { const h = inner(z); box(cm - h, cm + h, y0 - b, y0, z - b / 2, z + b / 2, M.w); } }
   for (const sgn of [-1, 1]) {                                          // roof slabs with an overhang
-    const xe = sgn < 0 ? cx0 - 0.5 : cx1 + 0.5, ze = CW - 0.12 - 0.5 * (AP - CW) / ((cx1 - cx0) / 2);
-    xzPrism(sgn < 0 ? [[xe, ze], [cm, AP], [cm, AP + 0.14], [xe, ze + 0.14]] : [[cm, AP], [xe, ze], [xe, ze + 0.14], [cm, AP + 0.14]], yf - 0.35, yb + 0.35, M.shingle);
+    const xe = sgn < 0 ? cx0 - 0.5 : cx1 + 0.5, ze = CW + 0.06 - 0.5 * (AP - CW) / ((cx1 - cx0) / 2), AR = AP + 0.06;   // underside parallel to the gable, 6 cm above the walls
+    xzPrism(sgn < 0 ? [[xe, ze], [cm, AR], [cm, AR + 0.14], [xe, ze + 0.14]] : [[cm, AR], [xe, ze], [xe, ze + 0.14], [cm, AR + 0.14]], yf - 0.35, yb + 0.35, M.shingle);
   }
   awning(cx0 + 0.05, cx1 - 0.05, yf, 0.7, 4.78, 0.45);
   { const sg = new THREE.Shape(); sg.absellipse(cm, 2.75, 0.4, 0.2, 0, Math.PI * 2, false); const g = new THREE.ExtrudeGeometry(sg, { depth: 0.04, bevelEnabled: false, curveSegments: 32 });
