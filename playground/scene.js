@@ -230,7 +230,7 @@ function musicArch() {   // the music arch (photo): a flat band, straight legs d
   for (let i = 0; i < P.length - 1; i++) for (let k = 0; k < 4; k++) { const a = i * 4 + k, b = i * 4 + (k + 1) % 4; idx.push(a, b, b + 4, a, b + 4, a + 4); }
   const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
   add(new THREE.Mesh(g, M.w));
-  for (let i = 4; i < n - 3; i += 2) { const [s, z] = P[8 + i]; cyl(x0 + ux * s, y0 + uy * s, 0.07, z - T / 2 - 0.3, z - T / 2, M.w, 10); }   // chimes
+
   // Ahmed's photo: the beads are flat coloured discs fixed on the front face, and four round sound discs (two on the top, one high on each leg)
   const f = ny > 0 ? -1 : 1, off = f * (W / 2 + 0.015);                       // front face = the side facing the way in (south)
   const N3 = new THREE.Vector3(nx * f, 0, -ny * f).normalize(), q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), N3);
@@ -240,6 +240,8 @@ function musicArch() {   // the music arch (photo): a flat band, straight legs d
     const t = (d - cum[i - 1]) / (cum[i] - cum[i - 1] || 1), sv = P[i - 1][0] + (P[i][0] - P[i - 1][0]) * t, z = P[i - 1][1] + (P[i][1] - P[i - 1][1]) * t; return [sw(sv), z]; };
   const onFace = (sv, z, r, depth, o = 0) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, depth, 28), M.w); m.quaternion.copy(q);
     m.position.copy(V(x0 + ux * sv + nx * (off + f * (depth / 2 + o)), y0 + uy * sv + ny * (off + f * (depth / 2 + o)), z)); return add(m, { curved: true }); };
+  for (let k = 0; k < 24; k++) { const sv = sw(L * (0.12 + 0.8 * k / 23)), z = zc + Math.sqrt(R * R - (sv - L / 2) ** 2);   // 24 short chimes under the band, counted on Ahmed's photo, from just past the beads to near the right leg
+    cyl(x0 + ux * sv, y0 + uy * sv, 0.065, z - T / 2 - 0.13, z - T / 2, M.w, 12); }
   const u0 = cum[8] / cum[cum.length - 1];                                     // top of the left leg
   const beads = [];
   for (let k = 0; k <= 4; k++) beads.push(at(u0 - 0.03 + (0.3 - u0 + 0.03) * k / 4));   // up along the band from the left corner
