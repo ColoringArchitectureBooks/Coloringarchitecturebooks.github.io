@@ -167,7 +167,7 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=4")).json();
+const J = await (await fetch("./layout.json?v=5")).json();
 const TOP = 3.0;   // the high level: car park / park entrance; the playground floor is 0
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
@@ -231,8 +231,8 @@ function slideHill() {
   // outline of the zone on the surface
   const o = J.tent[0].o, near = (x, y) => { let best = 0, d = 1e9; for (const [vx, vy, vz] of v) { const e = (vx - x) ** 2 + (vy - y) ** 2; if (e < d) { d = e; best = vz; } } return best; };
   line3(o.map(([x, y]) => [x, y, near(x, y) + 0.14]), 0, true);
-  each(J.bank, (s) => prism(s, 0, TOP, M.lawn));                           // the high ground behind the crest
-  rail(J.crest.map(([x, y]) => [x, y, TOP]));
+  each(J.bank, (s) => prism(s, 0, TOP, M.pavers));                         // the high entrance plaza: behind the slides and the first leg of the house bridge (Ahmed)
+  for (const r of J.bankrail) rail(r.map(([x, y]) => [x, y, TOP]));       // railing where the plaza drops to the low level
   for (const [[tx, ty, tz], [bx, by]] of J.slides) slide(tx, ty, tz, bx, by);
 }
 const SLW = 0.6;   // slide width (Ahmed: about 60 cm)
