@@ -248,7 +248,8 @@ function musicArch() {   // the music arch (photo): a flat band, straight legs d
     ring(R0); ring(R0 * 0.35); for (let k = 0; k < 6; k++) { const t = k * Math.PI / 3, d = a.clone().multiplyScalar(Math.cos(t)).addScaledVector(b, Math.sin(t)); L2.push(c.clone().addScaledVector(d, R0 * 0.35), c.clone().addScaledVector(d, R0)); }
     lines(L2); };
   const S3 = new THREE.Vector3(ux, 0, -uy), N3n = new THREE.Vector3(nx, 0, -ny), UP = new THREE.Vector3(0, 1, 0), P3 = (sv, w, z) => new THREE.Vector3(x0 + ux * sv + nx * w, z, -(y0 + uy * sv + ny * w));
-  for (const u of [0.36, 0.76]) { const [sv, z] = at(u); const k = Math.min(P.length - 2, Math.max(1, Math.round(u * (P.length - 1)))), tg = new THREE.Vector3().subVectors(P3(P[k + 1][0], 0, P[k + 1][1]), P3(P[k - 1][0], 0, P[k - 1][1])).normalize();
+  for (const u of []) {   // Ahmed: no sound discs on the top band
+ const [sv, z] = at(u); const k = Math.min(P.length - 2, Math.max(1, Math.round(u * (P.length - 1)))), tg = new THREE.Vector3().subVectors(P3(P[k + 1][0], 0, P[k + 1][1]), P3(P[k - 1][0], 0, P[k - 1][1])).normalize();
     const nrm = new THREE.Vector3().crossVectors(tg, N3n).normalize(); disc(P3(sv, f * (W / 2 + 0.005), z), tg, nrm.y < 0 ? nrm.negate() : nrm, T / 2 - 0.012); }   // fits inside the band's height
   for (const [sv, dir] of [[T / 2 + 0.005, 1], [L - T / 2 - 0.005, -1]]) disc(P3(sv, 0, leg - 0.45), N3n, UP);   // inner faces of the legs, centred, not on the edge
 }
