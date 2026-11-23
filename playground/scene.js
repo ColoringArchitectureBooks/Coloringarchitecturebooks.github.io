@@ -57,7 +57,10 @@ function makeMats() {
 let ROOT;
 const add = (m, o = {}) => { Object.assign(m.userData, o); ROOT.add(m); return m; };
 function box(x0, x1, y0, y1, z0, z1, mat = M.w) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, z1 - z0, y1 - y0), mat);
+  const g = new THREE.BoxGeometry(x1 - x0, z1 - z0, y1 - y0);
+  if (mat.map) { const uv = g.attributes.uv, dx = x1 - x0, dz = z1 - z0, dy = y1 - y0, sz = [[dy, dz], [dy, dz], [dx, dy], [dx, dy], [dx, dz], [dx, dz]];   // textures in metres, like the extruded shapes
+    for (let i = 0; i < uv.count; i++) { const [su, sv] = sz[Math.floor(i / 4)]; uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv); } }
+  const m = new THREE.Mesh(g, mat);
   m.position.copy(V((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)); return add(m);
 }
 // a box turned in plan: centre (x, y), length l along angle a (degrees), width d, from z0 to z1
@@ -338,20 +341,111 @@ function eastRamp() {   // the east walk slopes from the high level (by the plaz
 
 function houseArea() {   // the playhouse: mulch yard, symmetric house, half-round step, log seats, bridge from the high ground into the 2nd floor
   each(J.h_yard, (s) => prism(s, 0, 0.15, M.mulch, true));
-  each(J.h_house, (s) => { prism(s, 0, TOP, M.siding); prism(s, TOP - 0.05, TOP + 0.15, M.w); });
-  const o = J.h_main[0].o, X = o.map((q) => q[0]), Y = o.map((q) => q[1]), x0 = Math.min(...X), x1 = Math.max(...X), y0 = Math.min(...Y), y1 = Math.max(...Y);
-  box(x0, x1, y0, y1, TOP + 0.15, 5.6, M.siding);
-  const w = x1 - x0, gs = new THREE.Shape([new THREE.Vector2(-w / 2 - 0.3, 0), new THREE.Vector2(w / 2 + 0.3, 0), new THREE.Vector2(0, 2.2)]);
-  const gg = new THREE.ExtrudeGeometry(gs, { depth: y1 - y0 + 0.6, bevelEnabled: false }); gg.translate(0, 0, -(y1 - y0 + 0.6) / 2);
-  const gm = new THREE.Mesh(gg, M.shingle); gm.position.copy(V((x0 + x1) / 2, (y0 + y1) / 2, 5.6)); add(gm);
-  // door and windows on the south face
-  const f = y0 - 0.02, cx = (x0 + x1) / 2, L = [], rect = (xa, xb, za, zb) => L.push(V(xa, f, za), V(xb, f, za), V(xb, f, za), V(xb, f, zb), V(xb, f, zb), V(xa, f, zb), V(xa, f, zb), V(xa, f, za));
-  rect(cx - 0.6, cx + 0.6, 0.3, 2.3); rect(cx - 0.9, cx + 0.9, 3.8, 5.0); lines(L);
+  playhouse();
   each(J.h_step, (s) => prism(s, 0, 0.3, M.deck, true));
   each(J.logs, (s) => prism(s, 0.15, 0.6, M.w, true));
   each(J.h_bridge, (s, p) => deck(p));
   rail(J.fence.map(([x, y]) => [x, y, 0.15]));
   line3(J.offset, 0.14);
+}
+
+// the playhouse, built from Ahmed's photo: a two-storey front, a tall middle bay with a gable (open lattice in the triangle),
+// lower side wings with lean-to roofs, an open stage with carved curtains below, porches with railings in the wings,
+// three gridded windows under a shingle awning upstairs, a small window with its own awning in each wing, an oval sign on the beam
+function xzPrism(pts, yA, yB, mat = M.w, o = {}) {   // profile in (x, z), pushed back from plan y = yA to yB (yA < yB)
+  const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(x, z))), { depth: yB - yA, bevelEnabled: false, curveSegments: 24 });
+  const m = new THREE.Mesh(g, mat); m.position.set(0, 0, -yB); return add(m, o);
+}
+function awning(xa, xb, yw, proj, zt, drop, mat = M.shingle) {   // a sloped slab off the wall at yw, its low edge out front
+  const len = Math.hypot(proj, drop), m = new THREE.Mesh(new THREE.BoxGeometry(xb - xa, 0.08, len), mat);
+  m.rotation.x = Math.atan2(drop, proj); m.position.copy(V((xa + xb) / 2, yw - proj / 2, zt - drop / 2)); add(m);
+  const L = []; for (const x of [xa + 0.12, xb - 0.12]) L.push(V(x, yw - 0.01, zt - drop - 0.25), V(x, yw - proj * 0.7, zt - drop * 0.7 - 0.02));   // brackets
+  lines(L);
+}
+function frontRect(L, y, xa, xb, za, zb) { L.push(V(xa, y, za), V(xb, y, za), V(xb, y, za), V(xb, y, zb), V(xb, y, zb), V(xa, y, zb), V(xa, y, zb), V(xa, y, za)); }
+function gridWindow(L, y, xa, xb, za, zb, nx = 5, nz = 6) {   // window with its wire grid, and a sill
+  frontRect(L, y, xa, xb, za, zb); frontRect(L, y, xa + 0.06, xb - 0.06, za + 0.06, zb - 0.06);
+  for (let i = 1; i < nx; i++) { const x = xa + 0.06 + (xb - xa - 0.12) * i / nx; L.push(V(x, y, za + 0.06), V(x, y, zb - 0.06)); }
+  for (let i = 1; i < nz; i++) { const z = za + 0.06 + (zb - za - 0.12) * i / nz; L.push(V(xa + 0.06, y, z), V(xb - 0.06, y, z)); }
+  box(xa - 0.05, xb + 0.05, y - 0.08, y + 0.01, za - 0.08, za, M.w);
+}
+function wallY(y, xa, xb, za, zb, holes = [], t = 0.12, mat = M.siding, top = null) {   // wall in the plane y (its face), thickness going back (+y); holes [xa, xb, za, zb] are open
+  const sh = new THREE.Shape((top || [[xa, za], [xb, za], [xb, zb], [xa, zb]]).map(([x, z]) => new THREE.Vector2(x, z)));
+  for (const [a, b, c, d] of holes) sh.holes.push(new THREE.Path([new THREE.Vector2(a, c), new THREE.Vector2(b, c), new THREE.Vector2(b, d), new THREE.Vector2(a, d)]));
+  const m = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: t, bevelEnabled: false }), mat); m.position.set(0, 0, -(y + t)); return add(m);
+}
+function wallX(x, ya, yb, za, zb, holes = [], t = 0.12, mat = M.siding) {   // wall in the plane x, thickness toward +x (negative t: toward -x)
+  const sh = new THREE.Shape([[ya, za], [yb, za], [yb, zb], [ya, zb]].map(([y, z]) => new THREE.Vector2(y, z)));
+  for (const [a, b, c, d] of holes) sh.holes.push(new THREE.Path([new THREE.Vector2(a, c), new THREE.Vector2(b, c), new THREE.Vector2(b, d), new THREE.Vector2(a, d)]));
+  const m = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: Math.abs(t), bevelEnabled: false }), mat);
+  m.rotation.y = Math.PI / 2; m.position.set(t > 0 ? x : x + t, 0, 0); return add(m);
+}
+function playhouse() {   // an open building (Ahmed): real walls with open windows and doorways, floors and roofs, so the inside shows
+  const cx0 = 22.535, cx1 = 26.72, wx0 = 20.791, wx1 = 28.464, yf = 5.857, ywf = 6.555, yb = 10.391, ywb = 9.81, cm = (cx0 + cx1) / 2, t = 0.12;
+  const F2 = 2.35, B2 = 2.6, WE = 4.55, CW = 5.1, AP = 6.6, L = [];   // beam/floor 2.35-2.6, wing eaves 4.55, middle walls 5.1, ridge 6.6 (photo, 1 m = 126 px)
+  // ----- middle bay, ground floor: the stage
+  const pw = 0.45, sd = 1.4;
+  box(cx0, cx0 + pw, yf, yf + 0.35, 0, F2, M.w); box(cx1 - pw, cx1, yf, yf + 0.35, 0, F2, M.w);   // the two light pillars
+  wallX(cx0, yf + 0.35, ywf, 0, F2); wallX(cx1, yf + 0.35, ywf, 0, F2, [], -t);                   // stage sides up to the porches
+  const doorH = [cm - 0.45, cm + 0.45, 0.3, 1.85], winL = [cm - 1.0, cm - 0.55, 1.15, 1.8], winR = [cm + 0.55, cm + 1.0, 1.15, 1.8];
+  wallY(yf + sd, cx0, cx1, 0, F2, [doorH, winL, winR]);                // back of the stage: an open doorway and two open windows into the room behind
+  { const y = yf + sd - 0.01; gridWindow(L, y, ...winL, 2, 4); gridWindow(L, y, ...winR, 2, 4); frontRect(L, y, ...doorH); }
+  box(cx0 + pw, cx1 - pw, yf, yf + sd, 0, 0.3, M.deck);                 // stage floor, level with the half-round step
+  box(cx0 + pw, cx1 - pw, yf, yf + 0.3, 2.05, F2, M.w);                 // header over the opening (opening 2.05 m high)
+  for (const sgn of [1, -1]) {                                          // carved curtains, gathered at the middle, flaring at the foot
+    const xo = sgn > 0 ? cx0 + pw : cx1 - pw, X = (d) => xo + sgn * d, sh = new THREE.Shape();
+    sh.moveTo(X(0), 2.05); sh.lineTo(X(0.65), 2.05); sh.quadraticCurveTo(X(0.2), 1.5, X(0.18), 1.05);
+    sh.quadraticCurveTo(X(0.2), 0.6, X(0.45), 0.3); sh.lineTo(X(0), 0.3); sh.closePath();
+    const g = new THREE.ExtrudeGeometry(sh, { depth: 0.06, bevelEnabled: false, curveSegments: 16 }), m = new THREE.Mesh(g, M.w);
+    m.position.set(0, 0, -(yf + 0.12)); add(m, { curved: true });
+    for (const tt of [0.3, 0.55]) L.push(V(X(tt * 0.65), yf + 0.05, 2.05), V(X(0.18 + tt * 0.1), yf + 0.05, 1.1));   // folds
+  }
+  wallY(yb - t, cx0, cx1, 0, F2, [[cm - 0.45, cm + 0.45, 0, 1.9]]);     // back wall, ground floor, with a doorway out the back
+  // ----- upstairs floor (its edge is the beam in the photo)
+  box(cx0 - 0.05, cx1 + 0.05, yf - 0.12, yb, F2, B2, M.w);
+  box(wx0 - 0.05, cx0, ywf - 0.12, ywb, F2, B2, M.w); box(cx1, wx1 + 0.05, ywf - 0.12, ywb, F2, B2, M.w);
+  // ----- middle bay upstairs: front wall with three open windows, sides, back; open lattice gable; roof
+  const xs = [cm - 1.65, cm - 0.5, cm + 0.65], W3 = xs.map((xa) => [xa, xa + 1.0, 3.05, 4.2]);   // three windows, 1.0 x 1.15 m, almost the full bay (photo)
+  wallY(yf, cx0, cx1, B2, CW, W3); for (const w of W3) gridWindow(L, yf - 0.01, ...w);
+  wallX(cx0, yf, ywf, B2, CW); wallX(cx1, yf, ywf, B2, CW, [], -t);
+  wallY(yb - t, cx0, cx1, B2, CW, [[cm - 0.6, cm + 0.6, 3.0, 4.0]]);   // back, one open window
+  wallY(yb - t, cx0, cx1, CW, AP - 0.1, [], t, M.w, [[cx0, CW], [cx1, CW], [cm, AP - 0.1]]);   // back gable, closed
+  box(cx0 - 0.1, cx1 + 0.1, yf - 0.12, yf + 0.05, CW - 0.12, CW, M.w);   // band under the front gable
+  { const y0 = yf - 0.02, hw = (cx1 - cx0) / 2, rise = AP - 0.1 - CW, b = 0.05;   // open lattice in the front triangle: thin bars
+    for (let x = cx0 + 0.42; x < cx1 - 0.2; x += 0.42) { const zt = CW + rise * (1 - Math.abs(x - cm) / hw); if (zt > CW + 0.15) box(x - b / 2, x + b / 2, y0, y0 + b, CW, zt - 0.03, M.w); }
+    for (let z = CW + 0.33; z < AP - 0.3; z += 0.33) { const half = hw * (1 - (z - CW) / rise); box(cm - half, cm + half, y0, y0 + b, z - b / 2, z + b / 2, M.w); } }
+  for (const sgn of [-1, 1]) {                                          // roof slabs with an overhang
+    const xe = sgn < 0 ? cx0 - 0.45 : cx1 + 0.45, ze = CW - 0.12 - 0.45 * (AP - CW) / ((cx1 - cx0) / 2);
+    xzPrism(sgn < 0 ? [[xe, ze], [cm, AP], [cm, AP + 0.14], [xe, ze + 0.14]] : [[cm, AP], [xe, ze], [xe, ze + 0.14], [cm, AP + 0.14]], yf - 0.35, yb + 0.35, M.shingle);
+  }
+  awning(cx0 + 0.05, cx1 - 0.05, yf, 0.7, 4.78, 0.45);
+  { const sg = new THREE.Shape(); sg.absellipse(cm, 2.75, 0.4, 0.2, 0, Math.PI * 2, false); const g = new THREE.ExtrudeGeometry(sg, { depth: 0.04, bevelEnabled: false, curveSegments: 32 });
+    const m = new THREE.Mesh(g, M.w); m.position.set(0, 0, -(yf - 0.04)); add(m, { curved: true });   // the oval sign
+    const e = new THREE.EllipseCurve(cm, 2.75, 0.33, 0.14).getPoints(32); for (let i = 0; i < 32; i++) L.push(V(e[i].x, yf - 0.05, e[i].y), V(e[i + 1].x, yf - 0.05, e[i + 1].y)); }
+  // ----- side wings: porch below, room with a lean-to roof above, open to the middle bay inside
+  for (const [xo, xi] of [[wx0, cx0], [wx1, cx1]]) {
+    const a = Math.min(xo, xi), b = Math.max(xo, xi), s = Math.sign(xo - xi), pd = 1.0, wc = (a + b) / 2;
+    const pwin = [wc - 0.4, wc + 0.4, 0.9, 1.9];
+    wallY(ywf + pd, a, b, 0, F2, [pwin]); gridWindow(L, ywf + pd - 0.01, ...pwin, 3, 5);   // back of the porch, an open window
+    wallX(xo, ywf + pd, ywb, 0, F2, [], -s * t); wallY(ywb - t, a, b, 0, F2);              // ground-floor room: outer side and back
+    box(a, b, ywf, ywf + pd, 0, 0.2, M.deck);                           // porch floor
+    { const x = xo - s * 0.08; box(x - 0.08, x + 0.08, ywf, ywf + 0.16, 0, F2, M.w); box(x - 0.08, x + 0.08, ywf + pd - 0.16, ywf + pd, 0, F2, M.w); }   // corner posts
+    box(a, b, ywf, ywf + 0.06, 0.95, 1.03, M.w); box(a, b, ywf, ywf + 0.06, 0.2, 0.26, M.w);   // front rail
+    for (let x = a + 0.12; x < b - 0.08; x += 0.11) box(x - 0.02, x + 0.02, ywf + 0.01, ywf + 0.05, 0.26, 0.95, M.w);   // balusters
+    { const x = xo - s * 0.03; box(x - 0.03, x + 0.03, ywf, ywf + pd, 0.95, 1.03, M.w); box(x - 0.03, x + 0.03, ywf, ywf + pd, 0.2, 0.26, M.w);
+      for (let y = ywf + 0.14; y < ywf + pd - 0.1; y += 0.11) box(x - 0.02, x + 0.02, y - 0.02, y + 0.02, 0.26, 0.95, M.w); }
+    for (const x of [xo - s * 0.16, xi]) L.push(V(x, ywf - 0.01, F2 - 0.6), V(x + (x === xi ? s : -s) * 0.45, ywf - 0.01, F2), V(x, ywf - 0.01, F2 - 0.6), V(x, ywf - 0.01, F2));   // porch corner brackets
+    const prof = s < 0 ? [[xo, B2], [xi, B2], [xi, CW - 0.1], [xo, WE]] : [[xi, B2], [xo, B2], [xo, WE], [xi, CW - 0.1]];
+    const uw = [wc - 0.34, wc + 0.34, 3.1, 3.9];                         // 0.68 x 0.8 m
+    wallY(ywf, a, b, B2, CW, [uw], t, M.siding, prof); gridWindow(L, ywf - 0.01, ...uw, 4, 5);
+    wallX(xo, ywf, ywb, B2, WE, [[ywf + 1.2, ywb - 1.2, 3.1, 3.9]], -s * t);   // outer side, an open window
+    const door = xo === wx0 ? [[wc - 0.45, wc + 0.45, B2 + 0.4, B2 + 2.3]] : [];   // the bridge from the high ground comes in at the back of the west wing
+    wallY(ywb - t, a, b, B2, CW, door, t, M.siding, prof);
+    { const xe = xo + s * 0.4, zAt = (x) => WE + (CW - 0.1 - WE) * (x - xo) / (xi - xo), ze = zAt(xe);
+      xzPrism(s < 0 ? [[xe, ze], [xi, CW - 0.1], [xi, CW + 0.02], [xe, ze + 0.12]] : [[xi, CW - 0.1], [xe, ze], [xe, ze + 0.12], [xi, CW + 0.02]], ywf - 0.3, ywb + 0.3, M.shingle); }
+    awning(wc - 0.6, wc + 0.6, ywf, 0.45, 4.37, 0.45);
+  }
+  lines(L);
 }
 
 function details() {
