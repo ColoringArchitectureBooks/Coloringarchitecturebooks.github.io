@@ -167,7 +167,7 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=14")).json();
+const J = await (await fetch("./layout.json?v=15")).json();
 const TOP = 3.0;   // the high level: car park / park entrance; the playground floor is 0
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
@@ -345,7 +345,7 @@ function outline(root) {
   const add = [], hulls = {};
   root.traverse(o => {
     if (!o.isMesh || o.userData.noEdge) return;
-    const thr = o.userData.sail ? 60 : o.userData.hull ? 40 : 20;
+    const thr = o.userData.sail ? 60 : o.userData.hull ? 40 : o.userData.curved ? 50 : 20;   // curved walls: no seam lines down their sides (Ahmed)
     const e = new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, thr), M.line);
     e.position.copy(o.position); e.rotation.copy(o.rotation); e.quaternion.copy(o.quaternion); e.scale.copy(o.scale); add.push([o.parent, e]);
     if (o.userData.hull || o.userData.sail) { const hw = o.userData.hw || 0.025, h = new THREE.Mesh(o.geometry, hulls[hw] ||= hullMat(hw)); h.position.copy(o.position); h.quaternion.copy(o.quaternion); h.scale.copy(o.scale);
