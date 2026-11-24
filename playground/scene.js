@@ -351,10 +351,7 @@ function eastRamp() {   // the east walk slopes from the high level (by the plaz
     for (const [px, py, qx, qy] of [[ax, ay, cx, cy], [bx, by, dx, dy]]) { const e = P(px, py, z + t), f = P(qx, qy, z2 + t), g = P(qx, qy, 0), h = P(px, py, 0); idx.push(e, f, g, e, g, h); } }
   { const [ax, ay, bx, by, z] = R[0]; const a = P(ax, ay, z + 0.12), b = P(bx, by, z + 0.12), c = P(bx, by, 0), d = P(ax, ay, 0); idx.push(a, b, c, a, c, d); }
   const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
-  add(new THREE.Mesh(g, M.w), { noEdge: true });
-  { const e = new THREE.EdgesGeometry(g, 20).attributes.position.array, k = [];   // v23: no line where the ramp foot meets the floor flush (Ahmed scribbled it out)
-    for (let i = 0; i < e.length; i += 6) if (e[i + 1] > 0.125 || e[i + 4] > 0.125) k.push(...e.slice(i, i + 6));
-    const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.Float32BufferAttribute(k, 3)); add(new THREE.LineSegments(lg, M.line)); }
+  add(new THREE.Mesh(g, M.w));
   rail(R.filter((_, i) => i % 2 === 0 || i === R.length - 1).map(([x, y, , , z]) => [x, y, z + 0.12]));
   rail(R.filter((_, i) => i % 2 === 0 || i === R.length - 1).map(([, , x, y, z]) => [x, y, z + 0.12]));
 }
@@ -389,8 +386,7 @@ function houseArea() {   // the playhouse: mulch yard, symmetric house, half-rou
     const Q = P.map((p, i) => { const a = nrm(P[Math.max(i - 1, 0)], P[Math.max(i, 1)]), b = nrm(P[Math.min(i, P.length - 2)], P[Math.min(i + 1, P.length - 1)]);
       let nx = a[0] + b[0], ny = a[1] + b[1]; const l = Math.hypot(nx, ny); nx /= l; ny /= l; const k = w / Math.max(0.5, nx * a[0] + ny * a[1]); return [p[0] + sg * nx * k, p[1] + sg * ny * k]; });
     prism(poly([...P, ...Q.reverse()]), 0, 0.27, M.w, true); }
-  // v23: east offset line removed (Ahmed scribbled it out)
-  line3(J.yardline, 0.125);   // v23: the yard bottom runs on straight to the walk (Ahmed red line)
+  line3(J.offset, 0.14);
 }
 
 // the playhouse, built from Ahmed's photo: a two-storey front, a tall middle bay with a gable (open lattice in the triangle),
