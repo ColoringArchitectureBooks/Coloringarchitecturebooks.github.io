@@ -379,10 +379,13 @@ function houseArea() {   // the playhouse: mulch yard, symmetric house, half-rou
   }
   { const o = J.h_bridge[0].o, A = [o[0], o[1], [RB.x0, RB.y0], [RB.x0, RB.y1], ...o.slice(9)], B = [[RB.x1, RB.y0], ...o.slice(4, 8), [RB.x1, RB.y1]];   // the house bridge in two decks, the rope bridge between them
     for (const q of [A, B]) each([{ o: q, h: [] }], (s, p) => deck(p)); ropeBridge(); }
-  rail(J.fence.map(([x, y]) => [x, y, 0.15]));
-  { const o = J.h_yard[0].o, i0 = o.findIndex((p) => p[0] === 20.791 && p[1] === 14.576), i1 = o.findIndex((p) => p[0] === 26.952 && p[1] === -6.349), P = [];   // the same fence down the west side of the yard, from the bridge round to the front (Ahmed)
-    for (let i = i0; ; i = (i + 1) % o.length) { const p = o[i]; if (i === i0) P.push([20.791 + (19.396 - 20.791) * 0.15, 14.576 + (13.878 - 14.576) * 0.15]); else if (!P.length || Math.hypot(p[0] - P[P.length - 1][0], p[1] - P[P.length - 1][1]) > 0.9 || i === i1) P.push(p); if (i === i1) break; }
-    rail(P.map(([x, y]) => [x, y, 0.15])); }
+  { const o = J.h_yard[0].o, i0 = o.findIndex((p) => p[0] === 20.791 && p[1] === 14.576), i1 = o.findIndex((p) => p[0] === 26.72 && p[1] === 10.228), P = [];   // no fence round the yard (Ahmed): a small curb like the garden beds', 15 cm wide, along its open edge
+    for (let i = i0; ; i = (i + 1) % o.length) { P.push(o[i]); if (i === i1) break; }
+    const w = 0.15, nrm = (a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy); return [dy / l, -dx / l]; };
+    let sg = 1; { const n = nrm(P[0], P[1]), m = [(P[0][0] + P[1][0]) / 2 + n[0] * 0.05, (P[0][1] + P[1][1]) / 2 + n[1] * 0.05]; if (inPoly(o, m[0], m[1])) sg = -1; }   // offset outward, onto the walk
+    const Q = P.map((p, i) => { const a = nrm(P[Math.max(i - 1, 0)], P[Math.max(i, 1)]), b = nrm(P[Math.min(i, P.length - 2)], P[Math.min(i + 1, P.length - 1)]);
+      let nx = a[0] + b[0], ny = a[1] + b[1]; const l = Math.hypot(nx, ny); nx /= l; ny /= l; const k = w / Math.max(0.5, nx * a[0] + ny * a[1]); return [p[0] + sg * nx * k, p[1] + sg * ny * k]; });
+    prism(poly([...P, ...Q.reverse()]), 0, 0.27, M.w, true); }
   line3(J.offset, 0.14);
 }
 
