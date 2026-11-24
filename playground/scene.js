@@ -142,18 +142,18 @@ function bowlSpinner(x, y) {   // photo: blue bowl seat on a post, two steel hoo
   for (const a of [40, -40]) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.04, 8, 40), M.w); t.position.copy(V(x, y, 1.15)); t.rotation.set(0, a * deg, 0); t.rotateX(0.35); add(t, { hull: true, hw: 0.01 }); }
 }
 
-function swing(x, y, a) {   // A-frame swing along the ring: legs at both ends, top beam, two seats on chains
-  const t = [Math.cos((a + 90) * deg), Math.sin((a + 90) * deg)], n = [Math.cos(a * deg), Math.sin(a * deg)], L = 2.6, H = 2.8;
-  const leg = (s, w) => { const b = V(x + t[0] * L * s + n[0] * w, y + t[1] * L * s + n[1] * w, FL), top = V(x + t[0] * L * s, y + t[1] * L * s, H);
-    const d = top.clone().sub(b), m = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, d.length(), 12), M.w);
-    m.position.copy(b.clone().add(top).multiplyScalar(0.5)); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); add(m, { hull: true }); };
-  for (const s of [-1, 1]) for (const w of [-1.1, 1.1]) leg(s, w);
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, L * 2 + 0.3, 12), M.w); beam.position.copy(V(x, y, H)); beam.rotation.set(0, 0, 0);
-  beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), V(t[0], t[1], 0).normalize()); add(beam, { hull: true });
+function swing(x, y, a) {   // A-frame swing along the ring, a real playground size (Ahmed: smaller, thinner posts): 3.4 m beam, 2.3 m high, two seats on chains
+  const t = [Math.cos((a + 90) * deg), Math.sin((a + 90) * deg)], n = [Math.cos(a * deg), Math.sin(a * deg)], L = 1.7, H = 2.3, rb = 0.045, rl = 0.035;
+  const leg = (s, w) => { const b = V(x + t[0] * L * s + n[0] * w, y + t[1] * L * s + n[1] * w, FL), top = V(x + t[0] * L * s, y + t[1] * L * s, H - rb);   // legs stop under the beam
+    const d = top.clone().sub(b), m = new THREE.Mesh(new THREE.CylinderGeometry(rl, rl, d.length(), 12), M.w);
+    m.position.copy(b.clone().add(top).multiplyScalar(0.5)); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); add(m, { hull: true, hw: 0.012 }); };
+  for (const s of [-1, 1]) for (const w of [-0.8, 0.8]) leg(s, w);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(rb, rb, L * 2 + 0.2, 12), M.w); beam.position.copy(V(x, y, H));
+  beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), V(t[0], t[1], 0).normalize()); add(beam, { hull: true, hw: 0.012 });
   const ch = [];
-  for (const s of [-1.1, 1.1]) { const sx = x + t[0] * s, sy = y + t[1] * s;
-    rbox(sx, sy, -a, 0.45, 0.6, 0.6, 0.66);
-    for (const e of [-0.2, 0.2]) ch.push(V(sx + t[0] * e, sy + t[1] * e, 0.66), V(sx + t[0] * e, sy + t[1] * e, H)); }
+  for (const s of [-0.75, 0.75]) { const sx = x + t[0] * s, sy = y + t[1] * s;
+    rbox(sx, sy, -a, 0.4, 0.2, 0.45, 0.5);
+    for (const e of [-0.17, 0.17]) ch.push(V(sx + t[0] * e, sy + t[1] * e, 0.5), V(sx + t[0] * e, sy + t[1] * e, H - rb)); }
   lines(ch);
 }
 
