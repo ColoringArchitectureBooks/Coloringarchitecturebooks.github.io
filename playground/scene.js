@@ -417,11 +417,7 @@ function eastRamp() {   // the east walk slopes from the high level (by the plaz
 
 function houseArea() {   // the playhouse: mulch yard, symmetric house, half-round step, log seats, bridge from the high ground into the 2nd floor
   each(J.h_yard, (s) => prism(s, 0, 0.15, M.mulch, true));
-  { const n0 = ROOT.children.length; playhouse();   // Ahmed: the house keeps its size; only the upstairs floor (2.35-2.6) moves down to 1.75-2.0, level with the bridge
-    const zmap = (z) => z <= 0.3 ? z : z <= 2.35 ? 0.3 + (z - 0.3) * (1.75 - 0.3) / (2.35 - 0.3) : z <= 2.6 ? z - 0.6 : z <= 5.1 ? 2.0 + (z - 2.6) * (5.1 - 2.0) / (5.1 - 2.6) : z;
-    for (const o of ROOT.children.slice(n0)) { o.updateMatrixWorld(true); const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld);
-      const p = g.attributes.position; for (let i = 0; i < p.count; i++) p.setY(i, zmap(p.getY(i)));
-      if (g.attributes.normal) g.computeVertexNormals(); o.geometry = g; o.position.set(0, 0, 0); o.rotation.set(0, 0, 0); o.quaternion.identity(); o.scale.set(1, 1, 1); o.updateMatrix(); } }
+  playhouse();
   { const cx = 24.6275, y0 = 5.857, rx = 2.0925, ry = 2.3, o = [];   // half-round step, wider: pillar to pillar and deeper (Ahmed's sketch)
     for (let i = 0; i <= 96; i++) { const a = Math.PI * i / 96; o.push([cx - rx * Math.cos(a), y0 - ry * Math.sin(a)]); }
     each([{ o, h: [] }], (s) => prism(s, 0, 0.3, M.deck, true)); }
@@ -442,7 +438,7 @@ function houseArea() {   // the playhouse: mulch yard, symmetric house, half-rou
   }
   { const o = J.h_bridge[0].o, A = [o[0], o[1], [RB.x0, RB.y0], [RB.x0, RB.y1], ...o.slice(9)], B = [[RB.x1, RB.y0], ...o.slice(4, 8), [RB.x1, RB.y1]];   // the house bridge in two decks, the rope bridge between them
     // Ahmed: the high level and the house's upper floor are both 2 m, so the bridge runs level (HF kept so it could slope if they ever differ)
-    const HF = 2.0, yH = 9.81, yP = 20.26, zA = (x, y) => TOP + (HF - TOP) * Math.min(1, Math.max(0, (yP - y) / (yP - yH))), zR = zA(0, (RB.y0 + RB.y1) / 2);
+    const HF = 2.6, yH = 9.81, yP = 20.26, zA = (x, y) => TOP + (HF - TOP) * Math.min(1, Math.max(0, (yP - y) / (yP - yH))), zR = zA(0, (RB.y0 + RB.y1) / 2);
     deck({ o: A }, zA); deck({ o: B }, zR); ropeBridge(zR); }
   { const o = J.h_yard[0].o, i0 = o.findIndex((p) => p[0] === 20.791 && p[1] === 14.576), i1 = o.findIndex((p) => p[0] === 26.72 && p[1] === 10.228), P = [];   // no fence round the yard (Ahmed): a small curb like the garden beds', 15 cm wide, along its open edge
     for (let i = i0; ; i = (i + 1) % o.length) { P.push(o[i]); if (i === i1) break; }
