@@ -417,8 +417,8 @@ function eastRamp() {   // the east walk slopes from the high level (by the plaz
 
 function houseArea() {   // the playhouse: mulch yard, symmetric house, half-round step, log seats, bridge from the high ground into the 2nd floor
   each(J.h_yard, (s) => prism(s, 0, 0.15, M.mulch, true));
-  { const n0 = ROOT.children.length; playhouse();   // Ahmed: the house's upper floor is at 2 m, the bridge's level; the ground storey is squeezed to fit, the upper storey keeps its size
-    const zmap = (z) => z <= 0.3 ? z : z <= 2.6 ? 0.3 + (z - 0.3) * (2.0 - 0.3) / (2.6 - 0.3) : z - 0.6;
+  { const n0 = ROOT.children.length; playhouse();   // Ahmed: the house keeps its size; only the upstairs floor (2.35-2.6) moves down to 1.75-2.0, level with the bridge
+    const zmap = (z) => z <= 0.3 ? z : z <= 2.35 ? 0.3 + (z - 0.3) * (1.75 - 0.3) / (2.35 - 0.3) : z <= 2.6 ? z - 0.6 : z <= 5.1 ? 2.0 + (z - 2.6) * (5.1 - 2.0) / (5.1 - 2.6) : z;
     for (const o of ROOT.children.slice(n0)) { o.updateMatrixWorld(true); const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld);
       const p = g.attributes.position; for (let i = 0; i < p.count; i++) p.setY(i, zmap(p.getY(i)));
       if (g.attributes.normal) g.computeVertexNormals(); o.geometry = g; o.position.set(0, 0, 0); o.rotation.set(0, 0, 0); o.quaternion.identity(); o.scale.set(1, 1, 1); o.updateMatrix(); } }
