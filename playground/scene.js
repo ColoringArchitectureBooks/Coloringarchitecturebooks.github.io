@@ -173,7 +173,7 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=40")).json();
+const J = await (await fetch("./layout.json?v=41")).json();
 const TOP = 2.0;   // the high level: car park / park entrance; the playground floor is 0 (Ahmed: 2 m, like the real slide bank)
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
@@ -392,7 +392,6 @@ function slab(o, zf, th, mat) {   // a slab whose top follows zf(x, y) (a gently
   const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
   return add(new THREE.Mesh(g, mat));
 }
-const joinsDeck = (own, x, y) => [...(J.high || []), ...(J.h_bridge || [])].some((d) => d.o !== own && [[0.2, 0], [-0.2, 0], [0, 0.2], [0, -0.2]].some(([dx, dy]) => !inPoly(own, x + dx, y + dy) && inPoly(d.o, x + dx, y + dy)));   // no fence across the joint where two decks meet (Ahmed): it closed the way
 function deck(p, z = TOP) {
   const zf = typeof z === "function" ? z : () => z;   // z: a level, or a function of (x, y) for a deck that slopes
   if (typeof z === "function") slab(p.o, zf, 0.25, M.deck); else prism(shp(p), z - 0.25, z, M.deck);
@@ -403,7 +402,7 @@ function deck(p, z = TOP) {
     const n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.15)), atHouse = (x, y) => x > 20.85 && x < 28.6 && y > 5.5 && y < 10.45;   // no fence where the bridge meets the playhouse (Ahmed)
     let prev = null;   // fence posts and top rail, broken where the bridge meets the playhouse or the rope bridge
     for (let k = 0; k <= n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, y = a[1] + (b[1] - a[1]) * k / n;
-      if (atHouse(x, y) || ropeGap(x, y) || joinsDeck(o, x, y)) { prev = null; continue; } const zz = zf(x, y); L.push(V(x, y, zz), V(x, y, zz + 1.0)); if (prev) L.push(V(prev[0], prev[1], zf(prev[0], prev[1]) + 1.0), V(x, y, zz + 1.0)); prev = [x, y]; } }
+      if (atHouse(x, y) || ropeGap(x, y)) { prev = null; continue; } const zz = zf(x, y); L.push(V(x, y, zz), V(x, y, zz + 1.0)); if (prev) L.push(V(prev[0], prev[1], zf(prev[0], prev[1]) + 1.0), V(x, y, zz + 1.0)); prev = [x, y]; } }
   lines(L);
 }
 
