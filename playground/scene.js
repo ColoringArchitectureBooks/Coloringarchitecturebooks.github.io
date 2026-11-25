@@ -373,10 +373,21 @@ function ropeBridge(z = TOP) {   // wooden slats with gaps hung on ropes, saggin
 }
 function slab(o, zf, th, mat) {   // a slab whose top follows zf(x, y) (a gently sloping deck), th thick, sides straight down
   const pos = [], uv = [], idx = [], n = o.length, P = (x, y, z) => { pos.push(...V(x, y, z).toArray()); uv.push(x, y); return pos.length / 3 - 1; };
-  const tri = THREE.ShapeUtils.triangulateShape(o.map(([x, y]) => new THREE.Vector2(x, y)), []);
-  const T = o.map(([x, y]) => P(x, y, zf(x, y))), B = o.map(([x, y]) => P(x, y, zf(x, y) - th));
-  for (const [a, b, c] of tri) { idx.push(T[a], T[b], T[c]); idx.push(B[a], B[c], B[b]); }
-  for (let i = 0; i < n; i++) { const j = (i + 1) % n, [ax, ay] = o[i], [bx, by] = o[j];
+  // zf.breaks: the y lines where the slope changes; the top is cut there so every piece is a true plane (no stray fold lines, Ahmed)
+  const br = (zf.breaks || []).slice().sort((a, b) => a - b), bands = [-1e9, ...br, 1e9];
+  const clip = (poly, lo, hi) => { let out = poly;
+    for (const [k, sgn] of [[lo, 1], [hi, -1]]) { const inp = out; out = [];
+      for (let i = 0; i < inp.length; i++) { const A = inp[i], Bq = inp[(i + 1) % inp.length], ia = sgn * (A[1] - k) >= 0, ib = sgn * (Bq[1] - k) >= 0;
+        if (ia) out.push(A); if (ia !== ib) { const t = (k - A[1]) / (Bq[1] - A[1]); out.push([A[0] + (Bq[0] - A[0]) * t, k]); } } }
+    return out; };
+  for (let q = 0; q < bands.length - 1; q++) { const pc = clip(o, bands[q], bands[q + 1]); if (pc.length < 3) continue;
+    const tri = THREE.ShapeUtils.triangulateShape(pc.map(([x, y]) => new THREE.Vector2(x, y)), []);
+    const T = pc.map(([x, y]) => P(x, y, zf(x, y))), B = pc.map(([x, y]) => P(x, y, zf(x, y) - th));
+    for (const [a, b, c] of tri) { idx.push(T[a], T[b], T[c]); idx.push(B[a], B[c], B[b]); } }
+  const ring = []; for (let i = 0; i < n; i++) { const A = o[i], Bq = o[(i + 1) % n]; ring.push(A);
+    const cut = br.map((k) => (k - A[1]) / (Bq[1] - A[1])).filter((t) => t > 1e-6 && t < 1 - 1e-6).sort((a, b) => (Bq[1] > A[1] ? a - b : a - b));
+    for (const t of cut) ring.push([A[0] + (Bq[0] - A[0]) * t, A[1] + (Bq[1] - A[1]) * t]); }
+  for (let i = 0; i < ring.length; i++) { const [ax, ay] = ring[i], [bx, by] = ring[(i + 1) % ring.length];
     const a = P(ax, ay, zf(ax, ay)), b = P(bx, by, zf(bx, by)), c = P(bx, by, zf(bx, by) - th), d = P(ax, ay, zf(ax, ay) - th); idx.push(a, b, c, a, c, d); }
   const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
   return add(new THREE.Mesh(g, mat));
@@ -438,7 +449,7 @@ function houseArea() {   // the playhouse: mulch yard, symmetric house, half-rou
   }
   { const o = J.h_bridge[0].o, A = [o[0], o[1], [RB.x0, RB.y0], [RB.x0, RB.y1], ...o.slice(9)], B = [[RB.x1, RB.y0], ...o.slice(4, 8), [RB.x1, RB.y1]];   // the house bridge in two decks, the rope bridge between them
     // Ahmed: the high level and the house's upper floor are both 2 m, so the bridge runs level (HF kept so it could slope if they ever differ)
-    const HF = 2.6, yH = 9.81, yP = 20.26, zA = (x, y) => TOP + (HF - TOP) * Math.min(1, Math.max(0, (yP - y) / (yP - yH))), zR = zA(0, (RB.y0 + RB.y1) / 2);
+    const HF = 2.6, yH = 9.81, yP = 20.26, zA = (x, y) => TOP + (HF - TOP) * Math.min(1, Math.max(0, (yP - y) / (yP - yH))), zR = zA(0, (RB.y0 + RB.y1) / 2); zA.breaks = [yH, yP];
     deck({ o: A }, zA); deck({ o: B }, zR); ropeBridge(zR); }
   { const o = J.h_yard[0].o, i0 = o.findIndex((p) => p[0] === 20.791 && p[1] === 14.576), i1 = o.findIndex((p) => p[0] === 26.72 && p[1] === 10.228), P = [];   // no fence round the yard (Ahmed): a small curb like the garden beds', 15 cm wide, along its open edge
     for (let i = i0; ; i = (i + 1) % o.length) { P.push(o[i]); if (i === i1) break; }
