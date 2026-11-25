@@ -173,7 +173,7 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=32")).json();
+const J = await (await fetch("./layout.json?v=35")).json();
 const TOP = 2.0;   // the high level: car park / park entrance; the playground floor is 0 (Ahmed: 2 m, like the real slide bank)
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
@@ -315,12 +315,13 @@ function bankSlide(sl) {
   for (const base of [0, (n - 1) * 8]) for (const q of [[0, 1, 6, 7], [1, 2, 5, 6], [2, 3, 4, 5]]) { const [a, b, c, d] = q.map((k) => base + k); idx.push(a, b, c, a, c, d); }   // end caps
   const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
   add(new THREE.Mesh(g, M.w));
-  const zr = pr[pr.length - 1][2], lipR = pr[pr.length - 1][3], ang = Math.atan2(uy, ux) / deg, lw = 0.05;
+  const zr = pr[pr.length - 1][2], lipR = pr[pr.length - 1][3], ang = Math.atan2(uy, ux) / deg, lw = 0.06;
   const legAt = ([x, y]) => [-1, 1].map((sd) => [x + nx * sd * (w - lw / 2), y + ny * sd * (w - lw / 2)]);
   const L0 = legAt(sl.legs[0]), L1 = legAt(sl.legs[1]);
-  for (const [x, y] of [...L0, ...L1]) rbox(x, y, ang, lw, lw, 0.12, zr - t);                            // legs: ground to the chute's underside
-  for (let k = 0; k < 2; k++) { const [ax, ay] = L0[k], [bx, by] = L1[k], l = Math.hypot(bx - ax, by - ay) - lw;   // rail between the legs, butting their faces
-    rbox((ax + bx) / 2, (ay + by) / 2, ang, l, 0.04, 0.2, 0.24); }
+  for (const [x, y] of [...L0, ...L1]) rbox(x, y, ang, lw, lw, 0.12, zr - t);                            // square legs (photo): ground to the plate's underside
+  for (let k = 0; k < 2; k++) { const [ax, ay] = L0[k], [bx, by] = L1[k], l = Math.hypot(bx - ax, by - ay) - lw, mx = (ax + bx) / 2, my = (ay + by) / 2;
+    rbox(mx, my, ang, l, 0.04, 0.12 + 0.06, 0.12 + 0.1);                                                 // low rail between the legs, butting their faces
+    rbox(mx, my, ang, l, 0.012, 0.12 + 0.1, zr - t - 0.05); }                                            // side panel standing on the rail, 5 cm under the plate
   const [ex, ey] = sl.end, hz = zr + lipR;                                                               // grab handles on both lips at the run-out end
   for (const sd of [-1, 1]) { const o = sd * (w - 0.015), px = ex + nx * o, py = ey + ny * o;
     bentTube([[px - ux * 0.04, py - uy * 0.04, hz], [px - ux * 0.04, py - uy * 0.04, hz + 0.13], [px - ux * 0.3, py - uy * 0.3, hz + 0.13], [px - ux * 0.3, py - uy * 0.3, hz]], 0.016, 0.04); }
