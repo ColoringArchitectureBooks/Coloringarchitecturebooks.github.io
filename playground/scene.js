@@ -173,7 +173,7 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=36")).json();
+const J = await (await fetch("./layout.json?v=37")).json();
 const TOP = 2.0;   // the high level: car park / park entrance; the playground floor is 0 (Ahmed: 2 m, like the real slide bank)
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
@@ -261,7 +261,7 @@ function musicArch() {   // the music arch (photo): a flat band, straight legs d
 // slide bank: crest = Ahmed's top line at the high level, sloping down to the slides' feet, then flat turf
 function slideHill() {
   const { v, f } = J.hill, pos = [], uv = [], idx = [];
-  for (const [x, y, z] of v) { pos.push(...V(x, y, z + 0.12).toArray()); uv.push(x, y); }
+  for (const [x, y, z] of v) { pos.push(...V(x, y, z + 0.12 * (1 - z / TOP)).toArray()); uv.push(x, y); }
   const fp = J.hill.fp || []; const rim = J.hill.rim ? new Set(J.hill.rim) : null;
   for (const t of f) idx.push(...t);
   const nTurf = idx.length; for (const t of fp) idx.push(...t);   // rubber under the slides (Ahmed's photos): its own faces, plain, no turf blades
