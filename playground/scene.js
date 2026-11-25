@@ -173,7 +173,7 @@ function ribbon(pts, w, z0, z1, mat) {   // a walk or trail of width w along a l
 }
 
 // ---------- the plan (layout v3): every outline below is Ahmed's agreed 2D layout, exported from the zone scripts ----------
-const J = await (await fetch("./layout.json?v=27b")).json();
+const J = await (await fetch("./layout.json?v=28")).json();
 const TOP = 3.0;   // the high level: car park / park entrance; the playground floor is 0
 const shp = (p) => { const s = poly(p.o); for (const h of p.h || []) s.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y)))); return s; };
 const each = (list, f) => list.forEach((p) => f(shp(p), p));
@@ -262,25 +262,72 @@ function musicArch() {   // the music arch (photo): a flat band, straight legs d
 function slideHill() {
   const { v, f } = J.hill, pos = [], uv = [], idx = [];
   for (const [x, y, z] of v) { pos.push(...V(x, y, z + 0.12).toArray()); uv.push(x, y); }
+  const fp = J.hill.fp || [];
   for (const t of f) idx.push(...t);
+  const nTurf = idx.length; for (const t of fp) idx.push(...t);   // rubber under the slides (Ahmed's photos): its own faces, plain, no turf blades
   // skirt: every open edge of the surface drops a wall to the floor
   const cnt = new Map(); const key = (a, b) => (a < b ? a + "," + b : b + "," + a);
-  for (const t of f) for (let k = 0; k < 3; k++) { const K = key(t[k], t[(k + 1) % 3]); cnt.set(K, (cnt.get(K) || 0) + 1); }
+  for (const t of [...f, ...fp]) for (let k = 0; k < 3; k++) { const K = key(t[k], t[(k + 1) % 3]); cnt.set(K, (cnt.get(K) || 0) + 1); }
   let n = v.length;
   for (const [K, c] of cnt) { if (c !== 1) continue; const [a, b] = K.split(",").map(Number);
     if (v[a][2] < 0.05 && v[b][2] < 0.05) continue;
     pos.push(...V(v[a][0], v[a][1], 0).toArray(), ...V(v[b][0], v[b][1], 0).toArray()); uv.push(0, 0, 0, 0);
     idx.push(a, b, n + 1, a, n + 1, n); n += 2; }
   const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
-  add(new THREE.Mesh(g, M.turf));
+  g.addGroup(0, nTurf, 0); g.addGroup(nTurf, fp.length * 3, 1); g.addGroup(nTurf + fp.length * 3, idx.length - nTurf - fp.length * 3, 0);
+  add(new THREE.Mesh(g, [M.turf, M.w]));
+  for (const r of J.pads || []) lines(r.slice(0, -1).flatMap((p, i) => [V(...p), V(...r[i + 1])]));   // the rubber's edge drawn on the bank
   // outline of the zone on the surface
   const o = J.tent[0].o, near = (x, y) => { let best = 0, d = 1e9; for (const [vx, vy, vz] of v) { const e = (vx - x) ** 2 + (vy - y) ** 2; if (e < d) { d = e; best = vz; } } return best; };
   line3(o.map(([x, y]) => [x, y, near(x, y) + 0.14]), 0, true);
   each(J.bank, (s) => prism(s, 0, TOP, M.pavers));                         // the high entrance plaza: behind the slides and the first leg of the house bridge (Ahmed)
   for (const r of J.bankrail) rail(r.map(([x, y]) => [x, y, TOP]));       // railing where the plaza drops to the low level
-  for (const pr of J.slideprof) slideOn(pr);
+  if (J.slides2) for (const sl of J.slides2) bankSlide(sl); else for (const pr of J.slideprof) slideOn(pr);
 }
 const SLW = 0.6;   // slide width (Ahmed: about 60 cm)
+function bar(a, b, r) {   // straight round bar between two points [x, y, z]
+  const A = V(...a), B = V(...b), d = new THREE.Vector3().subVectors(B, A), m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, d.length(), 16), M.w);
+  m.position.copy(A).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); return add(m, { hull: true, hw: 0.012 });
+}
+function bentTube(P, r, rad) {   // a tube along straight runs with round bends of radius rad (a bent steel handle)
+  const pts = [];
+  for (let i = 0; i < P.length; i++) { const p = new THREE.Vector3(...P[i]);
+    if (i === 0 || i === P.length - 1) { pts.push(p); continue; }
+    const a = new THREE.Vector3(...P[i - 1]).sub(p).normalize(), b = new THREE.Vector3(...P[i + 1]).sub(p).normalize();
+    const p0 = p.clone().addScaledVector(a, rad), p1 = p.clone().addScaledVector(b, rad);
+    for (let k = 0; k <= 6; k++) { const t = k / 6; pts.push(new THREE.Vector3().addScaledVector(p0, (1 - t) ** 2).addScaledVector(p, 2 * (1 - t) * t).addScaledVector(p1, t * t)); } }
+  const path = new THREE.CurvePath(); for (let i = 0; i < pts.length - 1; i++) if (pts[i].distanceTo(pts[i + 1]) > 1e-6) path.add(new THREE.LineCurve3(pts[i], pts[i + 1]));
+  const m = new THREE.Mesh(new THREE.TubeGeometry(path, pts.length * 2, r, 10, false), M.w);
+  m.geometry.applyMatrix4(new THREE.Matrix4().makeBasis(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 1, 0)));   // plan (x, y, z) -> three (x, z, -y)
+  return add(m, { hull: true, hw: 0.012 });
+}
+// slide on the bank, from Ahmed's photos: a steel U chute (60 cm wide, 25 cm sides) from the crest down the bank, a smooth curve
+// at the foot into a flat run-out 35 cm over the ground (low 7 cm lips), two pairs of legs with a rail between them, bent grab
+// handles at the end; at the top two posts and a bar over the way in
+function bankSlide(sl) {
+  const pr = sl.p, [ux, uy] = sl.u, nx = -uy, ny = ux, w = SLW / 2, t = 0.025;
+  const sec = (lip) => [[-w, lip], [-w, -t], [w, -t], [w, lip], [w - t, lip], [w - t, 0], [-w + t, 0], [-w + t, lip]];
+  const pos = [], idx = [];
+  for (const [x, y, z, lip] of pr) for (const [o, v] of sec(lip)) pos.push(...V(x + nx * o, y + ny * o, z + v).toArray());
+  const n = pr.length;
+  for (let i = 0; i < n - 1; i++) for (let k = 0; k < 8; k++) { const a = i * 8 + k, b = i * 8 + (k + 1) % 8, c = a + 8, d = b + 8; idx.push(a, b, d, a, d, c); }
+  for (const base of [0, (n - 1) * 8]) for (const q of [[0, 1, 6, 7], [1, 2, 5, 6], [2, 3, 4, 5]]) { const [a, b, c, d] = q.map((k) => base + k); idx.push(a, b, c, a, c, d); }   // end caps
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  add(new THREE.Mesh(g, M.w));
+  const zr = pr[pr.length - 1][2], lipR = pr[pr.length - 1][3], ang = Math.atan2(uy, ux) / deg, lw = 0.05;
+  const legAt = ([x, y]) => [-1, 1].map((sd) => [x + nx * sd * (w - lw / 2), y + ny * sd * (w - lw / 2)]);
+  const L0 = legAt(sl.legs[0]), L1 = legAt(sl.legs[1]);
+  for (const [x, y] of [...L0, ...L1]) rbox(x, y, ang, lw, lw, 0.12, zr - t);                            // legs: ground to the chute's underside
+  for (let k = 0; k < 2; k++) { const [ax, ay] = L0[k], [bx, by] = L1[k], l = Math.hypot(bx - ax, by - ay) - lw;   // rail between the legs, butting their faces
+    rbox((ax + bx) / 2, (ay + by) / 2, ang, l, 0.04, 0.2, 0.24); }
+  const [ex, ey] = sl.end, hz = zr + lipR;                                                               // grab handles on both lips at the run-out end
+  for (const sd of [-1, 1]) { const o = sd * (w - 0.015), px = ex + nx * o, py = ey + ny * o;
+    bentTube([[px - ux * 0.04, py - uy * 0.04, hz], [px - ux * 0.04, py - uy * 0.04, hz + 0.13], [px - ux * 0.3, py - uy * 0.3, hz + 0.13], [px - ux * 0.3, py - uy * 0.3, hz]], 0.016, 0.04); }
+  const [tx, ty] = sl.top, z0 = TOP, po = w + 0.15;                                                     // way in: two posts on the plaza and a bar over the chute
+  const P2 = [-1, 1].map((sd) => [tx + nx * sd * po - ux * 0.1, ty + ny * sd * po - uy * 0.1]);
+  for (const [x, y] of P2) cyl(x, y, 0.045, z0, z0 + 1.25, M.w, 20);
+  bar([P2[0][0] + nx * 0.045, P2[0][1] + ny * 0.045, z0 + 1.0], [P2[1][0] - nx * 0.045, P2[1][1] - ny * 0.045, z0 + 1.0], 0.025);
+}
 function slideOn(pr) {   // chute lying on the bank, following its slope from the crest down to the ground (Ahmed)
   const [tx, ty] = pr[0], [bx, by] = pr[pr.length - 1], d = Math.hypot(bx - tx, by - ty), ux = (bx - tx) / d, uy = (by - ty) / d, nx = -uy, ny = ux, w = SLW / 2;
   const pos = [], idx = [], k = 0.18, lip = 0.22;
