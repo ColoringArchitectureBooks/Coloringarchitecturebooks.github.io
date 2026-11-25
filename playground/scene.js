@@ -281,7 +281,7 @@ function slideHill() {
   // outline of the zone on the surface
   const o = J.tent[0].o, near = (x, y) => { let best = 0, d = 1e9; for (const [vx, vy, vz] of v) { const e = (vx - x) ** 2 + (vy - y) ** 2; if (e < d) { d = e; best = vz; } } return best; };
   line3(o.map(([x, y]) => [x, y, near(x, y) + 0.14]), 0, true);
-  each(J.bank, (s) => prism(s, 0, TOP, M.pavers));                         // the high entrance plaza: behind the slides and the first leg of the house bridge (Ahmed)
+  each(J.bank, (s) => prism(s, 0, TOP, M.w));                              // the high entrance plaza, plain: no paver grid (Ahmed)
   for (const r of J.bankrail) rail(r.map(([x, y]) => [x, y, TOP]));       // railing where the plaza drops to the low level
   if (J.slides2) for (const sl of J.slides2) bankSlide(sl); else for (const pr of J.slideprof) slideOn(pr);
 }
