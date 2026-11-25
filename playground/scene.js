@@ -123,16 +123,20 @@ function bench(x, y, a) {   // park bench: seat, back, two legs
 }
 function lamp(x, y) { cyl(x, y, 0.09, 0, 7, M.w, 12); rbox(x, y, 0, 1.4, 0.25, 6.9, 7.1); }
 
-function ropeCone(x, y) {   // photo: blue rim disc, centre mast, rope net to the top, a blue ring half way up
-  const z0 = FL, r = 2.4, top = 5.2;
-  cyl(x, y, r, z0 + 0.25, z0 + 0.45); cyl(x, y, 0.4, z0, z0 + 0.25, M.w, 24);
-  cyl(x, y, 0.13, z0 + 0.45, top, M.w, 16); const cap = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.w); cap.position.copy(V(x, y, top)); add(cap, { hull: true });
-  const zr = z0 + 0.45 + (top - z0 - 0.45) * 0.4, rr = r * 0.6;   // the middle ring
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.06, 8, 48), M.w); ring.rotation.x = Math.PI / 2; ring.position.copy(V(x, y, zr)); add(ring, { hull: true, hw: 0.012 });
+function ropeCone(x, y) {   // cone spinner (Ahmed's photo; Playworld Cone Spinner sizes): 2.1 m floor disc, 2.46 m high, blue ring ~1.07 m over the floor; the mast stands still, disc and net turn on a bearing at the ground
+  const z0 = FL, r = 1.05, zd = z0 + 0.25, top = z0 + 2.46, rm = 0.075, rc = 0.11;
+  cyl(x, y, 0.22, z0, z0 + 0.17, M.w, 24); cyl(x, y, r - 0.05, z0 + 0.17, zd);   // bearing housing, then the floor disc on it, its edge held in a round blue rim tube (photo)
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(r - 0.05, 0.05, 10, 64), M.w); rim.rotation.x = Math.PI / 2; rim.position.copy(V(x, y, z0 + 0.21)); add(rim, { hull: true, hw: 0.012 });
+  cyl(x, y, rm, zd, top - 0.02, M.w, 16); const cap = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.w); cap.position.copy(V(x, y, top - 0.02)); add(cap, { hull: true });
+  const rk = (z) => r * 0.95 + (rc - r * 0.95) * (z - zd) / (top - 0.06 - zd);   // net radius at height z: from the disc edge to under the cap
+  const zr = zd + 1.07, rr = rk(zr) + 0.05;   // the blue ring sits just outside the net
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.035, 8, 48), M.w); ring.rotation.x = Math.PI / 2; ring.position.copy(V(x, y, zr)); add(ring, { hull: true, hw: 0.01 });
+  for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + Math.PI / 4, c = Math.cos(a), sn = Math.sin(a), l = rr - 0.035 - rm, sp = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, l, 8), M.w);   // spokes from mast to ring, stopping at both faces
+    sp.position.copy(V(x + c * (rm + l / 2), y + sn * (rm + l / 2), zr)); sp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(c, 0, -sn)); add(sp, { hull: true, hw: 0.008 }); }
   const p = [], n = 18;
-  for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; p.push(V(x + Math.cos(a) * r * 0.97, y + Math.sin(a) * r * 0.97, z0 + 0.45), V(x + Math.cos(a) * 0.15, y + Math.sin(a) * 0.15, top)); }
-  for (let k = 1; k < 7; k++) { const t = k / 7, z = z0 + 0.45 + t * (top - z0 - 0.45), rk = r * 0.97 * (1 - t) + 0.15 * t;
-    for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, b = (i + 1) / n * Math.PI * 2; p.push(V(x + Math.cos(a) * rk, y + Math.sin(a) * rk, z), V(x + Math.cos(b) * rk, y + Math.sin(b) * rk, z)); } }
+  for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; p.push(V(x + Math.cos(a) * r * 0.95, y + Math.sin(a) * r * 0.95, zd), V(x + Math.cos(a) * rc, y + Math.sin(a) * rc, top - 0.06)); }
+  for (let k = 1; k < 9; k++) { const z = zd + k / 9 * (top - 0.06 - zd), q = rk(z);
+    for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, b = (i + 1) / n * Math.PI * 2; p.push(V(x + Math.cos(a) * q, y + Math.sin(a) * q, z), V(x + Math.cos(b) * q, y + Math.sin(b) * q, z)); } }
   lines(p);
 }
 
