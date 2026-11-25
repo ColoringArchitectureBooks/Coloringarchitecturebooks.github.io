@@ -281,8 +281,7 @@ function slideHill() {
   // outline of the zone on the surface
   const o = J.tent[0].o, near = (x, y) => { let best = 0, d = 1e9; for (const [vx, vy, vz] of v) { const e = (vx - x) ** 2 + (vy - y) ** 2; if (e < d) { d = e; best = vz; } } return best; };
   line3(o.map(([x, y]) => [x, y, near(x, y) + 0.14]), 0, true);
-  each(J.bank, (s) => prism(s, 0, TOP, M.pavers));                         // the high entrance plaza: behind the slides and the first leg of the house bridge (Ahmed)
-  for (const r of J.bankrail) rail(r.map(([x, y]) => [x, y, TOP]));       // railing where the plaza drops to the low level
+  each(J.bank, (s) => prism(s, 0, TOP, M.w));                              // the high entrance plaza: plain, no paver grid; no railing round it (Ahmed)
   if (J.slides2) for (const sl of J.slides2) bankSlide(sl); else for (const pr of J.slideprof) slideOn(pr);
 }
 const SLW = 0.6;   // slide width (Ahmed: about 60 cm)
@@ -381,13 +380,13 @@ function slab(o, zf, th, mat) {   // a slab whose top follows zf(x, y) (a gently
   const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
   return add(new THREE.Mesh(g, mat));
 }
-function deck(p, z = TOP) {
+function deck(p, z = TOP, fence = true) {
   const zf = typeof z === "function" ? z : () => z;   // z: a level, or a function of (x, y) for a deck that slopes
   if (typeof z === "function") slab(p.o, zf, 0.25, M.deck); else prism(shp(p), z - 0.25, z, M.deck);
   const o = p.o, [x0, x1] = [Math.min(...o.map((q) => q[0])), Math.max(...o.map((q) => q[0]))], [y0, y1] = [Math.min(...o.map((q) => q[1])), Math.max(...o.map((q) => q[1]))];
   for (let x = x0 + 0.3; x < x1; x += 2.4) for (let y = y0 + 0.3; y < y1; y += 2.4) if (inPoly(o, x, y) && inEdge(x, y)) box(x - 0.1, x + 0.1, y - 0.1, y + 0.1, 0, zf(x - 0.1, y - 0.1) - 0.25);
   const L = [];
-  for (let i = 0; i < o.length; i++) { const a = o[i], b = o[(i + 1) % o.length]; if (!inEdge((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue;
+  if (fence) for (let i = 0; i < o.length; i++) { const a = o[i], b = o[(i + 1) % o.length]; if (!inEdge((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)) continue;
     const n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.15)), atHouse = (x, y) => x > 20.85 && x < 28.6 && y > 5.5 && y < 10.45;   // no fence where the bridge meets the playhouse (Ahmed)
     let prev = null;   // fence posts and top rail, broken where the bridge meets the playhouse or the rope bridge
     for (let k = 0; k <= n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, y = a[1] + (b[1] - a[1]) * k / n;
@@ -439,7 +438,8 @@ function houseArea() {   // the playhouse: mulch yard, symmetric house, half-rou
   { const o = J.h_bridge[0].o, A = [o[0], o[1], [RB.x0, RB.y0], [RB.x0, RB.y1], ...o.slice(9)], B = [[RB.x1, RB.y0], ...o.slice(4, 8), [RB.x1, RB.y1]];   // the house bridge in two decks, the rope bridge between them
     // Ahmed: the high level and the house's upper floor are both 2 m, so the bridge runs level (HF kept so it could slope if they ever differ)
     const HF = 2.6, yH = 9.81, yP = 20.26, zA = (x, y) => TOP + (HF - TOP) * Math.min(1, Math.max(0, (yP - y) / (yP - yH))), zR = zA(0, (RB.y0 + RB.y1) / 2);
-    deck({ o: A }, zA); deck({ o: B }, zR); ropeBridge(zR); }
+    deck({ o: A }, zA, false); deck({ o: B }, zR);   // no railing on the leg from the plaza (Ahmed)
+    ropeBridge(zR); }
   { const o = J.h_yard[0].o, i0 = o.findIndex((p) => p[0] === 20.791 && p[1] === 14.576), i1 = o.findIndex((p) => p[0] === 26.72 && p[1] === 10.228), P = [];   // no fence round the yard (Ahmed): a small curb like the garden beds', 15 cm wide, along its open edge
     for (let i = i0; ; i = (i + 1) % o.length) { P.push(o[i]); if (i === i1) break; }
     const w = 0.15, nrm = (a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy); return [dy / l, -dx / l]; };
