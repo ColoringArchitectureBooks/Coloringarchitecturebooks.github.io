@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<title>Playground 3D Model</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Deliberately single-theme: the model is a white coloring page, so the page stays paper-white. */
+  :root { --paper:#ffffff; --ink:#1a1a1a; --muted:#6b6b6b; --chip:#f3f3f1; --line:#d9d9d6; }
+  html, body { margin:0; height:100%; background:var(--paper); color:var(--ink); overflow:hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif; }
+  #c { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  html, body { touch-action:none; overscroll-behavior:none; }
+  header { position:fixed; top:0; left:0; right:0; padding:max(14px, env(safe-area-inset-top)) 16px 0;
+    pointer-events:none; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  h1 { margin:0; font-size:17px; font-weight:700; letter-spacing:.01em; }
+  .sub { margin-top:2px; font-size:13px; color:var(--muted); }
+  .bar { position:fixed; left:50%; transform:translateX(-50%); bottom:max(16px, env(safe-area-inset-bottom));
+    display:flex; gap:8px; }
+  button { font:inherit; font-size:14px; border:1.5px solid var(--ink); background:var(--paper); color:var(--ink);
+    border-radius:999px; padding:9px 16px; cursor:pointer; white-space:nowrap; }
+  button[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
+  .hint { position:fixed; left:0; right:0; bottom:calc(max(16px, env(safe-area-inset-bottom)) + 52px);
+    text-align:center; font-size:13px; color:var(--muted); pointer-events:none; transition:opacity .6s; }
+  #status { position:fixed; inset:0; display:grid; place-items:center; font-size:15px; color:var(--muted); }
+</style>
+
+<canvas id="c"></canvas>
+<header>
+  <div>
+    <h1>Playground 3D Model</h1>
+  </div>
+</header>
+<div id="status">Loading the playground…</div>
+<div class="hint" id="hint">Drag to turn the playground, pinch to zoom</div>
+<div class="bar">
+  <button id="v-front">Front</button>
+  <button id="v-aerial">Aerial</button>
+  <button id="v-top">Top</button>
+  <button id="spin" aria-pressed="false">Spin</button>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { mapTouch } from "./touch.js?v=2";
+import { buildScene, V } from "./scene.js?v=94";
+
+const canvas = document.getElementById("c");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.5, 3000);
+const controls = new OrbitControls(camera, canvas);
+const touch = mapTouch(controls, camera, canvas, scene);   // two fingers: turn like one finger, pinch to zoom toward the fingers
+controls.enableDamping = true; controls.minDistance = 3; controls.maxDistance = 1000;   // zoom out to see the whole site small (Ahmed)
+controls.maxPolarAngle = Math.PI / 2 - 0.03; controls.autoRotateSpeed = 1.0;
+
+// plan metres -> three (x, z, -y), (0, 0) = centre of the round playground.
+const VIEWS = {
+  start: { eye: [-4, -30, 16], tgt: [6, 14, 1] },   // from the south: spinning zone in front, slide bank and the playhouse behind
+  front: { eye: [8, -80, 58], tgt: [0, 4, 0] },        // like the aerial photo, from the south
+  top: { eye: [0, 4.5, 210], tgt: [0, 5, 0] },         // straight down, the whole site plan
+};
+function setView(v) { touch.stop(); camera.position.copy(V(...v.eye)); controls.target.copy(V(...v.tgt)); controls.update(); }
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.8 ? 60 : 32; camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", resize); resize();
+try { buildScene(scene); document.getElementById("status").remove(); }
+catch (e) { console.error(e); document.getElementById("status").textContent = "Couldn't load the model. Please refresh the page."; }
+{ const h = location.hash.match(/^#v=([-\d.,]+)$/);   // #v=ex,ey,ez,tx,ty,tz opens a given view (plan metres), handy for checking a spot
+  if (h) { const n = h[1].split(",").map(Number); setView({ eye: n.slice(0, 3), tgt: n.slice(3, 6) }); } else setView(VIEWS.start); }
+
+const spinBtn = document.getElementById("spin");
+spinBtn.onclick = () => { controls.autoRotate = !controls.autoRotate; spinBtn.setAttribute("aria-pressed", controls.autoRotate); };
+document.getElementById("v-front").onclick = () => { const h = location.hash.match(/^#v=([-\d.,]+)$/);   // #v=ex,ey,ez,tx,ty,tz opens a given view (plan metres), handy for checking a spot
+  if (h) { const n = h[1].split(",").map(Number); setView({ eye: n.slice(0, 3), tgt: n.slice(3, 6) }); } else setView(VIEWS.start); }
+document.getElementById("v-aerial").onclick = () => setView(VIEWS.front);
+document.getElementById("v-top").onclick = () => setView(VIEWS.top);
+const hint = document.getElementById("hint");
+controls.addEventListener("start", () => { hint.style.opacity = 0; }, { once: true });
+renderer.setAnimationLoop(() => { controls.update();
+  { const d = camera.position.distanceTo(controls.target), n = Math.max(0.5, d * 0.01), f = d * 3 + 700;   // depth range follows the zoom, so far views keep clean lines
+    if (Math.abs(camera.near - n) > 0.01 || Math.abs(camera.far - f) > 1) { camera.near = n; camera.far = f; camera.updateProjectionMatrix(); } }
+  renderer.render(scene, camera); });
+</script>

@@ -27,3 +27,14 @@ How to use it:
    `hasTouch: true, isMobile: true`) before shipping.
 
 `shared/touch.js` is the master copy (same as `supermarket/touch.js`). Improve it there and copy it out.
+
+## Clean geometry: no overlaps (always, every 3D model)
+
+Ahmed wants every 3D model clean, like a real build: parts meet, they never pass through each other.
+
+- Walls butt at corners (one wall runs through, the other stops at its face); no two walls share a corner block.
+- Things that sit on something start exactly on its top face; posts stop at the underside of what they carry.
+- Trims, frames, brackets, rails stop at the face they meet (rails run post to post, not through the posts).
+- Crossing bars (lattices, grids) sit in two layers, never in the same plane.
+- No coplanar faces from two pieces (they flicker and draw stray lines); no extra lines where pieces meet.
+- Before shipping, look at close-up renders of every joint and fix any piece poking through another.
